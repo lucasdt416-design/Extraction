@@ -24,12 +24,70 @@ top-down shooter. It's core, not a stretch goal.
 
 ### Build order
 
-1. Player movement + aiming + shooting that feels decent.
+1. Player movement + aiming + shooting that feels decent. — **done**
 2. The extraction loop end to end: insert → pick up items → extract zone → stash persists.
-3. Basic hostile AI (patrol → detect → chase → shoot) so raids have threat.
+   — **not started, and now the critical path**
+3. Basic hostile AI (patrol → detect → chase → shoot) so raids have threat. — **done**
 4. Everything else.
 
-Steps 1–3 are the MVP. *(Assumption on my part — say so if you'd rather reorder.)*
+Steps 1–3 are the MVP. Step 2 is what makes this an *extraction* shooter rather than a
+top-down shooter with no stakes, so it comes before any more combat polish.
+
+## Where the project is now
+
+Combat works; the loop doesn't exist yet. Everything below is playable in `main.tscn`.
+
+### Built and working
+
+- **Input pipeline.** `input_frame.gd` defines the `InputFrame` struct.
+  `player_input_source.gd` is the only place in the project that reads `Input` or the
+  mouse. `movement.gd` (`Movement.apply`) is the only place that touches `velocity` or
+  `rotation`. The player and the AI both produce `InputFrame`s and both move through
+  `Movement.apply` — rule 1 below, in practice rather than in theory.
+- **Player** (`player.gd`). WASD movement, faces the mouse cursor continuously,
+  auto-fires while left mouse is held. Has health and `take_damage()`, and emits `died`
+  at 0 HP — which nothing consumes yet, so the player currently plays on past death.
+- **Shooting** (`weapon.gd`, `bullet.gd`). `Weapon` owns fire-rate timing and bullet
+  spawning and is shared by the player and the AI, so both fire by identical rules.
+  `Bullet` is an `Area2D` built entirely in code — no `.tscn` — drawn as a white line
+  by `_draw()`. Its collider is deliberately sized to cover a full physics tick of
+  travel so fast shots can't tunnel past a target between frames. Damage is routed by
+  `has_method("take_damage")`, not by class or group, so anything damageable works
+  without editing `bullet.gd`.
+- **Enemy AI** (`enemy.gd`). Seeded wander around its spawn point; on spotting the
+  player *or* being shot it commits to CHASE for at least `min_chase_time`, holds a
+  ring at `orbit_radius`, strafes along it with a randomized direction flip, and fires
+  with seeded spread. Has health, dies, emits `died`.
+- **Seeded randomness** (`game_manager.gd`). `GameManager.rng` is seeded from
+  `run_seed`; each enemy derives its own stream from it at `_ready`. It is currently
+  seeded to 0, so every run plays out identically — good for debugging. Call
+  `seed_run(randi())` from `start_new_run()` when raids should vary.
+
+### Not built yet
+
+Everything the extraction loop needs. These are still the original scaffold stubs with
+`TODO` comments and `pass` bodies — treat the comments inside them as the spec:
+
+- `game_manager.gd` — `extract_success()`, `player_died()`, `start_new_run()`
+- `extraction_zone.gd` — the hold timer
+- `loot_item.gd` — pickup
+- `hud.gd` — loot count and extraction countdown
+
+Also absent: stash persistence to disk, any menu or results scene, any map beyond
+`main.tscn`, and any consumer for the `died` signals on either the player or enemies.
+
+### Known shortcuts
+
+Fine for now, but don't mistake them for finished work:
+
+- **Everything is on collision layer 1.** Self-hits are prevented by `Bullet.shooter`
+  and friendly fire by `Bullet.ignore_group`, not by layers. Real named layers
+  (player / enemy / bullet / world) are worth doing once there's level geometry.
+- **Enemy detection is pure distance** — no line of sight, so they "see" through walls.
+  There are no walls yet, so nothing is wrong today.
+- **Input map** has `move_left/right/up/down` (WASD) and `shoot` (left mouse). There is
+  no `interact` action yet; `loot_item.gd` will need one.
+- `README.md` still has a placeholder title (`[Your Game Name]`) and no screenshot.
 
 ## Decisions already made
 
@@ -95,6 +153,24 @@ outcomes.
 
 ## Project layout
 
+What actually exists today:
+
+```
+main.tscn            # the raid scene — player, enemies, nothing else yet
+player.tscn
+enemy.tscn
+icon.svg             # placeholder sprite for both player and enemies
+project.godot
+scripts/
+  autoload/
+    game_manager.gd  # registered as the GameManager autoload
+  bullet.gd  enemy.gd  hud.gd  input_frame.gd  loot_item.gd
+  movement.gd  player.gd  player_input_source.gd  weapon.gd
+  extraction_zone.gd
+```
+
+Where it's heading, as the project grows:
+
 ```
 scenes/      # .tscn files
 scripts/     # .gd files
@@ -105,7 +181,9 @@ assets/      # art, audio, fonts
 addons/      # third-party plugins
 ```
 
-Create these as needed — most don't exist yet. Keep `res://` root clean.
+Create these as needed. The `.tscn` files still sit at `res://` root; move them into
+`scenes/` from Godot's own FileSystem dock rather than on disk, so it can fix up the
+resource paths for you.
 
 ## Conventions
 
