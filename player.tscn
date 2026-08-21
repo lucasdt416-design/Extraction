@@ -5,7 +5,7 @@
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_2lm1u"]
 
-[node name="Player" type="CharacterBody2D" unique_id=604438212 groups=["Player"]]
+[node name="Player" type="CharacterBody2D" unique_id=604438212 groups=["player"]]
 script = ExtResource("1_4flbx")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=491089687]

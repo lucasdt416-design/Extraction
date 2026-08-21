@@ -1,0 +1,26 @@
+# Godot 4+ editor cache — machine-local, regenerated on open. Never commit.
+.godot/
+
+# Godot 3 leftover / import cache
+.import/
+
+# Export config (contains local paths and, for Android, keystore passwords)
+export.cfg
+export_presets.cfg
+
+# Auto-generated from CSV translation files
+*.translation
+
+# Android build template
+/android/
+
+# Mono / .NET (unused here — standard build — but harmless to keep)
+.mono/
+data_*/
+mono_crash.*.json
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+*~

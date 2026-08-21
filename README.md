@@ -1,6 +1,7 @@
-# [Shooter] - Extraction Shooter
+# [Your Game Name] - Extraction Shooter
 
-A 2D top-down extraction shooter built in Godot 4. Loot the map, avoid enemies, and reach extraction before time runs out — die, and you lose everything you collected.
+A 2D top-down extraction shooter built in Godot 4. Loot the map, avoid enemies, 
+and reach extraction before time runs out, you die, and you lose everything you collected.
 
 ## How to Play
 - WASD to move

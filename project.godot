@@ -10,15 +10,23 @@ config_version=5
 
 [application]
 
-config/name="Test"
+config/name="Extraction"
 run/main_scene="uid://bdyigy4fvbvtr"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameManager="*res://scripts/autoload/game_manager.gd"
 
 [display]
 
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[dotnet]
+
+project/assembly_name="Test"
 
 [input]
 
