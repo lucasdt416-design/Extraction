@@ -4,8 +4,9 @@
 [ext_resource type="Texture2D" uid="uid://d257ffddlidy4" path="res://icon.svg" id="2_qi2p4"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_2lm1u"]
+radius = 21.333334
 
-[node name="Enemy" type="CharacterBody2D" unique_id=161729014]
+[node name="Enemy" type="CharacterBody2D" unique_id=161729014 groups=["enemy"]]
 script = ExtResource("1_4gyqm")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=66870658]
@@ -13,4 +14,5 @@ shape = SubResource("CircleShape2D_2lm1u")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1401562647]
 rotation = 0.043383718
+scale = Vector2(0.33333334, 0.33333334)
 texture = ExtResource("2_qi2p4")

@@ -10,4 +10,9 @@ position = Vector2(454.00003, 79.00001)
 rotation = 0.15839963
 
 [node name="Enemy" parent="." unique_id=161729014 instance=ExtResource("2_h2yge")]
+position = Vector2(245.00002, 476)
 rotation = -0.06788102
+
+[node name="Enemy2" parent="." unique_id=1453221059 instance=ExtResource("2_h2yge")]
+position = Vector2(959.00006, 486)
+rotation = -0.13576204

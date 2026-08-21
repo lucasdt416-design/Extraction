@@ -14,6 +14,22 @@ var stash: Array = []
 func add_loot_to_run(item_name: String, value: int) -> void:
 	current_run_loot.append({"name": item_name, "value": value})
 
+# --- Seeded randomness (CLAUDE.md rule 4) ---
+# Anything random in a raid -- loot rolls, weapon spread, AI wander -- pulls
+# from this, never from bare randf(). Same seed in, same raid out, which is
+# what makes bugs reproducible now and host/client agreement possible later.
+var run_seed: int = 0
+var rng := RandomNumberGenerator.new()
+
+func _ready() -> void:
+	seed_run(run_seed)
+
+# Call this from start_new_run() once you want raids to vary:
+#   GameManager.seed_run(randi())
+func seed_run(new_seed: int) -> void:
+	run_seed = new_seed
+	rng.seed = run_seed
+
 # TODO: your logic here
 # Ideas to implement:
 # 1. extract_success() -> called when player reaches extraction zone and timer completes

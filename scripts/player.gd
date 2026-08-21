@@ -1,18 +1,61 @@
 extends CharacterBody2D
 
-# --- SCAFFOLD: movement is done for you, don't need to touch this ---
+# Emitted once when health reaches zero. Nothing consumes it yet -- wiring it
+# to GameManager.player_died() is the TODO in game_manager.gd.
+signal died
 
 @export var speed: float = 220.0
 
-func _physics_process(_delta: float) -> void:
-	var input_dir := Vector2.ZERO
-	input_dir.x = Input.get_axis("move_left", "move_right")
-	input_dir.y = Input.get_axis("move_up", "move_down")
-	input_dir = input_dir.normalized()
+@export_group("Health")
+@export var max_health: int = 5
 
-	velocity = input_dir * speed
-	move_and_slide()
+@export_group("Weapon")
+# Seconds between shots while the fire button is held down.
+@export var fire_interval: float = 0.12
+@export var bullet_speed: float = 900.0
+@export var bullet_range: float = 900.0
+@export var bullet_length: float = 14.0
+@export var bullet_damage: int = 1
+# Clear of our own collider (radius ~21), so shots don't start inside us.
+@export var muzzle_offset: float = 28.0
+# Where bullets get parented. Leave empty to use our own parent.
+@export var bullet_container_path: NodePath
 
-	# Rotate player to face movement direction (feels better for top-down)
-	if input_dir.length() > 0.1:
-		rotation = input_dir.angle()
+var health: int = 0
+
+var input_source := PlayerInputSource.new()
+var weapon := Weapon.new()
+
+func _ready() -> void:
+	health = max_health
+
+	weapon.fire_interval = fire_interval
+	weapon.bullet_speed = bullet_speed
+	weapon.bullet_range = bullet_range
+	weapon.bullet_length = bullet_length
+	weapon.bullet_damage = bullet_damage
+	weapon.muzzle_offset = muzzle_offset
+
+func _physics_process(delta: float) -> void:
+	var frame := input_source.poll(self)
+
+	Movement.apply(self, frame, speed)
+
+	weapon.tick(delta)
+	if frame.shoot:
+		weapon.fire(_bullet_container(), self, frame.aim)
+
+# The one place player health changes (CLAUDE.md rule 2).
+func take_damage(amount: int, _from: Node = null) -> void:
+	if health <= 0:
+		return
+
+	health -= amount
+
+	if health <= 0:
+		died.emit()
+
+func _bullet_container() -> Node:
+	if bullet_container_path.is_empty():
+		return get_parent()
+	return get_node(bullet_container_path)
