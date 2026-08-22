@@ -7,9 +7,8 @@ extends StaticBody2D
 # It blocks all three things without any of them needing to know what a Wall is:
 #   - player and enemies, because they move with move_and_slide() and we are a
 #     StaticBody2D in their way
-#   - bullets, because Bullet.queue_free()s on any body it touches, damageable
-#     or not -- "solid things stop the shot whether or not they could be hurt
-#     by it", already in bullet.gd
+#   - shots, because we sit on `world`, which is in CollisionLayers.SHOOTABLE:
+#     a hitscan ray stops on the first body it finds there, damageable or not
 #
 # @tool so the rectangle you drag out in the editor is the rectangle the game
 # runs with. Size drives the collider AND the drawn box from one number, so the

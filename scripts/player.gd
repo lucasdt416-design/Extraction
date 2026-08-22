@@ -13,18 +13,19 @@ signal died
 @export_group("Weapon")
 # Seconds between shots while the fire button is held down.
 @export var fire_interval: float = 0.12
-@export var bullet_speed: float = 900.0
-@export var bullet_range: float = 900.0
-@export var bullet_length: float = 14.0
-@export var bullet_damage: int = 1
+# Shots are hitscan -- this is how far one carries, not how fast it flies.
+@export var shot_range: float = 900.0
+@export var shot_damage: int = 1
 # Clear of our own collider (radius ~21), so shots don't start inside us.
 @export var muzzle_offset: float = 28.0
-# Where bullets get parented. Leave empty to use our own parent.
-@export var bullet_container_path: NodePath
+# How long the shot's tracer lingers, in seconds. Cosmetic; 0.0 draws none.
+@export var tracer_lifetime: float = 0.05
+# Where tracers get parented. Leave empty to use our own parent.
+@export var tracer_container_path: NodePath
 
 var health: int = 0
 # Once true the player stops acting, but stays in the world: the body is still
-# there, enemies still simulate around it, bullets still fly. Only this client's
+# there, enemies still simulate around it and still shoot. Only this client's
 # view goes dark. Nothing here stops or pauses anyone else.
 var is_dead: bool = false
 
@@ -35,11 +36,10 @@ func _ready() -> void:
 	health = max_health
 
 	weapon.fire_interval = fire_interval
-	weapon.bullet_speed = bullet_speed
-	weapon.bullet_range = bullet_range
-	weapon.bullet_length = bullet_length
-	weapon.bullet_damage = bullet_damage
+	weapon.shot_range = shot_range
+	weapon.damage = shot_damage
 	weapon.muzzle_offset = muzzle_offset
+	weapon.tracer_lifetime = tracer_lifetime
 
 func _physics_process(delta: float) -> void:
 	if is_dead:
@@ -55,7 +55,7 @@ func _physics_process(delta: float) -> void:
 
 	weapon.tick(delta)
 	if frame.shoot:
-		weapon.fire(_bullet_container(), self, frame.aim)
+		weapon.fire(_tracer_container(), self, frame.aim)
 
 # The one place player health changes (CLAUDE.md rule 2).
 func take_damage(amount: int, _from: Node = null) -> void:
@@ -70,7 +70,7 @@ func take_damage(amount: int, _from: Node = null) -> void:
 		died.emit()
 		GameManager.player_died(self)
 
-func _bullet_container() -> Node:
-	if bullet_container_path.is_empty():
+func _tracer_container() -> Node:
+	if tracer_container_path.is_empty():
 		return get_parent()
-	return get_node(bullet_container_path)
+	return get_node(tracer_container_path)

@@ -7,15 +7,18 @@ extends RefCounted
 #
 # .tscn files can't reference these constants -- a scene stores a raw integer --
 # so the bodies set their layer and mask in the inspector and only code that
-# builds colliders at runtime (Bullet) or casts rays (Enemy sight) uses these.
-# If you renumber anything here, the four scenes have to move with it.
+# casts rays (Hitscan shots, Enemy sight) uses these. If you renumber anything
+# here, the scenes have to move with it.
 
 const WORLD: int = 1 << 0    # 1 -- walls; anything solid, static and sight-blocking
 const PLAYER: int = 1 << 1   # 2
 const ENEMY: int = 1 << 2    # 4
+# Nothing occupies this today -- shots are hitscan rays, not bodies -- but the
+# number is named in project.godot and reserved for anything projectile-shaped
+# we add later (grenades, rockets).
 const BULLET: int = 1 << 3   # 8
 
-# Everything a bullet is allowed to stop on. Note this includes ENEMY and PLAYER
-# both: bullets do NOT filter friendly fire by layer, because the player and the
-# AI share one Weapon. That's still Bullet.shooter and Bullet.ignore_group's job.
+# Everything a shot is allowed to stop on. Note this includes ENEMY and PLAYER
+# both: shots do NOT filter friendly fire by layer, because the player and the
+# AI share one Weapon. That's Hitscan's shooter/ignore_group arguments' job.
 const SHOOTABLE: int = WORLD | PLAYER | ENEMY

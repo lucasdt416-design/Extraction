@@ -45,19 +45,34 @@ enum State { PATROL, CHASE }
 # How long we strafe one way before reversing.
 @export var strafe_flip_min: float = 0.8
 @export var strafe_flip_max: float = 2.2
-# Aim error, so a pack doesn't land every shot on the same pixel.
-@export var spread_degrees: float = 6.0
+# Aim error, so a pack doesn't land every shot on the same pixel. Wide enough
+# that a burst sprays rather than stacks -- an enemy that hits with all three
+# shots every time is not survivable at this fire rate.
+@export var spread_degrees: float = 25.0
 
 @export_group("Weapon")
-@export var fire_interval: float = 0.9
-@export var bullet_speed: float = 550.0
-@export var bullet_range: float = 700.0
-@export var bullet_length: float = 14.0
-@export var bullet_damage: int = 1
+# Enemies fire in bursts: burst_size shots burst_shot_interval apart, then a
+# burst_delay pause before the next one. The pause is armed up front, so the
+# first burst after spotting the player costs the same wind-up as every one
+# after it -- that gap is the player's window to close, break away, or shoot
+# first. It only runs down while we have someone to shoot at, and breaking
+# line of sight pauses it rather than resetting it.
+@export var burst_size: int = 3
+# Spacing between the shots inside one burst.
+@export var burst_shot_interval: float = 0.12
+# Between bursts, rolled from our own seeded stream so a pack doesn't fire in
+# unison.
+@export var burst_delay_min: float = 1.8
+@export var burst_delay_max: float = 3.0
+# Shots are hitscan -- this is how far one carries, not how fast it flies.
+@export var shot_range: float = 700.0
+@export var shot_damage: int = 1
 # Clear of our own collider (radius ~21), so shots don't start inside us.
 @export var muzzle_offset: float = 28.0
-# Where bullets get parented. Leave empty to use our own parent.
-@export var bullet_container_path: NodePath
+# How long the shot's tracer lingers, in seconds. Cosmetic; 0.0 draws none.
+@export var tracer_lifetime: float = 0.05
+# Where tracers get parented. Leave empty to use our own parent.
+@export var tracer_container_path: NodePath
 
 @export_group("Patrol")
 @export var patrol_radius: float = 160.0
@@ -98,6 +113,11 @@ var _player: Node2D = null
 # reused by _think_chase, which needs the same answer to decide whether to
 # shoot -- casting it twice a tick would just cost twice.
 var _has_los: bool = false
+# Shots left in the burst we're currently firing; 0 means we're between bursts.
+var _burst_left: int = 0
+# Time until the next burst may start. Only counts down while we actually have
+# something to shoot at, and is never reset short of a burst being spent.
+var _burst_delay: float = 0.0
 var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
@@ -112,13 +132,15 @@ func _ready() -> void:
 	_strafe_sign = 1.0 if _rng.randf() < 0.5 else -1.0
 	_strafe_time = _rng.randf_range(strafe_flip_min, strafe_flip_max)
 
-	weapon.fire_interval = fire_interval
-	weapon.bullet_speed = bullet_speed
-	weapon.bullet_range = bullet_range
-	weapon.bullet_length = bullet_length
-	weapon.bullet_damage = bullet_damage
+	weapon.fire_interval = burst_shot_interval
+	weapon.shot_range = shot_range
+	weapon.damage = shot_damage
 	weapon.muzzle_offset = muzzle_offset
+	weapon.tracer_lifetime = tracer_lifetime
 	weapon.ignore_group = &"enemy"
+
+	# Armed before the first shot, not after it.
+	_arm_burst_delay()
 
 	_pick_patrol_target()
 
@@ -130,13 +152,43 @@ func _physics_process(delta: float) -> void:
 	Movement.apply(self, frame, current_speed)
 
 	weapon.tick(delta)
-	# can_fire() first so we only roll spread on shots we actually take --
-	# otherwise the seeded stream advances once per tick just to be discarded.
-	if frame.shoot and weapon.can_fire():
-		weapon.fire(_bullet_container(), self, _with_spread(frame.aim))
+	_update_burst(delta, frame.shoot)
+	# frame.shoot is checked here and not only in _update_burst: a loaded burst
+	# outlives losing the player, so this is what actually holds fire while
+	# they're behind a wall. can_fire() before _with_spread so we only roll
+	# spread on shots we actually take -- otherwise the seeded stream advances
+	# once per tick just to be discarded.
+	if frame.shoot and _burst_left > 0 and weapon.can_fire():
+		# Only a shot that actually left the barrel counts against the burst.
+		if weapon.fire(_tracer_container(), self, _with_spread(frame.aim)):
+			_burst_left -= 1
+			if _burst_left <= 0:
+				_arm_burst_delay()
 
-# The one place enemy health changes (CLAUDE.md rule 2). Bullets call this
-# because we answer has_method("take_damage"), not because they know what an
+# Burst state, driven by whether _think_chase found something worth shooting at
+# this tick. `has_target` already accounts for range and line of sight.
+func _update_burst(delta: float, has_target: bool) -> void:
+	# Contact broken -- out of range, or the player stepped behind a wall. The
+	# clock freezes exactly where it is: an unfinished burst stays loaded and a
+	# part-spent delay stays part-spent, so stepping back out resumes where we
+	# left off instead of buying a fresh wind-up.
+	if not has_target:
+		return
+
+	# Mid-burst: the shots inside it are paced by the weapon's own cooldown.
+	if _burst_left > 0:
+		return
+
+	_burst_delay = maxf(_burst_delay - delta, 0.0)
+	if _burst_delay <= 0.0:
+		_burst_left = burst_size
+
+# Rolled once per burst, as that burst's last shot goes out.
+func _arm_burst_delay() -> void:
+	_burst_delay = _rng.randf_range(burst_delay_min, burst_delay_max)
+
+# The one place enemy health changes (CLAUDE.md rule 2). Weapon calls this
+# because we answer has_method("take_damage"), not because it knows what an
 # Enemy is -- anything else damageable just needs the same method.
 func take_damage(amount: int, _from: Node = null) -> void:
 	if is_dead:
@@ -166,7 +218,7 @@ func _die() -> void:
 
 	# Deferred because we may be inside a physics callback right now, and the
 	# space is locked while it runs. Dropping off both layer and mask is what
-	# makes bullets pass through us and lets the living walk over us; with the
+	# makes shots pass through us and lets the living walk over us; with the
 	# collider left on, every corpse would soak shots meant for the enemy
 	# behind it.
 	set_deferred("collision_layer", 0)
@@ -243,10 +295,10 @@ func _think_chase(delta: float) -> InputFrame:
 	# Movement.apply turns aim into our facing.
 	frame.aim = toward
 	# Don't burn shots that fall short: a long-range hit now drags us into
-	# CHASE from well outside our own bullet range. And don't fire into a wall
+	# CHASE from well outside our own weapon range. And don't fire into a wall
 	# we can't see past -- while hunting a player who broke line of sight we
 	# still advance and aim, we just hold fire.
-	frame.shoot = distance <= bullet_range and _has_los
+	frame.shoot = distance <= shot_range and _has_los
 
 	_strafe_time -= delta
 	if _strafe_time <= 0.0:
@@ -310,10 +362,10 @@ func _pick_patrol_target() -> void:
 	_patrol_target = _home + Vector2.RIGHT.rotated(angle) * distance
 	_leg_time = 0.0
 
-func _bullet_container() -> Node:
-	if bullet_container_path.is_empty():
+func _tracer_container() -> Node:
+	if tracer_container_path.is_empty():
 		return get_parent()
-	return get_node(bullet_container_path)
+	return get_node(tracer_container_path)
 
 func _find_player() -> Node2D:
 	# Re-acquire if the player died or hasn't spawned yet. Group lookup rather

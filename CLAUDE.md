@@ -47,24 +47,36 @@ Combat works; the loop doesn't exist yet. Everything below is playable in `main.
 - **Player** (`player.gd`). WASD movement, faces the mouse cursor continuously,
   auto-fires while left mouse is held. Has health and `take_damage()`, and emits `died`
   at 0 HP — which nothing consumes yet, so the player currently plays on past death.
-- **Shooting** (`weapon.gd`, `bullet.gd`). `Weapon` owns fire-rate timing and bullet
-  spawning and is shared by the player and the AI, so both fire by identical rules.
-  `Bullet` is an `Area2D` built entirely in code — no `.tscn` — drawn as a white line
-  by `_draw()`. Its collider is deliberately sized to cover a full physics tick of
-  travel so fast shots can't tunnel past a target between frames. Damage is routed by
-  `has_method("take_damage")`, not by class or group, so anything damageable works
-  without editing `bullet.gd`.
+- **Shooting** (`weapon.gd`, `hitscan.gd`, `tracer.gd`). Shots are **hitscan**: there
+  is no projectile node and no travel time. `Hitscan.resolve()` casts one ray along
+  the aim line and returns the first body that stops it, passing through the shooter
+  and through anything in the weapon's `ignore_group`. `Weapon` owns fire-rate timing
+  and applies the damage, and is shared by the player and the AI, so both fire by
+  identical rules. Because a shot resolves on the tick it is fired, nothing can tunnel
+  past a target between frames. Damage is routed by `has_method("take_damage")`, not
+  by class or group, so anything damageable works without editing `weapon.gd`.
+  `Tracer` is the only visual: a white streak along the resolved path that fades over
+  `tracer_lifetime` seconds and frees itself. It has no collider and decides nothing;
+  set `tracer_lifetime` to 0 and no tracer is spawned.
 - **Enemy AI** (`enemy.gd`). Seeded wander around its spawn point; on spotting the
   player *or* being shot it commits to CHASE for at least `min_chase_time`, holds a
-  ring at `orbit_radius`, strafes along it with a randomized direction flip, and fires
-  with seeded spread. Has health, dies, emits `died`. A dead enemy is not freed:
+  ring at `orbit_radius`, and strafes along it with a randomized direction flip.
+  Fire is **burst-based**: `burst_size` shots `burst_shot_interval` apart, at 25° of
+  seeded spread, then a `burst_delay_min`–`burst_delay_max` pause rolled from the
+  enemy's own stream. The pause is armed before the first burst too, so spotting the
+  player buys you a second or two before anything is coming at you. Losing range or
+  line of sight holds fire and freezes the burst clock where it is — an unfinished
+  burst stays loaded, so breaking sight buys you the shots you hid from, not a fresh
+  wind-up. Has health, dies, emits `died`.
+  A dead enemy is not freed:
   it stays put as an inert red corpse with its collision layer and mask zeroed,
   so shots pass through it and the living can walk over it.
 - **Collision layers** (`collision_layers.gd`, named in `project.godot`).
   `world` is walls, and it is also what blocks enemy sight; `player` and `enemy`
-  collide with the world and with each other; `bullet` masks all three. Scenes set
-  their own layer/mask in the inspector — a `.tscn` stores a raw integer and can't
-  reference the constants, so the two have to be renumbered together.
+  collide with the world and with each other; `bullet` is currently unused, since
+  shots are rays rather than bodies. Scenes set their own layer/mask in the
+  inspector — a `.tscn` stores a raw integer and can't reference the constants, so
+  the two have to be renumbered together.
 - **Line of sight** (`enemy.gd`). One raycast per enemy per tick against
   `sight_blocker_mask`, cached in `_has_los`. Enemies only notice the player down a
   clear line, hold fire when the line breaks, and give up `min_chase_time` after
@@ -96,9 +108,10 @@ signal.
 Fine for now, but don't mistake them for finished work:
 
 - **Friendly fire is filtered in code, not by layers.** Named layers exist now
-  (`world` / `player` / `enemy` / `bullet`, see `collision_layers.gd`), but bullets
-  still mask *both* factions and spare their own side via `Bullet.shooter` and
-  `Bullet.ignore_group` — because the player and the AI share one `Weapon`.
+  (`world` / `player` / `enemy` / `bullet`, see `collision_layers.gd`), but a shot
+  still masks *both* factions (`CollisionLayers.SHOOTABLE`) and spares its own side
+  via `Hitscan.resolve()`'s `shooter` and `ignore_group` arguments — because the
+  player and the AI share one `Weapon`.
 - **Line of sight is a single centre-to-centre ray.** No corner peeking: an enemy
   is either fully aware of you or fully blind, and a player standing half-exposed
   at a corner reads as hidden. Three rays (centre + both flanks) is the usual fix
@@ -183,10 +196,10 @@ project.godot
 scripts/
   autoload/
     game_manager.gd  # registered as the GameManager autoload
-  bullet.gd  collision_layers.gd  death_screen.gd  enemy.gd  hud.gd
+  collision_layers.gd  death_screen.gd  enemy.gd  hitscan.gd  hud.gd
   input_frame.gd  loot_item.gd
-  movement.gd  player.gd  player_camera.gd  player_input_source.gd  wall.gd
-  weapon.gd
+  movement.gd  player.gd  player_camera.gd  player_input_source.gd  tracer.gd
+  wall.gd  weapon.gd
   extraction_zone.gd
 ```
 
