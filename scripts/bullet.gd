@@ -24,6 +24,16 @@ var _direction: Vector2 = Vector2.RIGHT
 var _travelled: float = 0.0
 
 func _ready() -> void:
+	# Set here rather than in a scene because bullets have no .tscn to set them
+	# in. SHOOTABLE is world + player + enemy: walls stop us, and both factions
+	# are hittable, since who we spare is decided by shooter/ignore_group below
+	# and not by layers.
+	collision_layer = CollisionLayers.BULLET
+	collision_mask = CollisionLayers.SHOOTABLE
+	# Nothing in the game looks for bullets, so don't advertise ourselves to
+	# other areas' queries.
+	monitorable = false
+
 	_build_collider()
 	body_entered.connect(_on_body_entered)
 	# Nothing here wants mouse picking; skip the per-bullet hit testing.

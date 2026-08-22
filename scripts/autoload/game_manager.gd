@@ -5,6 +5,13 @@ extends Node
 # --- Use it to track things that need to survive between the raid ---
 # --- scene and the results/menu scenes. ---
 
+# Emitted when the local player dies. UI and future scene flow hang off this.
+signal local_player_died
+
+# The local "you died" blackout, if one is up. Local view only -- never part of
+# the raid state that would have to agree between host and client.
+var _death_screen: DeathScreen = null
+
 # Loot the player is currently carrying DURING a raid (lost if they die)
 var current_run_loot: Array = []
 
@@ -30,15 +37,39 @@ func seed_run(new_seed: int) -> void:
 	run_seed = new_seed
 	rng.seed = run_seed
 
+# Called by the local player when its health hits zero. This is the one place
+# that reacts to a player death (CLAUDE.md rule 2) -- the player node itself
+# only reports the fact.
+#
+# Deliberately does NOT pause the tree or change scene: the raid keeps
+# simulating around the dead player, which is how it has to behave once a
+# second player is in the same raid. Death is a local view change, not a world
+# state change.
+func player_died(_player: Node = null) -> void:
+	if is_instance_valid(_death_screen):
+		return
+
+	# Carried loot is lost. That's the whole risk/reward of an extraction raid.
+	current_run_loot.clear()
+
+	local_player_died.emit()
+
+	_death_screen = DeathScreen.new()
+	add_child(_death_screen)
+
+# Takes the blackout back down. Call this when a new raid starts.
+func clear_death_screen() -> void:
+	if is_instance_valid(_death_screen):
+		_death_screen.queue_free()
+	_death_screen = null
+
 # TODO: your logic here
 # Ideas to implement:
 # 1. extract_success() -> called when player reaches extraction zone and timer completes
 #    - move everything from current_run_loot into stash
 #    - clear current_run_loot
 #    - change_scene_to_file() to your results/menu scene
-# 2. player_died() -> called when player health hits 0
-#    - clear current_run_loot (they lose it, that's the risk/reward!)
-#    - change_scene_to_file() to a "you died" or menu scene
-# 3. start_new_run() -> called when starting a new raid from the menu
+# 2. start_new_run() -> called when starting a new raid from the menu
 #    - clear current_run_loot
+#    - clear_death_screen()
 #    - change_scene_to_file() to your main map scene

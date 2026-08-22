@@ -57,7 +57,19 @@ Combat works; the loop doesn't exist yet. Everything below is playable in `main.
 - **Enemy AI** (`enemy.gd`). Seeded wander around its spawn point; on spotting the
   player *or* being shot it commits to CHASE for at least `min_chase_time`, holds a
   ring at `orbit_radius`, strafes along it with a randomized direction flip, and fires
-  with seeded spread. Has health, dies, emits `died`.
+  with seeded spread. Has health, dies, emits `died`. A dead enemy is not freed:
+  it stays put as an inert red corpse with its collision layer and mask zeroed,
+  so shots pass through it and the living can walk over it.
+- **Collision layers** (`collision_layers.gd`, named in `project.godot`).
+  `world` is walls, and it is also what blocks enemy sight; `player` and `enemy`
+  collide with the world and with each other; `bullet` masks all three. Scenes set
+  their own layer/mask in the inspector — a `.tscn` stores a raw integer and can't
+  reference the constants, so the two have to be renumbered together.
+- **Line of sight** (`enemy.gd`). One raycast per enemy per tick against
+  `sight_blocker_mask`, cached in `_has_los`. Enemies only notice the player down a
+  clear line, hold fire when the line breaks, and give up `min_chase_time` after
+  losing contact rather than after a fixed commitment. Being shot from out of sight
+  still pulls them into CHASE.
 - **Seeded randomness** (`game_manager.gd`). `GameManager.rng` is seeded from
   `run_seed`; each enemy derives its own stream from it at `_ready`. It is currently
   seeded to 0, so every run plays out identically — good for debugging. Call
@@ -68,23 +80,29 @@ Combat works; the loop doesn't exist yet. Everything below is playable in `main.
 Everything the extraction loop needs. These are still the original scaffold stubs with
 `TODO` comments and `pass` bodies — treat the comments inside them as the spec:
 
-- `game_manager.gd` — `extract_success()`, `player_died()`, `start_new_run()`
+- `game_manager.gd` — `extract_success()`, `start_new_run()` (`player_died()` is done:
+  it clears carried loot and raises a local black "You died" overlay while the raid
+  keeps simulating — see `death_screen.gd`)
 - `extraction_zone.gd` — the hold timer
 - `loot_item.gd` — pickup
 - `hud.gd` — loot count and extraction countdown
 
 Also absent: stash persistence to disk, any menu or results scene, any map beyond
-`main.tscn`, and any consumer for the `died` signals on either the player or enemies.
+`main.tscn`, any way to restart after dying, and any consumer for the enemies' `died`
+signal.
 
 ### Known shortcuts
 
 Fine for now, but don't mistake them for finished work:
 
-- **Everything is on collision layer 1.** Self-hits are prevented by `Bullet.shooter`
-  and friendly fire by `Bullet.ignore_group`, not by layers. Real named layers
-  (player / enemy / bullet / world) are worth doing once there's level geometry.
-- **Enemy detection is pure distance** — no line of sight, so they "see" through walls.
-  There are no walls yet, so nothing is wrong today.
+- **Friendly fire is filtered in code, not by layers.** Named layers exist now
+  (`world` / `player` / `enemy` / `bullet`, see `collision_layers.gd`), but bullets
+  still mask *both* factions and spare their own side via `Bullet.shooter` and
+  `Bullet.ignore_group` — because the player and the AI share one `Weapon`.
+- **Line of sight is a single centre-to-centre ray.** No corner peeking: an enemy
+  is either fully aware of you or fully blind, and a player standing half-exposed
+  at a corner reads as hidden. Three rays (centre + both flanks) is the usual fix
+  if it starts to feel wrong.
 - **Input map** has `move_left/right/up/down` (WASD) and `shoot` (left mouse). There is
   no `interact` action yet; `loot_item.gd` will need one.
 - `README.md` still has a placeholder title (`[Your Game Name]`) and no screenshot.
@@ -159,13 +177,16 @@ What actually exists today:
 main.tscn            # the raid scene — player, enemies, nothing else yet
 player.tscn
 enemy.tscn
+wall.tscn            # placeable solid rectangle; size drives its own collider
 icon.svg             # placeholder sprite for both player and enemies
 project.godot
 scripts/
   autoload/
     game_manager.gd  # registered as the GameManager autoload
-  bullet.gd  enemy.gd  hud.gd  input_frame.gd  loot_item.gd
-  movement.gd  player.gd  player_input_source.gd  weapon.gd
+  bullet.gd  collision_layers.gd  death_screen.gd  enemy.gd  hud.gd
+  input_frame.gd  loot_item.gd
+  movement.gd  player.gd  player_camera.gd  player_input_source.gd  wall.gd
+  weapon.gd
   extraction_zone.gd
 ```
 

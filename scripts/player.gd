@@ -1,7 +1,8 @@
 extends CharacterBody2D
 
-# Emitted once when health reaches zero. Nothing consumes it yet -- wiring it
-# to GameManager.player_died() is the TODO in game_manager.gd.
+# Emitted once when health reaches zero, for anything that wants to react
+# locally (HUD, sound, a future spectator camera). The authoritative reaction
+# lives in GameManager.player_died(), which this also calls.
 signal died
 
 @export var speed: float = 220.0
@@ -22,6 +23,10 @@ signal died
 @export var bullet_container_path: NodePath
 
 var health: int = 0
+# Once true the player stops acting, but stays in the world: the body is still
+# there, enemies still simulate around it, bullets still fly. Only this client's
+# view goes dark. Nothing here stops or pauses anyone else.
+var is_dead: bool = false
 
 var input_source := PlayerInputSource.new()
 var weapon := Weapon.new()
@@ -37,6 +42,13 @@ func _ready() -> void:
 	weapon.muzzle_offset = muzzle_offset
 
 func _physics_process(delta: float) -> void:
+	if is_dead:
+		# Dead players produce no input. Feeding an empty frame rather than
+		# skipping Movement.apply keeps the body settling through the one place
+		# allowed to touch velocity (CLAUDE.md rule 1).
+		Movement.apply(self, InputFrame.new(), speed)
+		return
+
 	var frame := input_source.poll(self)
 
 	Movement.apply(self, frame, speed)
@@ -47,13 +59,16 @@ func _physics_process(delta: float) -> void:
 
 # The one place player health changes (CLAUDE.md rule 2).
 func take_damage(amount: int, _from: Node = null) -> void:
-	if health <= 0:
+	if is_dead:
 		return
 
 	health -= amount
 
 	if health <= 0:
+		health = 0
+		is_dead = true
 		died.emit()
+		GameManager.player_died(self)
 
 func _bullet_container() -> Node:
 	if bullet_container_path.is_empty():

@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://bydgq1bvyaibu" path="res://player.tscn" id="1_0xm2m"]
 [ext_resource type="PackedScene" uid="uid://b4jlhteub8muh" path="res://enemy.tscn" id="2_h2yge"]
+[ext_resource type="PackedScene" uid="uid://w15s6squhas5" path="res://wall.tscn" id="3_h2yge"]
 
 [node name="Main" type="Node2D" unique_id=1391861229]
 
@@ -16,3 +17,9 @@ rotation = -0.06788102
 [node name="Enemy2" parent="." unique_id=1453221059 instance=ExtResource("2_h2yge")]
 position = Vector2(959.00006, 486)
 rotation = -0.13576204
+
+[node name="Wall" parent="." unique_id=1857510001 instance=ExtResource("3_h2yge")]
+position = Vector2(339, 250)
+
+[node name="Wall2" parent="." unique_id=1868211538 instance=ExtResource("3_h2yge")]
+position = Vector2(465, 250)
