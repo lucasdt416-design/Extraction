@@ -45,7 +45,7 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		# Dead players produce no input. Feeding an empty frame rather than
 		# skipping Movement.apply keeps the body settling through the one place
-		# allowed to touch velocity (CLAUDE.md rule 1).
+		# allowed to touch velocity (CLAUDE.md rule 1)
 		Movement.apply(self, InputFrame.new(), speed)
 		return
 

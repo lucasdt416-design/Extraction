@@ -40,7 +40,56 @@ const MIN_EXTENT: float = 1.0
 @onready var _collider: CollisionShape2D = $CollisionShape2D
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		# Only so the warning triangle below can appear the moment a handle is
+		# dragged. The running game has no use for the callback.
+		set_notify_local_transform(true)
+
+	_bake_transform()
 	_rebuild()
+
+# Godot's 2D physics cannot collide against a shape whose transform has been
+# skewed or scaled unevenly -- the transform stops being decomposable, the
+# contact normals come out wrong, and anything that touches the wall gets
+# ejected to a corner of it instead of being stopped by the face it walked into.
+# Dragging the editor's resize handles is the easy way to end up there, because
+# they write `scale` and `skew` on the node rather than changing `size`.
+#
+# So whatever the transform says, we fold it into `size` here and hand the
+# physics server a clean, unscaled rectangle. Rotation is decomposable and
+# collides fine, so it is left alone.
+func _bake_transform() -> void:
+	if scale.is_equal_approx(Vector2.ONE) and is_zero_approx(skew):
+		return
+
+	# The rectangle is centred on its own origin and therefore symmetric, so a
+	# mirrored (negative) scale covers exactly the same ground as its absolute
+	# value. Only the sign of the basis changes, and that sign is the part
+	# physics chokes on.
+	size = size * scale.abs()
+	scale = Vector2.ONE
+	# Nothing to fold a shear into: a skewed rectangle is a parallelogram, and
+	# neither RectangleShape2D nor the box we draw can be one. Dropping it is
+	# the only representable answer.
+	skew = 0.0
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
+		update_configuration_warnings()
+
+# Flags the window between dragging a handle and the next time the scene loads,
+# which is the only time a wall can be sat in a state physics can't collide.
+func _get_configuration_warnings() -> PackedStringArray:
+	if scale.is_equal_approx(Vector2.ONE) and is_zero_approx(skew):
+		return PackedStringArray()
+
+	return PackedStringArray([
+		"This wall has been scaled or skewed by dragging its resize handles. "
+		+ "Godot's 2D physics can't collide a shape with that transform -- "
+		+ "bodies that touch it get thrown to a corner. Resize with the Size "
+		+ "property instead. The transform is folded into Size when the scene "
+		+ "next loads, so reopening the scene also clears this.",
+	])
 
 func _draw() -> void:
 	var rect := Rect2(-size * 0.5, size)

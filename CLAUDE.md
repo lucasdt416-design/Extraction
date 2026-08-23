@@ -59,15 +59,28 @@ Combat works; the loop doesn't exist yet. Everything below is playable in `main.
   `tracer_lifetime` seconds and frees itself. It has no collider and decides nothing;
   set `tracer_lifetime` to 0 and no tracer is spawned.
 - **Enemy AI** (`enemy.gd`). Seeded wander around its spawn point; on spotting the
-  player *or* being shot it commits to CHASE for at least `min_chase_time`, holds a
-  ring at `orbit_radius`, and strafes along it with a randomized direction flip.
-  Fire is **burst-based**: `burst_size` shots `burst_shot_interval` apart, at 25° of
-  seeded spread, then a `burst_delay_min`–`burst_delay_max` pause rolled from the
-  enemy's own stream. The pause is armed before the first burst too, so spotting the
-  player buys you a second or two before anything is coming at you. Losing range or
-  line of sight holds fire and freezes the burst clock where it is — an unfinished
-  burst stays loaded, so breaking sight buys you the shots you hid from, not a fresh
-  wind-up. Has health, dies, emits `died`.
+  player *or* being shot it commits to CHASE for at least `min_chase_time`, and then
+  **fights from cover** rather than closing in. Inside CHASE there are two stances,
+  and the burst clock is the only thing that switches between them: in `COVER` it
+  sits on a spot the player has no line to and holds fire while the next burst winds
+  up; the moment the burst is loaded it flips to `PEEK`, steps out of cover, sprays
+  it, and drops straight back behind the wall. Fire is **burst-based**: `burst_size`
+  shots `burst_shot_interval` apart, at 25° of seeded spread, then a
+  `burst_delay_min`–`burst_delay_max` pause rolled from the enemy's own stream. The
+  pause is armed before the first burst too, so being spotted buys you a second or
+  two before anything is coming at you, and it runs down *behind cover* — that pause
+  is what the enemy spends hidden. Cover spots are found by sampling rings around
+  the enemy (`cover_search_*`) and keeping the cheapest one where the line to the
+  player is blocked and the line from the enemy is not; the peek spot is the nearest
+  step sideways along that wall (`peek_offset`, alternating shoulders) that opens a
+  firing line. Cover is re-checked every `cover_recheck_interval` and abandoned if
+  the player walks somewhere that can see it, if the walk there stalls
+  (`cover_leg_timeout`), or if a peek produces no line within `peek_timeout` — in
+  which case the loaded burst is dumped and it repositions. With no usable cover
+  anywhere it falls back to holding `preferred_range` in the open, on the same burst
+  rhythm. The give-up clock is frozen while it deliberately holds cover, so an enemy
+  can't forget you mid-reload; it only runs while patrolling or exposed on a peek.
+  Has health, dies, emits `died`.
   A dead enemy is not freed:
   it stays put as an inert red corpse with its collision layer and mask zeroed,
   so shots pass through it and the living can walk over it.
@@ -77,11 +90,13 @@ Combat works; the loop doesn't exist yet. Everything below is playable in `main.
   shots are rays rather than bodies. Scenes set their own layer/mask in the
   inspector — a `.tscn` stores a raw integer and can't reference the constants, so
   the two have to be renumbered together.
-- **Line of sight** (`enemy.gd`). One raycast per enemy per tick against
-  `sight_blocker_mask`, cached in `_has_los`. Enemies only notice the player down a
-  clear line, hold fire when the line breaks, and give up `min_chase_time` after
-  losing contact rather than after a fixed commitment. Being shot from out of sight
-  still pulls them into CHASE.
+- **Line of sight** (`enemy.gd`). `_line_clear(from, to)` is the one place a sightline
+  is decided, so awareness, cover choice and peek angles can never disagree about what
+  counts as a wall. One raycast per enemy per tick tests the player and is cached in
+  `_has_los`; the cover search casts more, but only when the cover it has goes bad.
+  Enemies only notice the player down a clear line, hold fire when the line breaks,
+  and give up `min_chase_time` after losing contact rather than after a fixed
+  commitment. Being shot from out of sight still pulls them into CHASE.
 - **Seeded randomness** (`game_manager.gd`). `GameManager.rng` is seeded from
   `run_seed`; each enemy derives its own stream from it at `_ready`. It is currently
   seeded to 0, so every run plays out identically — good for debugging. Call
@@ -116,6 +131,15 @@ Fine for now, but don't mistake them for finished work:
   is either fully aware of you or fully blind, and a player standing half-exposed
   at a corner reads as hidden. Three rays (centre + both flanks) is the usual fix
   if it starts to feel wrong.
+- **Enemies walk to cover in a straight line.** There is no navmesh and no
+  pathfinding, so a cover spot only counts as reachable if the direct line to it is
+  clear, and getting there is `move_and_slide` scraping along whatever it hits.
+  That rules out perfectly good cover round a corner, and `cover_leg_timeout` is
+  what unsticks the cases the straight line gets wrong. A `NavigationAgent2D` is the
+  real fix if the maps stop being one open room.
+- **Cover is judged from one point, for one player.** A spot is "cover" if the
+  centre-to-centre line to the player is blocked right now, so it says nothing about
+  a second enemy's angle, and nothing about where the player is about to walk.
 - **Input map** has `move_left/right/up/down` (WASD) and `shoot` (left mouse). There is
   no `interact` action yet; `loot_item.gd` will need one.
 - `README.md` still has a placeholder title (`[Your Game Name]`) and no screenshot.
@@ -191,6 +215,7 @@ main.tscn            # the raid scene — player, enemies, nothing else yet
 player.tscn
 enemy.tscn
 wall.tscn            # placeable solid rectangle; size drives its own collider
+                     # resize with Size, never the drag handles -- see wall.gd
 icon.svg             # placeholder sprite for both player and enemies
 project.godot
 scripts/
