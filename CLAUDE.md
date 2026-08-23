@@ -37,8 +37,9 @@ top-down shooter with no stakes, so it comes before any more combat polish.
 ## Where the project is now
 
 Combat works and now has cover to fight around; the extraction loop doesn't exist yet.
-Everything below is playable in `main.tscn`, which is currently a player, two enemies and
-five walls in otherwise empty space — no loot, no extract zone, no HUD.
+Everything below is playable in `main.tscn`, which is currently a player, two
+hand-placed enemies, one enemy spawner and six walls in otherwise empty space — no loot,
+no extract zone, no HUD.
 
 ### Built and working
 
@@ -106,13 +107,19 @@ five walls in otherwise empty space — no loot, no extract zone, no HUD.
   map populates on the first tick rather than starting empty. An armed spawner that is
   being watched *stays* armed rather than restarting its interval, so camping a corner
   costs the player one spawn's delay, not a whole map's worth, and nothing ever appears
-  in front of them. `max_alive` (1) caps living enemies per spawner; corpses don't hold a
+  in front of them. `max_alive` (2) caps living enemies per spawner; corpses don't hold a
   slot, since `is_dead` enemies stay in the tree. Spawned enemies are parented to the
   spawner's parent (or `spawn_container_path`), positioned *before* `add_child` so
   `Enemy._ready()` reads the spawn point as its patrol home. `show_debug` draws the
   radius in game (amber = watched, green = cold) and prints each spawn; the marker and
-  radius are always drawn in the editor. **No spawner is placed in `main.tscn` yet** —
-  drag `enemy_spawner.tscn` in to use one.
+  radius are always drawn in the editor.
+
+  **Spawners are how enemies get into a map from here on.** Dropping an `Enemy` into a
+  scene by hand is the old way: it gives one enemy, once, and an emptied-out map stays
+  empty for the rest of the raid, which is the wrong shape for raids you're meant to
+  spend time in. Place `enemy_spawner.tscn` instead and let it own the population. The
+  two hand-placed enemies still in `main.tscn` are leftovers from before this existed
+  and should be replaced with spawners; don't add more of them.
 - **Walls** (`wall.gd`, `wall.tscn`). A `@tool` `StaticBody2D` on the `world` layer with
   its mask at 0 — it stops things, it never looks for them. One `size` export drives both
   the drawn rectangle and the collider, so the art and the collision can't drift apart,
@@ -124,7 +131,7 @@ five walls in otherwise empty space — no loot, no extract zone, no HUD.
   wall get ejected to one of its corners. `_bake_transform()` folds any such transform
   back into `size` when the scene loads and `_get_configuration_warnings()` flags one in
   the meantime, so the state is self-healing, but the handles still aren't the way to do
-  it. `main.tscn` has five walls.
+  it. `main.tscn` has six walls.
 - **Collision layers** (`collision_layers.gd`, named in `project.godot`).
   `world` is walls, and it is also what blocks enemy sight; `player` and `enemy`
   collide with the world and with each other; `bullet` is currently unused, since
@@ -263,11 +270,12 @@ outcomes.
 What actually exists today:
 
 ```
-main.tscn            # the raid scene — 1 player, 2 enemies, 5 walls; no loot,
+main.tscn            # the raid scene — 1 player, 2 hand-placed enemies (legacy,
+                     # replace with spawners), 1 spawner, 6 walls; no loot,
                      # no extract zone, no HUD
 player.tscn          # body + collider + sprite + the player camera
 enemy.tscn
-enemy_spawner.tscn   # placeable spawn point; not placed in main.tscn yet
+enemy_spawner.tscn   # placeable spawn point — the way enemies get into a map
 wall.tscn            # placeable solid rectangle; size drives its own collider
                      # resize with Size, never the drag handles — see wall.gd
 icon.svg             # placeholder sprite for both player and enemies
