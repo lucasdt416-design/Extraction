@@ -27,7 +27,8 @@ top-down shooter. It's core, not a stretch goal.
 1. Player movement + aiming + shooting that feels decent. — **done**
 2. The extraction loop end to end: insert → pick up items → extract zone → stash persists.
    — **not started, and now the critical path**
-3. Basic hostile AI (patrol → detect → chase → shoot) so raids have threat. — **done**
+3. Basic hostile AI (patrol → detect → take cover → peek and shoot) so raids have
+   threat. — **done**
 4. Everything else.
 
 Steps 1–3 are the MVP. Step 2 is what makes this an *extraction* shooter rather than a
@@ -35,7 +36,9 @@ top-down shooter with no stakes, so it comes before any more combat polish.
 
 ## Where the project is now
 
-Combat works; the loop doesn't exist yet. Everything below is playable in `main.tscn`.
+Combat works and now has cover to fight around; the extraction loop doesn't exist yet.
+Everything below is playable in `main.tscn`, which is currently a player, two enemies and
+five walls in otherwise empty space — no loot, no extract zone, no HUD.
 
 ### Built and working
 
@@ -45,15 +48,27 @@ Combat works; the loop doesn't exist yet. Everything below is playable in `main.
   `rotation`. The player and the AI both produce `InputFrame`s and both move through
   `Movement.apply` — rule 1 below, in practice rather than in theory.
 - **Player** (`player.gd`). WASD movement, faces the mouse cursor continuously,
-  auto-fires while left mouse is held. Has health and `take_damage()`, and emits `died`
-  at 0 HP — which nothing consumes yet, so the player currently plays on past death.
+  auto-fires while left mouse is held. Has health and `take_damage()`. At 0 HP it sets
+  `is_dead`, emits `died`, and calls `GameManager.player_died()`. After that it keeps
+  feeding an empty `InputFrame` through `Movement.apply` rather than skipping the call,
+  so the body settles through the one path allowed to touch `velocity`. The corpse stays
+  in the raid and enemies go on shooting at it; only this client's view goes black.
+- **Camera** (`player_camera.gd`). A `Camera2D` child of the player body, so it moves on
+  the physics tick in lockstep with what it follows rather than a frame behind it.
+  `ignore_rotation` is forced on in code — without it the whole world would spin every
+  time the mouse moved, since the player rotates to face the cursor. Note that
+  `player.tscn` sets `position_smoothing_speed = 8.0` but leaves
+  `position_smoothing_enabled` at its default `false`, so the camera is rigid today and
+  that speed does nothing; tick the box in the inspector if you want the lag.
 - **Shooting** (`weapon.gd`, `hitscan.gd`, `tracer.gd`). Shots are **hitscan**: there
   is no projectile node and no travel time. `Hitscan.resolve()` casts one ray along
   the aim line and returns the first body that stops it, passing through the shooter
-  and through anything in the weapon's `ignore_group`. `Weapon` owns fire-rate timing
-  and applies the damage, and is shared by the player and the AI, so both fire by
-  identical rules. Because a shot resolves on the tick it is fired, nothing can tunnel
-  past a target between frames. Damage is routed by `has_method("take_damage")`, not
+  and through up to `MAX_PASS_THROUGH` bodies in the weapon's `ignore_group`. Shots
+  ignore `Area2D`s entirely (`collide_with_areas = false`), so loot pickups and the
+  extract zone will never stop one. `Weapon` owns fire-rate timing and applies the
+  damage, and is shared by the player and the AI, so both fire by identical rules.
+  Because a shot resolves on the tick it is fired, nothing can tunnel past a target
+  between frames. Damage is routed by `has_method("take_damage")`, not
   by class or group, so anything damageable works without editing `weapon.gd`.
   `Tracer` is the only visual: a white streak along the resolved path that fades over
   `tracer_lifetime` seconds and frees itself. It has no collider and decides nothing;
@@ -80,10 +95,21 @@ Combat works; the loop doesn't exist yet. Everything below is playable in `main.
   anywhere it falls back to holding `preferred_range` in the open, on the same burst
   rhythm. The give-up clock is frozen while it deliberately holds cover, so an enemy
   can't forget you mid-reload; it only runs while patrolling or exposed on a peek.
-  Has health, dies, emits `died`.
-  A dead enemy is not freed:
-  it stays put as an inert red corpse with its collision layer and mask zeroed,
-  so shots pass through it and the living can walk over it.
+  Has health, dies, emits `died`. A dead enemy is not freed: it stays put as an inert
+  red corpse with its collision layer and mask zeroed, so shots pass through it and the
+  living can walk over it — which also means corpses provide no cover.
+- **Walls** (`wall.gd`, `wall.tscn`). A `@tool` `StaticBody2D` on the `world` layer with
+  its mask at 0 — it stops things, it never looks for them. One `size` export drives both
+  the drawn rectangle and the collider, so the art and the collision can't drift apart,
+  and the `RectangleShape2D` is `resource_local_to_scene` so resizing one wall doesn't
+  resize every wall. They are gameplay rather than scenery: they stop shots, block enemy
+  sight, and are what the AI hides behind. **Resize with the `Size` property, never the
+  editor's drag handles** — the handles write `scale`/`skew` on the node, and Godot's 2D
+  physics cannot collide a skewed or unevenly scaled shape, so bodies that touch such a
+  wall get ejected to one of its corners. `_bake_transform()` folds any such transform
+  back into `size` when the scene loads and `_get_configuration_warnings()` flags one in
+  the meantime, so the state is self-healing, but the handles still aren't the way to do
+  it. `main.tscn` has five walls.
 - **Collision layers** (`collision_layers.gd`, named in `project.godot`).
   `world` is walls, and it is also what blocks enemy sight; `player` and `enemy`
   collide with the world and with each other; `bullet` is currently unused, since
@@ -107,16 +133,27 @@ Combat works; the loop doesn't exist yet. Everything below is playable in `main.
 Everything the extraction loop needs. These are still the original scaffold stubs with
 `TODO` comments and `pass` bodies — treat the comments inside them as the spec:
 
-- `game_manager.gd` — `extract_success()`, `start_new_run()` (`player_died()` is done:
-  it clears carried loot and raises a local black "You died" overlay while the raid
-  keeps simulating — see `death_screen.gd`)
-- `extraction_zone.gd` — the hold timer
-- `loot_item.gd` — pickup
-- `hud.gd` — loot count and extraction countdown
+- `game_manager.gd` — `extract_success()` and `start_new_run()` are the only TODOs left
+  in it, and most of what they need is already there: `current_run_loot`, `stash`,
+  `add_loot_to_run()` (the one place carried loot is mutated — rule 2), the
+  `local_player_died` signal, and `clear_death_screen()`. `player_died()` is done: it
+  clears carried loot and raises a local black "You died" overlay while the raid keeps
+  simulating — see `death_screen.gd`. `stash` is an in-memory `Array` that nothing
+  writes to disk.
+- `extraction_zone.gd` — the hold timer. `_on_body_entered`/`_on_body_exited` already
+  track `player_inside`, but `_process` counts nothing.
+- `loot_item.gd` — pickup. `_on_body_entered` is an empty `pass`.
+- `hud.gd` — loot count and extraction countdown.
+
+Note that **none of those three scripts has ever run**: there is no `hud.tscn`, no loot
+scene and no extraction-zone scene, so nothing in `main.tscn` instantiates them. `hud.gd`
+additionally expects `LootLabel` and `TimerLabel` children that don't exist anywhere yet,
+and both `Area2D` scaffolds expect their `body_entered`/`body_exited` signals to be wired
+up in the editor.
 
 Also absent: stash persistence to disk, any menu or results scene, any map beyond
-`main.tscn`, any way to restart after dying, and any consumer for the enemies' `died`
-signal.
+`main.tscn`, any way to restart after dying (`GameManager.clear_death_screen()` is the
+hook, and nothing calls it), and any consumer for the enemies' `died` signal.
 
 ### Known shortcuts
 
@@ -211,11 +248,12 @@ outcomes.
 What actually exists today:
 
 ```
-main.tscn            # the raid scene — player, enemies, nothing else yet
-player.tscn
+main.tscn            # the raid scene — 1 player, 2 enemies, 5 walls; no loot,
+                     # no extract zone, no HUD
+player.tscn          # body + collider + sprite + the player camera
 enemy.tscn
 wall.tscn            # placeable solid rectangle; size drives its own collider
-                     # resize with Size, never the drag handles -- see wall.gd
+                     # resize with Size, never the drag handles — see wall.gd
 icon.svg             # placeholder sprite for both player and enemies
 project.godot
 scripts/
