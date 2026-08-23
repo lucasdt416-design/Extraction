@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://bydgq1bvyaibu" path="res://player.tscn" id="1_0xm2m"]
 [ext_resource type="PackedScene" uid="uid://b4jlhteub8muh" path="res://enemy.tscn" id="2_h2yge"]
 [ext_resource type="PackedScene" uid="uid://w15s6squhas5" path="res://wall.tscn" id="3_h2yge"]
+[ext_resource type="PackedScene" path="res://enemy_spawner.tscn" id="4_1bvp3"]
 
 [node name="Main" type="Node2D" unique_id=1391861229]
 
@@ -24,18 +25,25 @@ position = Vector2(339, 250)
 [node name="Wall3" parent="." unique_id=1029887123 instance=ExtResource("3_h2yge")]
 position = Vector2(262.99997, 156.99998)
 rotation = 1.5020206
-scale = Vector2(-1.6784066, -1.2048179)
+size = Vector2(214.83604, 38.554173)
+
+[node name="Wall6" parent="." unique_id=1093312604 instance=ExtResource("3_h2yge")]
+position = Vector2(804.99994, 138.00003)
+rotation = 4.485912
+size = Vector2(214.83604, 38.554173)
 
 [node name="Wall5" parent="." unique_id=1345402932 instance=ExtResource("3_h2yge")]
 position = Vector2(628.00006, 392.00003)
 rotation = 0.3968752
-scale = Vector2(1.6253362, -1.4021538)
+size = Vector2(208.04303, 44.868923)
 
 [node name="Wall4" parent="." unique_id=1079653628 instance=ExtResource("3_h2yge")]
 position = Vector2(893.00006, 395)
 rotation = 2.9771485
-scale = Vector2(2.740876, -1.546532)
-skew = 0.046261072
+size = Vector2(350.83212, 49.489025)
 
 [node name="Wall2" parent="." unique_id=1868211538 instance=ExtResource("3_h2yge")]
 position = Vector2(465, 250)
+
+[node name="EnemySpawner" parent="." unique_id=1385478918 instance=ExtResource("4_1bvp3")]
+position = Vector2(923, 123)

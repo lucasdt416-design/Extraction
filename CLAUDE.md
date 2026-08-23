@@ -98,6 +98,21 @@ five walls in otherwise empty space — no loot, no extract zone, no HUD.
   Has health, dies, emits `died`. A dead enemy is not freed: it stays put as an inert
   red corpse with its collision layer and mask zeroed, so shots pass through it and the
   living can walk over it — which also means corpses provide no cover.
+- **Enemy spawners** (`enemy_spawner.gd`, `enemy_spawner.tscn`). A `@tool` `Node2D`
+  marker that repopulates its own spot. Two clocks: `spawn_interval` (300s) counts down
+  from each spawn, and `observation_cooldown` (60s) is how long the spot must have been
+  clear of the player — anywhere inside `observation_radius`, distance only, no
+  sightline — before an armed spawner may fire. `initial_spawn_delay` is 0, so a fresh
+  map populates on the first tick rather than starting empty. An armed spawner that is
+  being watched *stays* armed rather than restarting its interval, so camping a corner
+  costs the player one spawn's delay, not a whole map's worth, and nothing ever appears
+  in front of them. `max_alive` (1) caps living enemies per spawner; corpses don't hold a
+  slot, since `is_dead` enemies stay in the tree. Spawned enemies are parented to the
+  spawner's parent (or `spawn_container_path`), positioned *before* `add_child` so
+  `Enemy._ready()` reads the spawn point as its patrol home. `show_debug` draws the
+  radius in game (amber = watched, green = cold) and prints each spawn; the marker and
+  radius are always drawn in the editor. **No spawner is placed in `main.tscn` yet** —
+  drag `enemy_spawner.tscn` in to use one.
 - **Walls** (`wall.gd`, `wall.tscn`). A `@tool` `StaticBody2D` on the `world` layer with
   its mask at 0 — it stops things, it never looks for them. One `size` export drives both
   the drawn rectangle and the collider, so the art and the collision can't drift apart,
@@ -252,6 +267,7 @@ main.tscn            # the raid scene — 1 player, 2 enemies, 5 walls; no loot,
                      # no extract zone, no HUD
 player.tscn          # body + collider + sprite + the player camera
 enemy.tscn
+enemy_spawner.tscn   # placeable spawn point; not placed in main.tscn yet
 wall.tscn            # placeable solid rectangle; size drives its own collider
                      # resize with Size, never the drag handles — see wall.gd
 icon.svg             # placeholder sprite for both player and enemies
@@ -259,8 +275,8 @@ project.godot
 scripts/
   autoload/
     game_manager.gd  # registered as the GameManager autoload
-  collision_layers.gd  death_screen.gd  enemy.gd  hitscan.gd  hud.gd
-  input_frame.gd  loot_item.gd
+  collision_layers.gd  death_screen.gd  enemy.gd  enemy_spawner.gd
+  hitscan.gd  hud.gd  input_frame.gd  loot_item.gd
   movement.gd  player.gd  player_camera.gd  player_input_source.gd  tracer.gd
   wall.gd  weapon.gd
   extraction_zone.gd
