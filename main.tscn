@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://b4jlhteub8muh" path="res://enemy.tscn" id="2_h2yge"]
 [ext_resource type="PackedScene" uid="uid://w15s6squhas5" path="res://wall.tscn" id="3_h2yge"]
 [ext_resource type="PackedScene" path="res://enemy_spawner.tscn" id="4_1bvp3"]
+[ext_resource type="PackedScene" uid="uid://2aniexmxnnth" path="res://extract_zone.tscn" id="5_lquwl"]
 
 [node name="Main" type="Node2D" unique_id=1391861229]
 
@@ -46,4 +47,6 @@ size = Vector2(350.83212, 49.489025)
 position = Vector2(465, 250)
 
 [node name="EnemySpawner" parent="." unique_id=1385478918 instance=ExtResource("4_1bvp3")]
-position = Vector2(923, 123)
+position = Vector2(925, 136)
+
+[node name="Extraction_Zone" parent="." unique_id=583720800 instance=ExtResource("5_lquwl")]

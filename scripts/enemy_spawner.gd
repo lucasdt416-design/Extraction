@@ -8,9 +8,9 @@ extends Node2D
 #
 #   spawn_interval       -- counts down from every spawn. At zero the spawner is
 #                           "armed": it wants to put an enemy here.
-#   observation_cooldown -- how long the spot has to have been out of the
-#                           player's sight before an armed spawner is allowed to
-#                           fire. Reset to zero every tick the player is inside
+#   observation_cooldown -- how long the spot has to have been out of sight
+#                           before an armed spawner is allowed to fire. Reset to
+#                           zero every tick ANY player is inside
 #                           observation_radius.
 #
 # An armed spawner that can't fire *stays* armed -- the interval clock does not
@@ -81,7 +81,6 @@ var _time_to_spawn: float = 0.0
 var _time_since_observed: float = INF
 # Everything we have put in the world, living or dead. Pruned as nodes are freed.
 var _spawned: Array[Node2D] = []
-var _player: Node2D = null
 
 func _ready() -> void:
 	_time_to_spawn = initial_spawn_delay
@@ -107,18 +106,26 @@ func _physics_process(delta: float) -> void:
 
 # --- The two clocks ----------------------------------------------------------
 
+# One clock, reset if ANY player is close enough: the spot is hot if it is being
+# watched at all. That's the rule that generalises -- observing only "the player"
+# would let a second one stand on the spawn point and have an enemy walk in on
+# top of them, which is the exact thing the cooldown exists to prevent.
+#
+# The group is queried every tick rather than cached, because there is no single
+# player node to hold on to. It costs a small array per spawner per tick, which
+# is nothing at the number of spawners a map carries. Finding nobody in the group
+# -- a raid the player hasn't been inserted into yet -- falls through to the same
+# "keeps ageing" branch as everyone being far away, so such a spawner still arms.
 func _update_observation(delta: float) -> void:
-	var player := _get_player()
-	if player == null:
-		# Nobody here to be seen by, so the spot keeps ageing. A spawner in a
-		# raid the player hasn't been inserted into yet still arms.
-		_time_since_observed += delta
-		return
+	for player in get_tree().get_nodes_in_group("player"):
+		var player_2d := player as Node2D
+		if player_2d == null:
+			continue
+		if global_position.distance_to(player_2d.global_position) <= observation_radius:
+			_time_since_observed = 0.0
+			return
 
-	if global_position.distance_to(player.global_position) <= observation_radius:
-		_time_since_observed = 0.0
-	else:
-		_time_since_observed += delta
+	_time_since_observed += delta
 
 func _is_ready_to_spawn() -> bool:
 	if enemy_scene == null:
@@ -179,14 +186,6 @@ func _alive_count() -> int:
 			continue
 		alive += 1
 	return alive
-
-func _get_player() -> Node2D:
-	# Re-acquired whenever the reference goes stale: the player may not exist yet
-	# when the raid loads. Looked up by group rather than by path, so this still
-	# works the day there are two of them (rule 5).
-	if not is_instance_valid(_player):
-		_player = get_tree().get_first_node_in_group("player") as Node2D
-	return _player
 
 # --- Editor / debug gizmo ----------------------------------------------------
 

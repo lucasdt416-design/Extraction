@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://2aniexmxnnth"]
+
+[ext_resource type="Script" uid="uid://dwdf8ps6c6sh1" path="res://scripts/extract_zone.gd" id="1_krmp4"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_6w0hu"]
+resource_local_to_scene = true
+radius = 100.0
+
+[node name="Extraction_Zone" type="Area2D" unique_id=583720800]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_krmp4")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1336163155]
+shape = SubResource("CircleShape2D_6w0hu")

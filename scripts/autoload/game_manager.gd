@@ -7,6 +7,8 @@ extends Node
 
 # Emitted when the local player dies. UI and future scene flow hang off this.
 signal local_player_died
+signal local_player_extracted
+
 
 # The local "you died" blackout, if one is up. Local view only -- never part of
 # the raid state that would have to agree between host and client.
@@ -73,3 +75,9 @@ func clear_death_screen() -> void:
 #    - clear current_run_loot
 #    - clear_death_screen()
 #    - change_scene_to_file() to your main map scene
+
+func extract_success(player: Node2D):
+	stash.append_array(current_run_loot)
+	current_run_loot.clear()
+	local_player_extracted.emit()
+	player.extracted()

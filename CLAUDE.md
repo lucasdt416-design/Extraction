@@ -319,6 +319,21 @@ resource paths for you.
 
 ## Working in this repo
 
+**The user is writing the gameplay code now — don't write it for them.** The default
+mode is advice, not edits: answer the question, show the shape of the solution as a
+short snippet in chat, name the trap they're about to walk into, and leave the files
+alone. A snippet that illustrates a pattern is not the same as implementing the feature,
+and the first is what's wanted.
+
+Edit files when asked to in the moment — "fix that", "make the change", "write this for
+me". That's permission for *that* request, not a standing licence: go back to advising
+on the next one. In particular, don't fill in `TODO`s, finish scaffolds, or tidy up
+adjacent code just because it was open. Point it out in a sentence and let them decide.
+
+This matters most for the extraction loop (build-order step 2), which is the part being
+learned on. Explaining why a `Dictionary` beats a parallel array is the job; handing over
+a finished `extraction_zone.gd` is not.
+
 **Claude cannot run the game.** Godot is not on `PATH` in this environment, and a 2D
 shooter can't be verified by reading code anyway. After making gameplay changes, tell
 the user what to test and let them run it. Don't claim something works when it hasn't

@@ -1,3 +1,4 @@
+class_name Player
 extends CharacterBody2D
 
 # Emitted once when health reaches zero, for anything that wants to react
@@ -74,3 +75,7 @@ func _tracer_container() -> Node:
 	if tracer_container_path.is_empty():
 		return get_parent()
 	return get_node(tracer_container_path)
+	
+#Placeholder function for now
+func extracted():
+	queue_free()
