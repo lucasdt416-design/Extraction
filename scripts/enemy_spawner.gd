@@ -31,7 +31,7 @@ signal enemy_spawned(enemy: Node2D)
 # What to spawn. Anything whose root is a Node2D works: the spawner places it
 # and then only ever reads `is_dead` off it, so it doesn't care what script it
 # carries.
-@export var enemy_scene: PackedScene = preload("res://enemy.tscn")
+@export var enemy_scene: PackedScene = preload("res://scenes/enemy.tscn")
 # Seconds between spawns. 300 is five minutes. Turn it down to something like 10
 # while you're testing -- that's the whole point of it being an export.
 @export var spawn_interval: float = 300.0
