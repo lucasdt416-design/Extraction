@@ -4,216 +4,107 @@ Guidance for Claude Code working in this repository.
 
 ## What this project is
 
-A **simple 2D top-down extraction shooter** built in **Godot 4.7** with **GDScript**
-(standard build, not .NET — ignore the leftover `[dotnet]` block in `project.godot`).
+A **first-person 3D extraction shooter** built in **Godot 4.7** with **GDScript**
+(standard build, not .NET), fought against AI squads. It began as a 2D top-down
+prototype; on 2026-11-13 the user moved it to 3D. The 2D version is still on `main`.
 
-Two people are building it over a few weeks. The goal is a small, complete, *playable*
-game we can expand later — not a broad engine of half-finished systems. When choosing
-between "more features" and "the loop actually works", pick the loop.
+Two people are building it. The goal is a small, complete, *playable* game we can
+expand later. When choosing between "more features" and "the loop actually works",
+pick the loop.
+
+It is an original game in the extraction-shooter genre. Other games are reference for
+mechanics only: don't copy another game's names, characters, factions, art or look.
 
 ### The core loop
 
 ```
-Menu ─▶ Insert into raid ─▶ [ loot, fight ] ─▶ Reach extract zone (hold N seconds) ─▶ Stash
-                                    │
-                                    └─ die ─▶ lose everything you were carrying
+Menu (loadout, stash, trader, frame) -> Deploy -> [ loot, fight ] -> hold an extract point -> Stash
+                                                        |
+                                                        +- die / clock runs out -> lose backpack and equipped kit
 ```
-
-Persistent stash between raids is what makes it an *extraction* shooter rather than a
-top-down shooter. It's core, not a stretch goal.
-
-### Build order
-
-1. Player movement + aiming + shooting that feels decent. — **done**
-2. The extraction loop end to end: insert → pick up items → extract zone → stash persists.
-   — **not started, and now the critical path**
-3. Basic hostile AI (patrol → detect → take cover → peek and shoot) so raids have
-   threat. — **done**
-4. Everything else.
-
-Steps 1–3 are the MVP. Step 2 is what makes this an *extraction* shooter rather than a
-top-down shooter with no stakes, so it comes before any more combat polish.
 
 ## Where the project is now
 
-Combat works and now has cover to fight around; the extraction loop doesn't exist yet.
-Everything below is playable in `main.tscn`, which is currently a player, two
-hand-placed enemies, one enemy spawner and six walls in otherwise empty space — no loot,
-no extract zone, no HUD.
+The whole loop is playable end to end. Everything below was run through
+`tools/selftest.tscn`; how it *feels* to play has only been judged from screenshots.
 
-### Built and working
+- **Flow and saves** (`autoload/game_manager.gd`). Owns credits, stash, loadout, frame,
+  the raid backpack, the seeded RNG and scene changes. Saves to `user://profile.json`.
+  Every change to those goes through a function there (rule 2).
+- **Data** (`data/catalog.gd`). Items, weapons, frames, enemy archetypes, loot tables
+  and trader stock as plain dictionaries. Balance changes happen here.
+- **Player** (`actors/player.gd`). First-person controller: sprint, crouch, jump, ADS,
+  two weapon slots, reload, recoil and bloom, regenerating shield over health, medkits,
+  hold-to-use, and a frame's two abilities. Consumes one `InputFrame` per tick.
+- **Frames** (classes): Striker (Dash / Overcharge), Wraith (Cloak / Pulse), Mender
+  (Stim / Fortify). Armor and two implant slots adjust stats.
+- **Shooting** (`core/gun.gd`). Hitscan, shared by player and enemies: magazine, fire
+  rate, reload, spread cone, pellets, damage falloff, headshots.
+- **Enemy AI** (`actors/enemy.gd`, `actors/squad.gd`). See "How the AI works" below.
+- **Map** (`world/level.gd`). "Relay Station": warehouse with mezzanine, lab with a
+  vault, barracks, courtyard, container yard, two extract points. Hand-authored in code
+  from boxes; bakes its own navmesh from its colliders.
+- **Loot** (`world/loot.gd`, `world/loot_container.gd`). Crates, lockers and vaults
+  (contents rolled from the seeded stream at build time; vaults trip an alarm), item
+  pickups, drops from kills, limited backpack slots.
+- **Extraction** (`world/extract_point.gd`), raid clock and win/lose (`world/raid.gd`).
+- **Interface** (`ui/hud.gd`, `ui/menu.gd`, `ui/ui_kit.gd`). HUD with health/shield,
+  ammo, abilities, detection meter, damage direction, extract markers, the enemy comms
+  feed, pause and result screens. Menu with Deploy, Stash, Trader and Frame tabs.
+- **Look and sound** (`fx/mats.gd`, `fx/fx.gd`, `actors/rig.gd`, `autoload/sfx.gd`).
+  Generated triplanar textures, procedurally animated primitive characters, tracers and
+  impacts, SDFGI / volumetric fog / glow, and every sound synthesized at startup. No
+  imported assets.
 
-- **Input pipeline.** `input_frame.gd` defines the `InputFrame` struct.
-  `player_input_source.gd` is the only place in the project that reads `Input` or the
-  mouse. `movement.gd` (`Movement.apply`) is the only place that touches `velocity` or
-  `rotation`. The player and the AI both produce `InputFrame`s and both move through
-  `Movement.apply` — rule 1 below, in practice rather than in theory.
-- **Player** (`player.gd`). WASD movement, faces the mouse cursor continuously,
-  auto-fires while left mouse is held. Has health and `take_damage()`. At 0 HP it sets
-  `is_dead`, emits `died`, and calls `GameManager.player_died()`. After that it keeps
-  feeding an empty `InputFrame` through `Movement.apply` rather than skipping the call,
-  so the body settles through the one path allowed to touch `velocity`. The corpse stays
-  in the raid and enemies go on shooting at it; only this client's view goes black.
-- **Camera** (`player_camera.gd`). A `Camera2D` child of the player body, so it moves on
-  the physics tick in lockstep with what it follows rather than a frame behind it.
-  `ignore_rotation` is forced on in code — without it the whole world would spin every
-  time the mouse moved, since the player rotates to face the cursor. Note that
-  `player.tscn` sets `position_smoothing_speed = 8.0` but leaves
-  `position_smoothing_enabled` at its default `false`, so the camera is rigid today and
-  that speed does nothing; tick the box in the inspector if you want the lag.
-- **Shooting** (`weapon.gd`, `hitscan.gd`, `tracer.gd`). Shots are **hitscan**: there
-  is no projectile node and no travel time. `Hitscan.resolve()` casts one ray along
-  the aim line and returns the first body that stops it, passing through the shooter
-  and through up to `MAX_PASS_THROUGH` bodies in the weapon's `ignore_group`. Shots
-  ignore `Area2D`s entirely (`collide_with_areas = false`), so loot pickups and the
-  extract zone will never stop one. `Weapon` owns fire-rate timing and applies the
-  damage, and is shared by the player and the AI, so both fire by identical rules.
-  Because a shot resolves on the tick it is fired, nothing can tunnel past a target
-  between frames. Damage is routed by `has_method("take_damage")`, not
-  by class or group, so anything damageable works without editing `weapon.gd`.
-  `Tracer` is the only visual: a white streak along the resolved path that fades over
-  `tracer_lifetime` seconds and frees itself. It has no collider and decides nothing;
-  set `tracer_lifetime` to 0 and no tracer is spawned.
-- **Enemy AI** (`enemy.gd`). Seeded wander around its spawn point; on spotting the
-  player *or* being shot it commits to CHASE for at least `min_chase_time`, and then
-  **fights from cover** rather than closing in. Inside CHASE there are two stances,
-  and the burst clock is the only thing that switches between them: in `COVER` it
-  sits on a spot the player has no line to and holds fire while the next burst winds
-  up; the moment the burst is loaded it flips to `PEEK`, steps out of cover, sprays
-  it, and drops straight back behind the wall. Fire is **burst-based**: `burst_size`
-  shots `burst_shot_interval` apart, at 25° of seeded spread, then a
-  `burst_delay_min`–`burst_delay_max` pause rolled from the enemy's own stream. The
-  pause is armed before the first burst too, so being spotted buys you a second or
-  two before anything is coming at you, and it runs down *behind cover* — that pause
-  is what the enemy spends hidden. Cover spots are found by sampling rings around
-  the enemy (`cover_search_*`) and keeping the cheapest one where the line to the
-  player is blocked and the line from the enemy is not; the peek spot is the nearest
-  step sideways along that wall (`peek_offset`, alternating shoulders) that opens a
-  firing line. Cover is re-checked every `cover_recheck_interval` and abandoned if
-  the player walks somewhere that can see it, if the walk there stalls
-  (`cover_leg_timeout`), or if a peek produces no line within `peek_timeout` — in
-  which case the loaded burst is dumped and it repositions. With no usable cover
-  anywhere it falls back to holding `preferred_range` in the open, on the same burst
-  rhythm. The give-up clock is frozen while it deliberately holds cover, so an enemy
-  can't forget you mid-reload; it only runs while patrolling or exposed on a peek.
-  Has health, dies, emits `died`. A dead enemy is not freed: it stays put as an inert
-  red corpse with its collision layer and mask zeroed, so shots pass through it and the
-  living can walk over it — which also means corpses provide no cover.
-- **Enemy spawners** (`enemy_spawner.gd`, `enemy_spawner.tscn`). A `@tool` `Node2D`
-  marker that repopulates its own spot. Two clocks: `spawn_interval` (300s) counts down
-  from each spawn, and `observation_cooldown` (60s) is how long the spot must have been
-  clear of the player — anywhere inside `observation_radius`, distance only, no
-  sightline — before an armed spawner may fire. `initial_spawn_delay` is 0, so a fresh
-  map populates on the first tick rather than starting empty. An armed spawner that is
-  being watched *stays* armed rather than restarting its interval, so camping a corner
-  costs the player one spawn's delay, not a whole map's worth, and nothing ever appears
-  in front of them. `max_alive` (2) caps living enemies per spawner; corpses don't hold a
-  slot, since `is_dead` enemies stay in the tree. Spawned enemies are parented to the
-  spawner's parent (or `spawn_container_path`), positioned *before* `add_child` so
-  `Enemy._ready()` reads the spawn point as its patrol home. `show_debug` draws the
-  radius in game (amber = watched, green = cold) and prints each spawn; the marker and
-  radius are always drawn in the editor.
+### How the AI works
 
-  **Spawners are how enemies get into a map from here on.** Dropping an `Enemy` into a
-  scene by hand is the old way: it gives one enemy, once, and an emptied-out map stays
-  empty for the rest of the raid, which is the wrong shape for raids you're meant to
-  spend time in. Place `enemy_spawner.tscn` instead and let it own the population. The
-  two hand-placed enemies still in `main.tscn` are leftovers from before this existed
-  and should be replaced with spawners; don't add more of them.
-- **Walls** (`wall.gd`, `wall.tscn`). A `@tool` `StaticBody2D` on the `world` layer with
-  its mask at 0 — it stops things, it never looks for them. One `size` export drives both
-  the drawn rectangle and the collider, so the art and the collision can't drift apart,
-  and the `RectangleShape2D` is `resource_local_to_scene` so resizing one wall doesn't
-  resize every wall. They are gameplay rather than scenery: they stop shots, block enemy
-  sight, and are what the AI hides behind. **Resize with the `Size` property, never the
-  editor's drag handles** — the handles write `scale`/`skew` on the node, and Godot's 2D
-  physics cannot collide a skewed or unevenly scaled shape, so bodies that touch such a
-  wall get ejected to one of its corners. `_bake_transform()` folds any such transform
-  back into `size` when the scene loads and `_get_configuration_warnings()` flags one in
-  the meantime, so the state is self-healing, but the handles still aren't the way to do
-  it. `main.tscn` has six walls.
-- **Collision layers** (`collision_layers.gd`, named in `project.godot`).
-  `world` is walls, and it is also what blocks enemy sight; `player` and `enemy`
-  collide with the world and with each other; `bullet` is currently unused, since
-  shots are rays rather than bodies. Scenes set their own layer/mask in the
-  inspector — a `.tscn` stores a raw integer and can't reference the constants, so
-  the two have to be renumbered together.
-- **Line of sight** (`enemy.gd`). `_line_clear(from, to)` is the one place a sightline
-  is decided, so awareness, cover choice and peek angles can never disagree about what
-  counts as a wall. One raycast per enemy per tick tests the player and is cached in
-  `_has_los`; the cover search casts more, but only when the cover it has goes bad.
-  Enemies only notice the player down a clear line, hold fire when the line breaks,
-  and give up `min_chase_time` after losing contact rather than after a fixed
-  commitment. Being shot from out of sight still pulls them into CHASE.
-- **Seeded randomness** (`game_manager.gd`). `GameManager.rng` is seeded from
-  `run_seed`; each enemy derives its own stream from it at `_ready`. It is currently
-  seeded to 0, so every run plays out identically — good for debugging. Call
-  `seed_run(randi())` from `start_new_run()` when raids should vary.
+Individuals perceive and act; the `Squad` pools what they know and coordinates them.
 
-### Not built yet
+- **Perception.** Sight is a cone plus a line-of-sight ray, feeding an awareness meter
+  that fills faster the closer and more exposed you are (crouching, cloak and distance
+  slow it). Noise (shots, sprinting, landing, vault alarms) is broadcast to the `enemy`
+  group with a radius.
+- **Last known position.** A squad fights where it last saw or heard you, not where you
+  are. Break line of sight and they lose you, announce it, then search, then stand down.
+- **Attack tokens.** Only two members (three with an Overseer) may fire at once; the rest
+  reposition. A unit with you inside 8 m fires regardless.
+- **Roles.** Anchors hold a firing spot and suppress your last position, flankers are
+  rewarded for spots off to one side, pushers close in. Everyone pushes when you reload,
+  heal or are badly hurt.
+- **Position scoring** (`Enemy._decide`). Candidate spots on the navmesh are scored for
+  range, cover (best is a spot it can fire over and duck behind), travel, crowding and
+  flank angle.
+- **Fairness.** Reaction delays are staggered, aim error starts wide and settles while
+  it holds you in view, and bursts are followed by a pause and often a move.
+- **Archetypes** (`Catalog.ENEMIES`): Trooper, Stalker (cloaked shotgun rusher), Bulwark
+  (frontal shield), Marksman (charged shot with a warning beam), Grenadier (flushes you
+  out of cover), Overseer (commander, extra token).
+- **Barks.** Each coordinated decision is announced through the HUD comms feed, and
+  nearby squads come to investigate a firefight.
 
-Everything the extraction loop needs. These are still the original scaffold stubs with
-`TODO` comments and `pass` bodies — treat the comments inside them as the spec:
+### Known gaps
 
-- `game_manager.gd` — `extract_success()` and `start_new_run()` are the only TODOs left
-  in it, and most of what they need is already there: `current_run_loot`, `stash`,
-  `add_loot_to_run()` (the one place carried loot is mutated — rule 2), the
-  `local_player_died` signal, and `clear_death_screen()`. `player_died()` is done: it
-  clears carried loot and raises a local black "You died" overlay while the raid keeps
-  simulating — see `death_screen.gd`. `stash` is an in-memory `Array` that nothing
-  writes to disk.
-- `extraction_zone.gd` — the hold timer. `_on_body_entered`/`_on_body_exited` already
-  track `player_inside`, but `_process` counts nothing.
-- `loot_item.gd` — pickup. `_on_body_entered` is an empty `pass`.
-- `hud.gd` — loot count and extraction countdown.
-
-Note that **none of those three scripts has ever run**: there is no `hud.tscn`, no loot
-scene and no extraction-zone scene, so nothing in `main.tscn` instantiates them. `hud.gd`
-additionally expects `LootLabel` and `TimerLabel` children that don't exist anywhere yet,
-and both `Area2D` scaffolds expect their `body_entered`/`body_exited` signals to be wired
-up in the editor.
-
-Also absent: stash persistence to disk, any menu or results scene, any map beyond
-`main.tscn`, any way to restart after dying (`GameManager.clear_death_screen()` is the
-hook, and nothing calls it), and any consumer for the enemies' `died` signal.
-
-### Known shortcuts
-
-Fine for now, but don't mistake them for finished work:
-
-- **Friendly fire is filtered in code, not by layers.** Named layers exist now
-  (`world` / `player` / `enemy` / `bullet`, see `collision_layers.gd`), but a shot
-  still masks *both* factions (`CollisionLayers.SHOOTABLE`) and spares its own side
-  via `Hitscan.resolve()`'s `shooter` and `ignore_group` arguments — because the
-  player and the AI share one `Weapon`.
-- **Line of sight is a single centre-to-centre ray.** No corner peeking: an enemy
-  is either fully aware of you or fully blind, and a player standing half-exposed
-  at a corner reads as hidden. Three rays (centre + both flanks) is the usual fix
-  if it starts to feel wrong.
-- **Enemies walk to cover in a straight line.** There is no navmesh and no
-  pathfinding, so a cover spot only counts as reachable if the direct line to it is
-  clear, and getting there is `move_and_slide` scraping along whatever it hits.
-  That rules out perfectly good cover round a corner, and `cover_leg_timeout` is
-  what unsticks the cases the straight line gets wrong. A `NavigationAgent2D` is the
-  real fix if the maps stop being one open room.
-- **Cover is judged from one point, for one player.** A spot is "cover" if the
-  centre-to-centre line to the player is blocked right now, so it says nothing about
-  a second enemy's angle, and nothing about where the player is about to walk.
-- **Input map** has `move_left/right/up/down` (WASD) and `shoot` (left mouse). There is
-  no `interact` action yet; `loot_item.gd` will need one.
-- `README.md` still has a placeholder title (`[Your Game Name]`) and no screenshot.
+- Nothing has been play-tested by a person yet: balance numbers, recoil, movement feel
+  and AI pacing are first guesses.
+- One map, no reinforcements or respawning enemies during a raid.
+- Enemies have no melee and don't use doors, ladders or jumps.
+- Crouching doesn't lower an enemy's hit capsule; only the player's.
+- No settings screen (sensitivity, volume, graphics quality). SDFGI and volumetric fog
+  are on unconditionally, tuned on an Apple M5 Pro.
+- The view model is a few boxes; there are no reload or melee animations.
 
 ## Decisions already made
 
-These were deliberate. Don't quietly reverse them; raise it with the user first.
+Don't quietly reverse these; raise it with the user first.
 
 | Decision | Choice | Why |
 |---|---|---|
-| Dimension | **2D top-down** | Fastest path to playable. Placeholder art is rectangles. |
-| Players | **Single-player, network-shaped** | Offline now, structured so co-op can be added later. |
-| Eventual MP target | **Co-op (you + a friend vs AI)**, host-authoritative | Achievable for two people. |
-| PvP | **Explicitly not a goal** | Needs a real backend, server-side stash, and anti-cheat. |
-| Physics | Godot 2D physics | The `3d/physics_engine="Jolt Physics"` line in `project.godot` is a leftover default and is irrelevant to a 2D game. |
+| Dimension | **3D, first person** | User's call on 2026-11-13, replacing the 2D prototype. |
+| Players | **Single-player vs AI, network-shaped** | Offline now, structured so co-op can be added later. |
+| Eventual MP target | **Co-op vs AI**, host-authoritative | Achievable for two people. |
+| PvP | **Explicitly not a goal** | Needs a real backend, server-side stash and anti-cheat. |
+| Physics | Jolt (Godot 3D), 120 ticks/s | Mouse look is applied on the tick, so it needs to be fine-grained. |
+| Assets | **None imported** | Geometry from primitives, textures generated, audio synthesized. |
 
 ## Network-readiness rules
 
@@ -235,7 +126,7 @@ AI, by a replay — or later by a packet.
 # Good
 class_name InputFrame extends RefCounted
 var move: Vector2
-var aim: Vector2
+var look: Vector2
 var shoot: bool
 var interact: bool
 
@@ -267,55 +158,42 @@ outcomes.
 
 ## Project layout
 
-What actually exists today:
-
 ```
-main.tscn            # the raid scene — 1 player, 2 hand-placed enemies (legacy,
-                     # replace with spawners), 1 spawner, 6 walls; no loot,
-                     # no extract zone, no HUD
-player.tscn          # body + collider + sprite + the player camera
-enemy.tscn
-enemy_spawner.tscn   # placeable spawn point — the way enemies get into a map
-wall.tscn            # placeable solid rectangle; size drives its own collider
-                     # resize with Size, never the drag handles — see wall.gd
-icon.svg             # placeholder sprite for both player and enemies
 project.godot
+scenes/
+  menu.tscn  raid.tscn        # a root node and a script each; everything else is built in code
 scripts/
-  autoload/
-    game_manager.gd  # registered as the GameManager autoload
-  collision_layers.gd  death_screen.gd  enemy.gd  enemy_spawner.gd
-  hitscan.gd  hud.gd  input_frame.gd  loot_item.gd
-  movement.gd  player.gd  player_camera.gd  player_input_source.gd  tracer.gd
-  wall.gd  weapon.gd
-  extraction_zone.gd
+  autoload/  game_manager.gd  sfx.gd
+  data/      catalog.gd
+  core/      input_frame.gd  player_input_source.gd  gun.gd  layers.gd
+  actors/    player.gd  enemy.gd  squad.gd  rig.gd  grenade.gd
+  world/     raid.gd  level.gd  loot.gd  loot_container.gd  extract_point.gd
+  fx/        mats.gd  fx.gd
+  ui/        hud.gd  menu.gd  ui_kit.gd
+tools/       selftest.*  shots.*  bark_counter.gd   # development helpers, not shipped gameplay
 ```
 
-Where it's heading, as the project grows:
+### Tools
 
 ```
-scenes/      # .tscn files
-scripts/     # .gd files
-assets/      # art, audio, fonts
-  models/
-  textures/
-  audio/
-addons/      # third-party plugins
+godot --headless --path . res://tools/selftest.tscn -- --test-profile
+godot --path . res://tools/shots.tscn -- <output dir> --test-profile
 ```
 
-Create these as needed. The `.tscn` files still sit at `res://` root; move them into
-`scenes/` from Godot's own FileSystem dock rather than on disk, so it can fix up the
-resource paths for you.
+`selftest` drives the player with a scripted input source through buying, equipping,
+patrols, combat, looting, abilities, grenades, extraction and death, and prints
+PASS/FAIL. `--test-profile` points saves at a throwaway file so the real profile is
+never touched. Run it after changing gameplay code.
 
 ## Conventions
 
-- **Static typing everywhere**: `var speed: float = 300.0`, `func fire() -> void:`.
-  Godot's typed GDScript is meaningfully faster and catches real errors.
+- **Static typing everywhere**: `var speed: float = 5.0`, `func fire() -> void:`.
 - `snake_case` for files, variables and functions; `PascalCase` for classes and nodes.
-- Prefer `class_name` on scripts that are referenced elsewhere.
-- Signals over polling; `@export` over hardcoded tuning values so the designer-facing
-  numbers live in the inspector.
-- 2D specifics: `CharacterBody2D` for player and enemies, `TileMapLayer` (not the
-  deprecated `TileMap`) for levels, `Area2D` for loot pickups and extract zones.
+- Prefer `class_name` on scripts referenced elsewhere. Don't pick a name Godot already
+  uses (`Container` is taken; that's why it's `LootContainer`).
+- Tuning numbers live in `Catalog` or as constants at the top of the script that uses
+  them.
+- Interface: plain wording, flat and square, no decorative icons or boxes.
 
 ## Working in this repo
 
@@ -334,17 +212,19 @@ This matters most for the extraction loop (build-order step 2), which is the par
 learned on. Explaining why a `Dictionary` beats a parallel array is the job; handing over
 a finished `extraction_zone.gd` is not.
 
-**Claude cannot run the game.** Godot is not on `PATH` in this environment, and a 2D
-shooter can't be verified by reading code anyway. After making gameplay changes, tell
-the user what to test and let them run it. Don't claim something works when it hasn't
+**Run the checks, but feel is the user's call.** Godot is usually not on `PATH`. If a
+Godot 4.7 binary is available, `res://tools/selftest.tscn` plays the core loop headless
+and `res://tools/shots.tscn` saves screenshots (see Tools above). Neither can tell you
+whether shooting or the AI *feels* right: after gameplay changes, say what was run and
+what the user still needs to play to judge. Don't claim something works when it hasn't
 been run.
 
 **Never edit or commit `.godot/`.** It's machine-local cache, gitignored, regenerated.
 
-**Be careful with `.tscn` and `.tres` files.** They're text and technically hand-editable,
-but Godot writes them in a specific format with node paths and resource IDs that are easy
-to corrupt. Prefer creating scenes' *scripts* by hand and letting the user wire up nodes
-in the editor, unless the scene edit is small and obviously safe.
+**Scenes are built in code.** The two `.tscn` files are a root node with a script and
+nothing else; the level, characters, HUD and menu are all assembled by their scripts.
+Keep it that way unless the user asks otherwise: it keeps the whole game reviewable as
+text and avoids hand-editing Godot's scene format.
 
 **Godot must be closed before the user pulls or switches branches** — it holds files open
 and caches the scene tree. If they report phantom errors after a branch change, that's
@@ -361,6 +241,6 @@ raise it first.
 - Any multiplayer or networking code
 - PvP, matchmaking, lobbies, dedicated servers, anti-cheat
 - Backend services or server-side persistence (stash saves to a local file)
-- 3D anything
 - Procedural map generation
-- Meaningful art — placeholder shapes and colors are correct for now
+- Imported art, models or audio files — everything is built from primitives and
+  synthesized sound for now, and that look is deliberate
