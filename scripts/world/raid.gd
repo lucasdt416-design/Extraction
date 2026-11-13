@@ -47,6 +47,7 @@ func _ready() -> void:
 	add_child(player)
 	player.died.connect(_on_player_died)
 
+	_build_lens_and_dust()
 	hud = Hud.new()
 	add_child(hud)
 	hud.bind(self)
@@ -113,9 +114,52 @@ func _end(outcome: String) -> void:
 	GameManager.raid_failed(outcome, elapsed)
 	hud.show_result(GameManager.last_result)
 
+func _build_lens_and_dust() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 0
+	var lens := ColorRect.new()
+	lens.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lens.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var material := ShaderMaterial.new()
+	material.shader = load("res://shaders/post.gdshader")
+	lens.material = material
+	layer.add_child(lens)
+	add_child(layer)
+
+	# Dust hanging in the air around the player; it catches the sun and the lamps.
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.03, 0.03)
+	var mote := StandardMaterial3D.new()
+	mote.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mote.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mote.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mote.albedo_color = Color(1.0, 0.93, 0.8, 0.4)
+	quad.material = mote
+	var dust := CPUParticles3D.new()
+	dust.mesh = quad
+	dust.amount = 320
+	dust.lifetime = 10.0
+	dust.preprocess = 10.0
+	dust.local_coords = false
+	dust.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	dust.emission_box_extents = Vector3(12.0, 3.5, 12.0)
+	dust.direction = Vector3(1.0, 0.1, 0.3)
+	dust.spread = 50.0
+	dust.gravity = Vector3.ZERO
+	dust.initial_velocity_min = 0.05
+	dust.initial_velocity_max = 0.3
+	dust.scale_amount_min = 0.4
+	dust.scale_amount_max = 1.4
+	dust.position.y = 2.5
+	dust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	player.add_child(dust)
+
 # Late afternoon on a dusty plateau: a low warm sun, long shadows, cool shade,
 # haze in the distance. Interiors get their own lamps from the level.
 func _build_environment() -> void:
+	var sky_shader := ShaderMaterial.new()
+	sky_shader.shader = load("res://shaders/sky.gdshader")
+	sky_shader.set_shader_parameter("noise_tex", Mats.noise())
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.17, 0.33, 0.60)
 	sky_material.sky_horizon_color = Color(0.86, 0.74, 0.66)
@@ -125,7 +169,8 @@ func _build_environment() -> void:
 	sky_material.sun_angle_max = 9.0
 	sky_material.sun_curve = 0.08
 	var sky := Sky.new()
-	sky.sky_material = sky_material
+	sky.sky_material = sky_shader
+	sky.radiance_size = Sky.RADIANCE_SIZE_256
 
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
@@ -146,16 +191,28 @@ func _build_environment() -> void:
 	env.sdfgi_cascades = 4
 	env.sdfgi_max_distance = 110.0
 	env.sdfgi_energy = 1.1
+	env.ssr_enabled = true
+	env.ssr_max_steps = 48
+	env.ssr_fade_in = 0.2
+	env.ssr_fade_out = 2.5
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.0035
+	env.volumetric_fog_density = 0.0028
 	env.volumetric_fog_albedo = Color(0.90, 0.88, 0.86)
 	env.volumetric_fog_length = 140.0
 	env.volumetric_fog_ambient_inject = 0.4
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.06
+	env.adjustment_contrast = 1.1
 	env.adjustment_saturation = 1.08
 	var world := WorldEnvironment.new()
 	world.environment = env
+	# Eyes adjust: stepping indoors opens up, stepping back out is briefly bright.
+	var exposure := CameraAttributesPractical.new()
+	exposure.auto_exposure_enabled = true
+	exposure.auto_exposure_scale = 0.42
+	exposure.auto_exposure_speed = 1.2
+	exposure.auto_exposure_min_sensitivity = 90.0
+	exposure.auto_exposure_max_sensitivity = 420.0
+	world.camera_attributes = exposure
 	add_child(world)
 
 	var sun := DirectionalLight3D.new()

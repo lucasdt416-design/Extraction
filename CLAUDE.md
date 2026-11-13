@@ -51,10 +51,15 @@ The whole loop is playable end to end. Everything below was run through
 - **Interface** (`ui/hud.gd`, `ui/menu.gd`, `ui/ui_kit.gd`). HUD with health/shield,
   ammo, abilities, detection meter, damage direction, extract markers, the enemy comms
   feed, pause and result screens. Menu with Deploy, Stash, Trader and Frame tabs.
-- **Look and sound** (`fx/mats.gd`, `fx/fx.gd`, `actors/rig.gd`, `autoload/sfx.gd`).
-  Generated triplanar textures, procedurally animated primitive characters, tracers and
-  impacts, SDFGI / volumetric fog / glow, and every sound synthesized at startup. No
-  imported assets.
+- **Look and sound** (`fx/mats.gd`, `fx/shapes.gd`, `fx/fx.gd`, `actors/rig.gd`,
+  `autoload/sfx.gd`, `shaders/`). No imported assets. Props, armour and weapons use
+  bevelled meshes from `Shapes.rounded_box`. `shaders/surface.gdshader` gives walls and
+  floors world-space panel seams, a painted band, grime and patchy wear;
+  `shaders/sky.gdshader` draws the sky, clouds and ringed planet; `shaders/post.gdshader`
+  is the lens (vignette, slight fringing, grain). The raid adds SDFGI, screen-space
+  reflections, per-building reflection probes, volumetric fog, glow, auto exposure and
+  drifting dust. Buildings get trim, lit windows, rooftop plant and painted lettering
+  from `Level._dress_shell` / `_dress_site`. All sound is synthesized at startup.
 
 ### How the AI works
 
@@ -91,7 +96,9 @@ Individuals perceive and act; the `Squad` pools what they know and coordinates t
 - Crouching doesn't lower an enemy's hit capsule; only the player's.
 - No settings screen (sensitivity, volume, graphics quality). SDFGI and volumetric fog
   are on unconditionally, tuned on an Apple M5 Pro.
-- The view model is a few boxes; there are no reload or melee animations.
+- First-person weapons are modelled per type with hands and a magazine-drop reload,
+  but there is no melee and no inspect or equip animation.
+- The player has no visible body or shadow yet; a main-character design is planned.
 
 ## Decisions already made
 
@@ -168,8 +175,9 @@ scripts/
   core/      input_frame.gd  player_input_source.gd  gun.gd  layers.gd
   actors/    player.gd  enemy.gd  squad.gd  rig.gd  grenade.gd
   world/     raid.gd  level.gd  loot.gd  loot_container.gd  extract_point.gd
-  fx/        mats.gd  fx.gd
+  fx/        mats.gd  shapes.gd  fx.gd
   ui/        hud.gd  menu.gd  ui_kit.gd
+shaders/     surface.gdshader  sky.gdshader  post.gdshader
 tools/       selftest.*  shots.*  bark_counter.gd   # development helpers, not shipped gameplay
 ```
 

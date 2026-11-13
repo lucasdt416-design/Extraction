@@ -77,6 +77,7 @@ var _head: Node3D
 var _camera: Camera3D
 var _view: Node3D
 var _view_models: Array[Node3D] = []
+var _mags: Array[Node3D] = []
 var _flash: MeshInstance3D
 var _collider: CollisionShape3D
 var _kick: float = 0.0
@@ -477,7 +478,8 @@ func _process(delta: float) -> void:
 	var bob := Vector3(sin(_bob) * 0.012, absf(cos(_bob)) * -0.014, 0.0) * clampf(speed / WALK_SPEED, 0.0, 1.4) * (1.0 - _aim_blend * 0.85)
 	_sway = _sway.lerp(Vector2.ZERO, minf(delta * 9.0, 1.0))
 	var hip := Vector3(0.19, -0.16, -0.4)
-	var ads := Vector3(0.0, -0.118, -0.3)
+	# Lines the optic (or the pistol's irons) up with the centre of the screen.
+	var ads := Vector3(0.0, -0.0723 if gun().id != "sidearm" else -0.045, -0.24)
 	var lower := 0.0
 	if _swap_left > 0.0:
 		lower = sin(_swap_left / SWAP_TIME * PI)
@@ -492,6 +494,9 @@ func _process(delta: float) -> void:
 	var showing := gun_index if _swap_left < SWAP_TIME * 0.5 else -1
 	for i in _view_models.size():
 		_view_models[i].visible = i == showing or (showing == -1 and i != gun_index and _view_models.size() > 1)
+	# Reloading drops the magazine out and brings a fresh one up.
+	var reload := gun().reload_progress()
+	_mags[gun_index].position.y = -0.3 * clampf(sin(clampf((reload - 0.12) / 0.6, 0.0, 1.0) * PI) * 1.6, 0.0, 1.0)
 	if _flash.visible and _view_kick < 0.75:
 		_flash.visible = false
 	var length: float = def["length"]
@@ -510,42 +515,151 @@ func _build_view_models() -> void:
 	_view = Node3D.new()
 	_view.scale = Vector3.ONE * 0.85
 	_camera.add_child(_view)
-	var body_mat := Mats.surface(Color(0.24, 0.25, 0.27), "plain", 0.45, 0.5)
-	var pale := Mats.surface(Color(0.78, 0.77, 0.74), "plain", 0.5, 0.2)
+	var dark := Mats.surface(Color(0.085, 0.09, 0.1), "plain", 0.42, 0.75)
+	var steel := Mats.surface(Color(0.2, 0.21, 0.23), "plain", 0.3, 0.9)
+	var pale := Mats.surface(Color(0.74, 0.73, 0.69), "plain", 0.55, 0.1)
+	var rubber := Mats.surface(Color(0.05, 0.05, 0.055), "plain", 0.85, 0.0)
+	var sleeve := Mats.surface(Color(0.16, 0.17, 0.19), "plain", 0.9, 0.0)
 	var accent: Color = frame_def["accent"]
+	var lit := Mats.glow(accent, 3.0)
 	for g in guns:
 		var model := Node3D.new()
 		_view.add_child(model)
 		_view_models.append(model)
 		var length: float = g.def["length"]
-		var girth := 0.05 if g.id != "shotgun" else 0.062
-		# Receiver, barrel, top rail with a sight, grip, magazine, accent line.
-		_part(model, Vector3(0.0, 0.0, -length * 0.35), Vector3(girth, 0.085, length * 0.7), body_mat)
-		_part(model, Vector3(0.0, 0.012, -length * 0.85 - 0.02), Vector3(girth * 0.55, girth * 0.55, length * 0.4), body_mat)
-		_part(model, Vector3(0.0, 0.0, -length * 0.5), Vector3(girth + 0.012, 0.05, length * 0.36), pale)
-		_part(model, Vector3(0.0, 0.05, -length * 0.3), Vector3(0.02, 0.014, length * 0.5), body_mat)
-		_part(model, Vector3(0.0, 0.066, -0.06), Vector3(0.03, 0.022, 0.012), body_mat)
-		_part(model, Vector3(0.0, 0.064, -length * 0.55), Vector3(0.008, 0.02, 0.008), Mats.glow(accent, 3.0))
-		_part(model, Vector3(0.0, -0.085, 0.01), Vector3(0.04, 0.12, 0.05), body_mat).rotation.x = 0.25
-		_part(model, Vector3(0.0, -0.09, -length * 0.3), Vector3(0.03, 0.12 if g.id != "shotgun" else 0.04, 0.05), pale)
-		_part(model, Vector3(girth * 0.5 + 0.001, 0.01, -length * 0.4), Vector3(0.002, 0.012, length * 0.5), Mats.glow(accent, 2.5))
-		if g.id == "dmr" or g.id == "rifle":
-			_part(model, Vector3(0.0, 0.0, 0.1), Vector3(0.045, 0.1, 0.2), body_mat)
-		# Hands: a forearm on the grip, another under the barrel.
-		var hand := Mats.surface(Color(0.17, 0.18, 0.2), "plain", 0.7, 0.0)
-		if g.id != "sidearm":
-			_part(model, Vector3(-0.045, -0.085, -length * 0.5 + 0.05), Vector3(0.04, 0.04, 0.16), hand).rotation = Vector3(0.5, 0.6, 0.0)
-		_part(model, Vector3(0.0, -0.1, 0.02), Vector3(0.05, 0.05, 0.06), hand)
+		var long := g.id != "sidearm"
+		var body := 0.3 if long else length          # receiver length
+		var reach := length - body                    # how far the barrel runs past it
+		var wide := 0.056 if g.id == "shotgun" else 0.046
+
+		if long:
+			# Receiver, with a pale side plate and an ejection port.
+			_solid(model, Vector3(0.0, 0.0, -body * 0.5), Vector3(wide, 0.078, body), dark, 0.012)
+			_solid(model, Vector3(0.0, -0.004, -body * 0.42), Vector3(wide + 0.006, 0.04, body * 0.5), pale, 0.006)
+			_solid(model, Vector3(wide * 0.5 + 0.001, 0.016, -body * 0.55), Vector3(0.003, 0.02, 0.07), steel, 0.001)
+			# Stock, with a rubber butt pad.
+			_solid(model, Vector3(0.0, -0.012, 0.115), Vector3(wide - 0.008, 0.07, 0.2), dark, 0.014)
+			_solid(model, Vector3(0.0, -0.02, 0.222), Vector3(wide - 0.004, 0.1, 0.022), rubber, 0.008)
+			# Handguard with vent slots, then the barrel and muzzle.
+			var guard := reach * 0.62
+			_solid(model, Vector3(0.0, 0.002, -body - guard * 0.5), Vector3(wide - 0.004, 0.058, guard), pale if g.id != "shotgun" else dark, 0.012)
+			for slot in 4:
+				_solid(model, Vector3(0.0, 0.004, -body - guard * (0.2 + slot * 0.2)), Vector3(wide - 0.002, 0.016, guard * 0.09), dark, 0.002)
+			var bore := 0.019 if g.id == "shotgun" else 0.011
+			_tube(model, Vector3(0.0, 0.008, -body - reach * 0.5 - 0.03), bore, reach + 0.06, steel)
+			_tube(model, Vector3(0.0, 0.008, -length - 0.06), bore + 0.007, 0.07, dark)
+			if g.id == "shotgun":
+				_tube(model, Vector3(0.0, -0.032, -body - reach * 0.45), 0.016, reach * 0.9, steel)
+				_solid(model, Vector3(0.0, -0.03, -body - reach * 0.4), Vector3(0.062, 0.05, 0.13), pale, 0.014)
+			# Top rail and the optic.
+			_solid(model, Vector3(0.0, 0.045, -body * 0.5 - guard * 0.3), Vector3(0.02, 0.012, body + guard * 0.6), steel, 0.003)
+			if g.id == "dmr":
+				_tube(model, Vector3(0.0, 0.085, -body * 0.45), 0.021, 0.2, dark)
+				_tube(model, Vector3(0.0, 0.085, -body * 0.45 - 0.115), 0.027, 0.05, dark)
+				_tube(model, Vector3(0.0, 0.085, -body * 0.45 + 0.105), 0.024, 0.03, dark)
+				for ring: float in [-0.05, 0.05]:
+					_solid(model, Vector3(0.0, 0.066, -body * 0.45 + ring), Vector3(0.03, 0.04, 0.018), steel, 0.004)
+			else:
+				# Reflex sight: a housing, a tinted pane, and the dot.
+				_solid(model, Vector3(0.0, 0.058, -body * 0.4), Vector3(0.036, 0.016, 0.05), dark, 0.004)
+				for side: float in [-1.0, 1.0]:
+					_solid(model, Vector3(side * 0.017, 0.082, -body * 0.4 - 0.014), Vector3(0.004, 0.04, 0.012), dark, 0.0015)
+				_solid(model, Vector3(0.0, 0.103, -body * 0.4 - 0.014), Vector3(0.038, 0.004, 0.012), dark, 0.0015)
+				var pane := _part(model, Vector3(0.0, 0.083, -body * 0.4 - 0.014), Vector3(0.03, 0.036, 0.001), Mats.glass(accent))
+				pane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				_part(model, Vector3(0.0, 0.085, -body * 0.4 - 0.0135), Vector3(0.003, 0.003, 0.001), Mats.glow(Color(1.0, 0.2, 0.15), 6.0))
+			_solid(model, Vector3(0.0, 0.058, -body - guard * 0.55), Vector3(0.006, 0.02, 0.008), steel, 0.002)
+		else:
+			# Pistol: slide over a frame, a short barrel, iron sights.
+			_solid(model, Vector3(0.0, 0.018, -length * 0.5), Vector3(0.034, 0.042, length), dark, 0.008)
+			_solid(model, Vector3(0.0, -0.014, -length * 0.42), Vector3(0.03, 0.03, length * 0.8), pale, 0.007)
+			for cut in 5:
+				_solid(model, Vector3(0.0, 0.018, -0.02 - cut * 0.012), Vector3(0.036, 0.03, 0.004), steel, 0.001)
+			_tube(model, Vector3(0.0, 0.016, -length - 0.008), 0.0085, 0.03, steel)
+			_solid(model, Vector3(0.0, 0.046, -0.014), Vector3(0.02, 0.012, 0.01), dark, 0.002)
+			_solid(model, Vector3(0.0, 0.046, -length + 0.02), Vector3(0.005, 0.012, 0.008), dark, 0.002)
+			_part(model, Vector3(0.0, 0.05, -length + 0.024), Vector3(0.003, 0.004, 0.001), lit)
+			_solid(model, Vector3(0.0, -0.036, -length * 0.5), Vector3(0.012, 0.02, 0.07), dark, 0.004)
+
+		# Grip, trigger guard, magazine (kept as its own node so reloads can drop it).
+		var grip := _solid(model, Vector3(0.0, -0.085, 0.006 if long else -0.012), Vector3(0.034, 0.115, 0.046), rubber, 0.012)
+		grip.rotation.x = 0.28
+		_solid(model, Vector3(0.0, -0.058, -0.06), Vector3(0.008, 0.008, 0.075), dark, 0.002)
+		var mag := Node3D.new()
+		model.add_child(mag)
+		_mags.append(mag)
+		if long and g.id != "shotgun":
+			var mag_height := 0.2 if g.id == "smg" else (0.1 if g.id == "dmr" else 0.16)
+			var block := _solid(mag, Vector3(0.0, -0.04 - mag_height * 0.5, -body * 0.42), Vector3(0.028, mag_height, 0.056), steel, 0.007)
+			block.rotation.x = 0.0 if g.id == "smg" else -0.2
+		elif not long:
+			_solid(mag, Vector3(0.0, -0.148, 0.004), Vector3(0.03, 0.012, 0.046), steel, 0.004).rotation.x = 0.28
+		# Accent line down the receiver.
+		_part(model, Vector3((wide if long else 0.034) * 0.5 + 0.0015, 0.024, -body * 0.5), Vector3(0.0015, 0.006, body * 0.7), lit)
+
+		# Hands and forearms: trigger hand on the grip, support hand forward.
+		var hold := Vector3(0.0, -0.085, 0.01 if long else -0.01)
+		_arm(model, hold + Vector3(0.012, -0.012, 0.0), Vector3(0.1, -0.2, 0.34), rubber, sleeve, pale)
+		var support := Vector3(0.0, -0.045, -body - reach * 0.3) if long else Vector3(-0.012, -0.11, -0.012)
+		_arm(model, support + Vector3(-0.012, -0.012, 0.0), Vector3(-0.2, -0.22, 0.2 if long else 0.3), rubber, sleeve, pale)
+
 	_flash = MeshInstance3D.new()
-	var quad := SphereMesh.new()
-	quad.radius = 0.035
-	quad.height = 0.13
-	_flash.mesh = quad
+	var burst := SphereMesh.new()
+	burst.radius = 0.035
+	burst.height = 0.15
+	_flash.mesh = burst
 	_flash.rotation.x = PI * 0.5
 	_flash.material_override = Mats.beam(Color(1.0, 0.8, 0.5), 3.0, 0.9)
 	_flash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_flash.visible = false
 	_view.add_child(_flash)
+
+# A glove at `hand` and a sleeved forearm running back to `elbow`.
+func _arm(parent: Node3D, hand: Vector3, elbow: Vector3, glove: Material, cloth: Material, cuff: Material) -> void:
+	_solid(parent, hand, Vector3(0.052, 0.05, 0.078), glove, 0.016)
+	var along := elbow - hand
+	var wrist := hand + along * 0.12
+	_limb(parent, wrist, elbow, 0.036, cloth)
+	_limb(parent, wrist + along * 0.02, wrist + along * 0.13, 0.041, cuff)
+
+# A capsule between two points.
+func _limb(parent: Node3D, from: Vector3, to: Vector3, radius: float, mat: Material) -> void:
+	var mesh := CapsuleMesh.new()
+	mesh.radius = radius
+	mesh.height = from.distance_to(to) + radius * 2.0
+	mesh.radial_segments = 16
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	instance.material_override = mat
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var up := (to - from).normalized()
+	var side := up.cross(Vector3.FORWARD).normalized()
+	instance.transform = Transform3D(Basis(side, up, side.cross(up)), (from + to) * 0.5)
+	parent.add_child(instance)
+
+# A cylinder along the barrel axis.
+func _tube(parent: Node3D, at: Vector3, radius: float, length: float, mat: Material) -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = length
+	mesh.radial_segments = 20
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	instance.material_override = mat
+	instance.position = at
+	instance.rotation.x = PI * 0.5
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(instance)
+
+func _solid(parent: Node3D, at: Vector3, size: Vector3, mat: Material, bevel: float) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.mesh = Shapes.rounded_box(size, bevel, 2)
+	instance.material_override = mat
+	instance.position = at
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(instance)
+	return instance
 
 func _part(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 	var mesh := BoxMesh.new()

@@ -40,6 +40,7 @@ var _notice_left: float = 0.0
 
 func _ready() -> void:
 	add_to_group("hud")
+	layer = 5   # above the lens layer the raid adds
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_font = ThemeDB.fallback_font
 	_canvas = Control.new()

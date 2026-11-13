@@ -26,6 +26,8 @@ func _ready() -> void:
 		await get_tree().create_timer(0.4).timeout
 		get_viewport().get_texture().get_image().save_png("%s/menu_%s.png" % [out, tab])
 	menu.queue_free()
+	GameManager.loadout["primary"] = "rifle"
+	GameManager.loadout["secondary"] = "dmr" if args.has("--dmr") else ""
 	var raid: Raid = load("res://scenes/raid.tscn").instantiate()
 	add_child(raid)
 	await get_tree().create_timer(0.3).timeout

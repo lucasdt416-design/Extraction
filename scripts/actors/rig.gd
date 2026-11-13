@@ -130,9 +130,8 @@ func _pivot(parent: Node3D, at: Vector3) -> Node3D:
 	return node
 
 func _block(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	return _add(parent, at, mesh, mat)
+	# Bevelled, so armour plates catch a highlight along their edges.
+	return _add(parent, at, Shapes.rounded_box(size, minf(size.x, minf(size.y, size.z)) * 0.28, 1), mat)
 
 func _capsule(parent: Node3D, at: Vector3, radius: float, height: float, mat: Material) -> MeshInstance3D:
 	var mesh := CapsuleMesh.new()
