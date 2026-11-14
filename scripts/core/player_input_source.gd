@@ -15,7 +15,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	if event is InputEventMouseMotion:
-		_look += (event as InputEventMouseMotion).relative * sensitivity
+		_look += (event as InputEventMouseMotion).relative * sensitivity * float(GameManager.settings["sensitivity"])
 	elif event.is_action_pressed("shoot"):
 		_shoot_pressed = true
 	elif event.is_action_pressed("weapon_next"):

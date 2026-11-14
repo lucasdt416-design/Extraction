@@ -10,6 +10,7 @@ extends Node
 
 signal profile_changed
 signal backpack_changed
+signal settings_changed
 # result: {"outcome": "extracted" | "died" | "lost", "items": Array[String], "value": int, "kills": int, "time": float}
 signal raid_ended(result: Dictionary)
 
@@ -26,6 +27,14 @@ var stash: Array[String] = []
 var loadout: Dictionary = {"primary": "", "secondary": "", "armor": "", "implant_a": "", "implant_b": ""}
 var frame_id: String = "striker"
 var stats: Dictionary = {"raids": 0, "extracted": 0, "kills": 0, "earned": 0}
+
+# --- Settings ---------------------------------------------------------------
+# Player preferences. Saved with the profile but never lost on death or reset.
+# quality: 0 = low, 1 = medium, 2 = high (see Raid.apply_quality).
+const SETTING_RANGES: Dictionary = {
+	"sensitivity": [0.2, 3.0, 0.1], "fov": [65.0, 110.0, 1.0], "volume": [0.0, 1.0, 0.05], "quality": [0.0, 2.0, 1.0],
+}
+var settings: Dictionary = {"sensitivity": 1.0, "fov": 82.0, "volume": 0.8, "quality": 2.0}
 
 # --- Raid in progress --------------------------------------------------------
 var in_raid: bool = false
@@ -51,6 +60,21 @@ func _ready() -> void:
 func seed_run(new_seed: int) -> void:
 	run_seed = new_seed
 	rng.seed = run_seed
+
+# The one place a setting changes. Clamped to its range, saved, announced.
+func set_setting(key: String, value: float) -> void:
+	if not SETTING_RANGES.has(key):
+		return
+	var limits: Array = SETTING_RANGES[key]
+	settings[key] = clampf(snappedf(value, limits[2]), limits[0], limits[1])
+	_apply_volume()
+	save_profile()
+	settings_changed.emit()
+
+func _apply_volume() -> void:
+	var volume: float = settings["volume"]
+	AudioServer.set_bus_mute(0, volume <= 0.001)
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(volume, 0.001)))
 
 # --- Derived player stats ----------------------------------------------------
 
@@ -248,12 +272,20 @@ func save_profile() -> void:
 		return
 	file.store_string(JSON.stringify({
 		"version": 1, "credits": credits, "stash": stash, "loadout": loadout, "frame": frame_id, "stats": stats,
+		"settings": settings,
 	}, "\t"))
 
 func load_profile() -> void:
 	var data: Variant = null
 	if FileAccess.file_exists(SAVE_PATH):
 		data = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
+	if data is Dictionary:
+		for key: String in settings:
+			var saved: Variant = data.get("settings", {}).get(key)
+			if saved is float or saved is int:
+				var limits: Array = SETTING_RANGES[key]
+				settings[key] = clampf(float(saved), limits[0], limits[1])
+	_apply_volume()
 	if not data is Dictionary:
 		# First launch: enough to buy one real decision, not a whole kit.
 		credits = 1200

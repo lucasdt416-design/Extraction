@@ -40,6 +40,50 @@ static func button(text: String, primary: bool = false, small: bool = false) -> 
 	b.pressed.connect(func() -> void: Sfx.play("click", -8.0))
 	return b
 
+# The settings controls, as a column of rows. Used by the menu's Settings tab
+# and the pause screen. It only calls GameManager.set_setting (rule 6).
+static func settings_rows(include_quality: bool = true) -> VBoxContainer:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	var rows := [
+		["sensitivity", "Mouse sensitivity", func(v: float) -> String: return "%.1f" % v],
+		["fov", "Field of view", func(v: float) -> String: return "%d°" % v],
+		["volume", "Volume", func(v: float) -> String: return "%d%%" % roundi(v * 100.0)],
+	]
+	if include_quality:
+		rows.append(["quality", "Graphics quality", func(v: float) -> String: return ["Low", "Medium", "High"][int(v)]])
+	for row: Array in rows:
+		var key: String = row[0]
+		var format: Callable = row[2]
+		var limits: Array = GameManager.SETTING_RANGES[key]
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 16)
+		var name_label := text(row[1], 16)
+		name_label.custom_minimum_size.x = 210
+		line.add_child(name_label)
+		var slider := HSlider.new()
+		slider.min_value = limits[0]
+		slider.max_value = limits[1]
+		slider.step = limits[2]
+		slider.value = GameManager.settings[key]
+		slider.custom_minimum_size = Vector2(260, 24)
+		slider.focus_mode = Control.FOCUS_NONE
+		for part: String in ["slider", "grabber_area", "grabber_area_highlight"]:
+			var bar := StyleBoxFlat.new()
+			bar.bg_color = FAINT if part == "slider" else TEAL
+			bar.content_margin_top = 2
+			bar.content_margin_bottom = 2
+			slider.add_theme_stylebox_override(part, bar)
+		line.add_child(slider)
+		var value_label := text(format.call(GameManager.settings[key]), 16, DIM)
+		value_label.custom_minimum_size.x = 80
+		line.add_child(value_label)
+		slider.value_changed.connect(func(v: float) -> void:
+			GameManager.set_setting(key, v)
+			value_label.text = format.call(GameManager.settings[key]))
+		column.add_child(line)
+	return column
+
 static func text(content: String, size: int = 16, color: Color = INK, wrap: bool = false) -> Label:
 	var label := Label.new()
 	label.text = content

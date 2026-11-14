@@ -20,13 +20,14 @@ func _ready() -> void:
 	var out := args[0] if args.size() > 0 else "user://"
 	var menu: Control = load("res://scenes/menu.tscn").instantiate()
 	add_child(menu)
-	for tab: String in ["Deploy", "Trader", "Frame"]:
+	for tab: String in ["Deploy", "Trader", "Frame", "Settings"]:
 		menu.set("_tab", tab)
 		menu.call("_refresh")
 		await get_tree().create_timer(0.4).timeout
 		get_viewport().get_texture().get_image().save_png("%s/menu_%s.png" % [out, tab])
 	menu.queue_free()
 	GameManager.loadout["primary"] = "rifle"
+	GameManager.set_setting("quality", 0.0 if args.has("--low") else 2.0)
 	GameManager.loadout["secondary"] = "dmr" if args.has("--dmr") else ""
 	var raid: Raid = load("res://scenes/raid.tscn").instantiate()
 	add_child(raid)

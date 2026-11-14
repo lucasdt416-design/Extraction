@@ -500,6 +500,11 @@ func take_damage(amount: float, from: Node = null, position: Vector3 = Vector3.Z
 		result = 2
 	health -= amount
 	rig.flinch()
+	# A headshot or a heavy hit knocks it off its aim for a moment.
+	if result == 2 or amount >= float(arch["health"]) * 0.25:
+		_react_left = maxf(_react_left, 0.35)
+		_sight_time = 0.0
+		_charge = 0.0
 	if health <= 0.0:
 		_die(from, direction)
 		return 3

@@ -68,9 +68,9 @@ previous one's exit test is met.
 
 ### Phase 1 — Feel
 The game has to feel good with boxes before art is worth buying.
-- Settings screen: mouse sensitivity, FOV, volume, graphics quality (SDFGI/SSR/fog off).
+- ~~Settings screen: mouse sensitivity, FOV, volume, graphics quality.~~ Done (`settings` branch).
 - Fix the punch list: movement, recoil, time-to-kill, AI aggression and accuracy.
-- Hit feedback: enemy stagger, clearer kill confirm, damage numbers off by default.
+- Hit feedback: enemy stagger on headshots and heavy hits is done; clearer kill confirm still to do.
 - Real sound, first pass: guns, footsteps per surface, impacts, ambience bed.
 - **Exit:** the owner plays ten raids and wants an eleventh.
 

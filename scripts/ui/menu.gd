@@ -4,7 +4,7 @@ extends Control
 # (rule 6): every button calls a GameManager function, and the screen redraws
 # itself from GameManager's state when profile_changed fires.
 
-const TABS: Array[String] = ["Deploy", "Stash", "Trader", "Frame"]
+const TABS: Array[String] = ["Deploy", "Stash", "Trader", "Frame", "Settings"]
 const SLOT_NAMES: Dictionary = {"primary": "Primary", "secondary": "Secondary", "armor": "Armor", "implant_a": "Implant", "implant_b": "Implant"}
 
 var _tab: String = "Deploy"
@@ -87,6 +87,7 @@ func _refresh() -> void:
 		"Stash": _stash()
 		"Trader": _trader()
 		"Frame": _frames()
+		"Settings": _settings()
 
 # --- Tabs --------------------------------------------------------------------
 
@@ -236,6 +237,12 @@ func _showcase() -> Control:
 	camera.rotation.x = -0.02
 	viewport.add_child(camera)
 	return holder
+
+func _settings() -> void:
+	_heading("Settings", "Saved with your profile. Also on the pause screen during a raid.")
+	_content.add_child(UiKit.settings_rows())
+	_content.add_child(_gap(10))
+	_content.add_child(UiKit.text("High quality adds bounced light and reflections. Medium drops those. Low also drops fog and soft shading: use it if the game runs slowly.", 13, UiKit.DIM, true))
 
 # --- Pieces ------------------------------------------------------------------
 

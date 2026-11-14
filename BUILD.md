@@ -19,6 +19,7 @@ play-through passes. **No person has played it yet**, so feel and balance are un
 | `main` | The original 2D top-down prototype | Will be replaced when PR #1 merges |
 | `three-d` | The 3D rebuild | PR #1, open |
 | `graphics` | Graphics pass, Kestrel, enemy rebuild, death view, these docs | Pushed, built on `three-d`, no PR until #1 merges |
+| `settings` | Settings screen (sensitivity, FOV, volume, quality), enemy stagger | Pushed, built on `graphics` |
 
 Merging PR #1 deletes the 42 2D files from `main`'s working tree (they stay in git
 history) and adds the 3D game. Nothing else in the repo is touched.
@@ -86,6 +87,8 @@ tools/                       selftest, sim, shots: development helpers
 | Wall/floor look | `shaders/surface.gdshader`, `Mats.wall` |
 | First-person weapon models | `Player._build_view_models` |
 | Key bindings | `GameManager._bind_inputs` |
+| Settings and their ranges | `GameManager.SETTING_RANGES`; controls in `UiKit.settings_rows` |
+| What each graphics quality level turns off | `Raid.apply_quality` |
 | Starting credits and items | `GameManager.load_profile` |
 
 ## How a raid is put together
@@ -125,7 +128,6 @@ Give this to whoever or whatever makes models:
 ## Known gaps (the honest list)
 
 - Never played by a person. Balance, recoil, movement feel and AI pacing are guesses.
-- No settings screen: no mouse sensitivity, volume or graphics quality options.
 - One map. No reinforcements or respawns during a raid.
 - Kestrel has no crouch, jump, aim or death clips; crouch squashes the model.
 - First-person arms are capsules, not Kestrel's real arms. No weapon inspect/equip
@@ -140,7 +142,7 @@ Give this to whoever or whatever makes models:
 
 Measured on an Apple M5 Pro at 1600×900: ~2,500–3,400 draw calls and 0.7–1.1 M triangles
 (shadow passes included), 60 fps. SDFGI, SSR, volumetric fog, glow and auto exposure are
-all on with no quality switch. The frame-rate number from the `shots` tool is unreliable
+all on at High; the quality setting turns the expensive ones off. The frame-rate number from the `shots` tool is unreliable
 when its window isn't in front (macOS throttles it); trust the triangle and draw counts.
 Every box is its own draw call; if the map grows, merge static geometry or move to
 MultiMesh before cutting effects.

@@ -16,6 +16,8 @@ var elapsed: float = 0.0
 var over: bool = false
 var extract_points: Array[ExtractPoint] = []
 var _squads: Array[Squad] = []
+var _env: Environment
+var _sun: DirectionalLight3D
 
 func _ready() -> void:
 	Squad.all.clear()
@@ -203,6 +205,7 @@ func _build_environment() -> void:
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.1
 	env.adjustment_saturation = 1.08
+	_env = env
 	var world := WorldEnvironment.new()
 	world.environment = env
 	# Eyes adjust: stepping indoors opens up, stepping back out is briefly bright.
@@ -225,3 +228,23 @@ func _build_environment() -> void:
 	sun.light_angular_distance = 0.8
 	sun.light_volumetric_fog_energy = 1.4
 	add_child(sun)
+	_sun = sun
+	apply_quality()
+	GameManager.settings_changed.connect(apply_quality)
+
+# Graphics quality, from the settings. High is everything; medium drops the two
+# most expensive effects; low keeps only what the look can't do without.
+func apply_quality() -> void:
+	var quality := int(GameManager.settings["quality"])
+	_env.sdfgi_enabled = quality >= 2
+	_env.ssr_enabled = quality >= 2
+	_env.volumetric_fog_enabled = quality >= 1
+	_env.ssao_enabled = quality >= 1
+	# Without volumetric fog, plain distance fog keeps the haze.
+	_env.fog_enabled = quality < 1
+	_env.fog_light_color = Color(0.86, 0.78, 0.72)
+	_env.fog_density = 0.0022
+	_env.fog_sky_affect = 0.1
+	# Without bounce light the shade goes too dark, so lift the ambient.
+	_env.ambient_light_energy = 0.9 if quality >= 2 else 1.5
+	_sun.directional_shadow_max_distance = 110.0 if quality >= 1 else 60.0

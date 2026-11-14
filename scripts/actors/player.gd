@@ -24,7 +24,7 @@ const EYE_OFFSET: float = 0.16       # eye sits this far below the top of the co
 const SHIELD_REGEN: float = 22.0
 const INTERACT_REACH: float = 3.2
 const SWAP_TIME: float = 0.32
-const BASE_FOV: float = 82.0
+const SPRINT_FOV_KICK: float = 5.0
 
 var input_source: PlayerInputSource
 var build_stats: Dictionary = {}
@@ -119,7 +119,7 @@ func _ready() -> void:
 	_head.position.y = STAND_HEIGHT - EYE_OFFSET
 	add_child(_head)
 	_camera = Camera3D.new()
-	_camera.fov = BASE_FOV
+	_camera.fov = GameManager.settings["fov"]
 	_camera.near = 0.03
 	_camera.far = 600.0
 	_head.add_child(_camera)
@@ -487,7 +487,7 @@ func _process(delta: float) -> void:
 		body.scale.y = _height / STAND_HEIGHT
 
 	var def := gun().def
-	var target_fov: float = lerpf(BASE_FOV + (5.0 if is_sprinting else 0.0), float(def["ads_fov"]), _aim_blend)
+	var target_fov: float = lerpf(float(GameManager.settings["fov"]) + (SPRINT_FOV_KICK if is_sprinting else 0.0), float(def["ads_fov"]) * float(GameManager.settings["fov"]) / 82.0, _aim_blend)
 	_camera.fov = lerpf(_camera.fov, target_fov, minf(delta * 14.0, 1.0))
 
 	# View model: bob with stride, lag behind the look, kick back on a shot,

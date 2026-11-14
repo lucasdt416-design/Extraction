@@ -266,7 +266,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_paused_panel.queue_free()
 			_paused_panel = null
 			_raid._end("died")],
-	], 0.7)
+	], 0.78, true)
 
 func _resume() -> void:
 	if _paused_panel != null:
@@ -275,7 +275,7 @@ func _resume() -> void:
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
-func _panel(title: String, body: String, actions: Array, dim: float) -> Control:
+func _panel(title: String, body: String, actions: Array, dim: float, with_settings: bool = false) -> Control:
 	var shade := ColorRect.new()
 	shade.color = Color(0.03, 0.035, 0.045, 0.0)
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -285,8 +285,8 @@ func _panel(title: String, body: String, actions: Array, dim: float) -> Control:
 	column.set_anchors_preset(Control.PRESET_CENTER)
 	column.offset_left = -280.0
 	column.offset_right = 280.0
-	column.offset_top = -150.0
-	column.offset_bottom = 150.0
+	column.offset_top = -220.0 if with_settings else -150.0
+	column.offset_bottom = 220.0 if with_settings else 150.0
 	column.add_theme_constant_override("separation", 18)
 	shade.add_child(column)
 	var heading := Label.new()
@@ -300,6 +300,8 @@ func _panel(title: String, body: String, actions: Array, dim: float) -> Control:
 	text.add_theme_font_size_override("font_size", 17)
 	text.add_theme_color_override("font_color", DIM)
 	column.add_child(text)
+	if with_settings:
+		column.add_child(UiKit.settings_rows())
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	column.add_child(row)
