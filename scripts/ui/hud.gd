@@ -37,6 +37,10 @@ var _shield_flash: float = 0.0
 var _hurt_sources: Array[Dictionary] = []   # {"position": Vector3, "left": float}
 var _comm_lines: Array[Dictionary] = []     # {"text": String, "left": float}
 var _notice_left: float = 0.0
+var _toasts: Array[Dictionary] = []          # {"id": String, "left": float}
+var _pack_size: int = 0
+var _kill_time: float = 0.0
+var _kills: int = 0
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -71,7 +75,10 @@ func bind(raid: Raid) -> void:
 	_player = raid.player
 	_player.hit_confirmed.connect(func(result: int) -> void:
 		_hit_time = 0.22
-		_hit_kind = result)
+		_hit_kind = result
+		if result == 3:
+			_kill_time = 1.6
+			_kills += 1)
 	_player.damaged.connect(func(from: Vector3, _amount: float, shield_only: bool) -> void:
 		if shield_only:
 			_shield_flash = 1.0
@@ -79,6 +86,52 @@ func bind(raid: Raid) -> void:
 			_hurt_flash = 1.0
 		_hurt_sources.append({"position": from, "left": 1.4}))
 	_player.notice.connect(show_notice)
+	_pack_size = GameManager.backpack.size()
+	GameManager.backpack_changed.connect(_on_backpack_changed)
+	_play_intro()
+
+# Something new in the backpack: announce it on the right of the screen.
+func _on_backpack_changed() -> void:
+	var size := GameManager.backpack.size()
+	if size > _pack_size:
+		_toasts.append({"id": GameManager.backpack[size - 1], "left": 3.5})
+		if _toasts.size() > 4:
+			_toasts.pop_front()
+	_pack_size = size
+
+# The first seconds of a raid: up from black, with the map's name on a card.
+func _play_intro() -> void:
+	var map: Dictionary = Catalog.MAPS[GameManager.map_id]
+	var black := ColorRect.new()
+	black.color = Color(0.03, 0.035, 0.04)
+	black.set_anchors_preset(Control.PRESET_FULL_RECT)
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(black)
+	var card := VBoxContainer.new()
+	card.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	card.offset_left = MARGIN + 28.0
+	card.offset_top = -420.0
+	card.offset_bottom = -190.0
+	card.offset_right = 1100.0
+	card.alignment = BoxContainer.ALIGNMENT_END
+	card.add_theme_constant_override("separation", 0)
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(card)
+	card.add_child(_line("INSERTION", 13, UiKit.ACID, UiKit.mono(true, 4)))
+	var name_line := _line((map["name"] as String).to_upper(), 132, INK, UiKit.display(900))
+	card.add_child(name_line)
+	card.add_child(_line("%02d:00 TO LOCKDOWN   /   %d EXITS   /   GET OUT WITH WHAT YOU CAN CARRY" % [map["minutes"], map["exits"]], 13, INK, UiKit.mono(false, 2)))
+	card.modulate.a = 0.0
+	_canvas.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(card, "modulate:a", 1.0, 0.35).set_delay(0.25)
+	tween.parallel().tween_property(black, "color:a", 0.0, 1.6).set_delay(0.5)
+	tween.tween_interval(1.5)
+	tween.tween_property(card, "modulate:a", 0.0, 0.6)
+	tween.parallel().tween_property(_canvas, "modulate:a", 1.0, 0.6)
+	tween.tween_callback(func() -> void:
+		black.queue_free()
+		card.queue_free())
 
 # Called through the "hud" group by Squad.bark.
 func show_comm(speaker: String, line: String, _position: Vector3) -> void:
@@ -94,6 +147,11 @@ func _process(delta: float) -> void:
 	if _player == null:
 		return
 	_hit_time = maxf(_hit_time - delta, 0.0)
+	_kill_time = maxf(_kill_time - delta, 0.0)
+	for i in range(_toasts.size() - 1, -1, -1):
+		_toasts[i]["left"] -= delta
+		if _toasts[i]["left"] <= 0.0:
+			_toasts.remove_at(i)
 	_hurt_flash = maxf(_hurt_flash - delta * 1.6, 0.0)
 	_shield_flash = maxf(_shield_flash - delta * 2.4, 0.0)
 	_notice_left = maxf(_notice_left - delta, 0.0)
@@ -223,6 +281,28 @@ func _draw_overlay() -> void:
 	if progress > 0.0:
 		_canvas.draw_rect(Rect2(center + Vector2(-40, 44), Vector2(80, 2)), Color(1, 1, 1, 0.2))
 		_canvas.draw_rect(Rect2(center + Vector2(-40, 44), Vector2(80 * clampf(progress, 0.0, 1.0), 2)), TEAL)
+
+	# Standing in an extraction zone: a ring round the crosshair fills as the hold completes.
+	for point in _raid.extract_points:
+		if point.occupant != null:
+			var done: float = clampf(point.progress / point.hold_time, 0.0, 1.0)
+			_canvas.draw_arc(center, 56.0, 0.0, TAU, 64, Color(1, 1, 1, 0.16), 5.0, true)
+			_canvas.draw_arc(center, 56.0, -PI * 0.5, -PI * 0.5 + TAU * done, 64, UiKit.ACID, 5.0, true)
+
+	# A kill, confirmed in words for a moment.
+	if _kill_time > 0.0:
+		var fade := clampf(_kill_time / 0.5, 0.0, 1.0)
+		_canvas.draw_string(UiKit.display(800, 2), center + Vector2(-150, -74 - (1.6 - _kill_time) * 6.0), "HOSTILE DOWN", HORIZONTAL_ALIGNMENT_CENTER, 300, 26, Color(UiKit.ACID, fade))
+
+	# New loot, listed on the right: its worth, then its name.
+	for i in _toasts.size():
+		var toast: Dictionary = _toasts[_toasts.size() - 1 - i]
+		var id: String = toast["id"]
+		var alpha := clampf(toast["left"], 0.0, 1.0)
+		var at := Vector2(size.x - MARGIN - 420.0, size.y * 0.46 - i * 46.0)
+		_canvas.draw_rect(Rect2(Vector2(size.x - MARGIN - 5.0, at.y - 22.0), Vector2(5, 30)), Color(Catalog.rarity_color(id), alpha))
+		_canvas.draw_string(UiKit.display(800, 1), at, Catalog.item_name(id).to_upper(), HORIZONTAL_ALIGNMENT_RIGHT, 400, 26, Color(INK, alpha))
+		_canvas.draw_string(UiKit.mono(true, 1), at + Vector2(0, 14), "+ %d CR" % Catalog.sell_price(id), HORIZONTAL_ALIGNMENT_RIGHT, 400, 11, Color(INK, alpha * 0.6))
 
 	# Where the damage came from.
 	for source in _hurt_sources:

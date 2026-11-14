@@ -90,6 +90,8 @@ tools/                       selftest, sim, shots: development helpers
 | First-person weapon models | `Player._build_view_models` |
 | Menu pages and their content | `ui/menu.gd` (`_play`, `_armoury`, `_loadout`, `_trader`, `_frames`, `_settings`) |
 | Adding a map to the Play page | a new entry in `Catalog.MAPS` (name, title, wall mark, scene, brief) |
+| In-raid HUD: numerals, key caps, ability bars, slot squares, loot toasts, intro card | `ui/hud.gd` (`_draw_overlay`, `_play_intro`, `_on_backpack_changed`) |
+| Wearing armour found mid-raid | `GameManager.wear_found`, `Pickup.interact`, `Player.refresh_build` |
 | Death fall, slow motion, raid-over screen | `KestrelBody.collapse`, `Player._death_view`, `Raid._end`, `Hud.show_result` |
 | Each page's wall word, disc colour and camera angle | `PAGES` at the top of `ui/menu.gd` |
 | The menu's 3D studio | `ui/menu.gd` `_build_stage` |
