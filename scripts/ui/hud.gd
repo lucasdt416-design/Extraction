@@ -42,7 +42,7 @@ func _ready() -> void:
 	add_to_group("hud")
 	layer = 5   # above the lens layer the raid adds
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_font = ThemeDB.fallback_font
+	_font = UiKit.font(600)
 	_canvas = Control.new()
 	_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -291,12 +291,14 @@ func _panel(title: String, body: String, actions: Array, dim: float, with_settin
 	shade.add_child(column)
 	var heading := Label.new()
 	heading.text = title
+	heading.add_theme_font_override("font", UiKit.font(700))
 	heading.add_theme_font_size_override("font_size", 44)
 	heading.add_theme_color_override("font_color", INK)
 	column.add_child(heading)
 	var text := Label.new()
 	text.text = body
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.add_theme_font_override("font", UiKit.font(500))
 	text.add_theme_font_size_override("font_size", 17)
 	text.add_theme_color_override("font_color", DIM)
 	column.add_child(text)
@@ -322,6 +324,7 @@ func _label(preset: Control.LayoutPreset, offset: Vector2, font_size: int, color
 	label.grow_vertical = Control.GROW_DIRECTION_END
 	label.horizontal_alignment = align
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_override("font", UiKit.font(600))
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))

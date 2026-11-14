@@ -20,6 +20,7 @@ play-through passes. **No person has played it yet**, so feel and balance are un
 | `three-d` | The 3D rebuild | PR #1, open |
 | `graphics` | Graphics pass, Kestrel, enemy rebuild, death view, these docs | Pushed, built on `three-d`, no PR until #1 merges |
 | `settings` | Settings screen (sensitivity, FOV, volume, quality), enemy stagger | Pushed, built on `graphics` |
+| `menu` | Title screen and redesigned main menu over a live 3D staging bay | Pushed, built on `settings` |
 
 Merging PR #1 deletes the 42 2D files from `main`'s working tree (they stay in git
 history) and adds the 3D game. Nothing else in the repo is touched.
@@ -86,6 +87,8 @@ tools/                       selftest, sim, shots: development helpers
 | Sky, fog, exposure, reflections | `Raid._build_environment` |
 | Wall/floor look | `shaders/surface.gdshader`, `Mats.wall` |
 | First-person weapon models | `Player._build_view_models` |
+| Menu layout, tabs, the 3D staging bay behind it | `ui/menu.gd` (`_build_stage`, `_play`, `_loadout`, …) |
+| Interface typeface and accent colours | `UiKit.font`, `UiKit.ACID` / `CORAL` |
 | Key bindings | `GameManager._bind_inputs` |
 | Settings and their ranges | `GameManager.SETTING_RANGES`; controls in `UiKit.settings_rows` |
 | What each graphics quality level turns off | `Raid.apply_quality` |

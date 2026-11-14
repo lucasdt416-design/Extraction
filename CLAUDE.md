@@ -55,7 +55,8 @@ The whole loop is playable end to end. Everything below was run through
 - **Extraction** (`world/extract_point.gd`), raid clock and win/lose (`world/raid.gd`).
 - **Interface** (`ui/hud.gd`, `ui/menu.gd`, `ui/ui_kit.gd`). HUD with health/shield,
   ammo, abilities, detection meter, damage direction, extract markers, the enemy comms
-  feed, pause and result screens. Menu with Deploy, Stash, Trader and Frame tabs.
+  feed, pause and result screens. The menu is a title screen, then Play, Loadout, Trader, Frame and
+  Settings over a live 3D staging bay with Kestrel in it.
 - **Look and sound** (`fx/mats.gd`, `fx/shapes.gd`, `fx/fx.gd`, `actors/rig.gd`,
   `autoload/sfx.gd`, `shaders/`). No imported assets. Props, armour and weapons use
   bevelled meshes from `Shapes.rounded_box`. `shaders/surface.gdshader` gives walls and
@@ -208,7 +209,9 @@ never touched. Run it after changing gameplay code.
   uses (`Container` is taken; that's why it's `LootContainer`).
 - Tuning numbers live in `Catalog` or as constants at the top of the script that uses
   them.
-- Interface: plain wording, flat and square, no decorative icons or boxes.
+- Interface: plain wording, flat and square, no decorative icons or boxes. One accent
+  (`UiKit.ACID`, from Kestrel) for the primary action and the active tab; coral for loss.
+  Type comes from `UiKit.font`. Motion is quiet: fades, a sliding underline, camera drift.
 
 ## Working in this repo
 
