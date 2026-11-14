@@ -238,16 +238,18 @@ func _edge_tint(size: Vector2, color: Color) -> void:
 func show_result(result: Dictionary) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var title := "Extracted"
-	var detail := "%d items secured, worth %d credits." % [result["items"].size(), result["value"]]
-	if result["outcome"] == "died":
+	# Tolerates an empty result (a raid scene run on its own, outside the menu flow).
+	var outcome: String = result.get("outcome", "died")
+	var detail := "%d items secured, worth %d credits." % [result.get("items", []).size(), result.get("value", 0)]
+	if outcome == "died":
 		title = "Killed in the raid"
 		detail = "Everything you carried and wore is gone."
-	elif result["outcome"] == "lost":
+	elif outcome == "lost":
 		title = "Locked in"
 		detail = "The station sealed before you got out. Your kit stays inside."
-	var seconds := int(result["time"])
-	var lines := "%s\n\n%d hostiles down   ·   %02d:%02d in the raid" % [detail, result["kills"], seconds / 60, seconds % 60]
-	_overlay = _panel(title, lines, [["Return to base", GameManager.return_to_menu]], 0.9 if result["outcome"] != "extracted" else 0.72)
+	var seconds := int(result.get("time", 0.0))
+	var lines := "%s\n\n%d hostiles down   ·   %02d:%02d in the raid" % [detail, result.get("kills", 0), seconds / 60, seconds % 60]
+	_overlay = _panel(title, lines, [["Return to base", GameManager.return_to_menu]], 0.9 if outcome != "extracted" else 0.72)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("pause") or _raid == null or _raid.over:

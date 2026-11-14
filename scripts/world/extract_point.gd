@@ -42,7 +42,7 @@ func _ready() -> void:
 	var base := MeshInstance3D.new()
 	base.mesh = pad
 	base.position.y = 0.03
-	base.material_override = Mats.surface(Level.HULL_DARK, "concrete", 0.5, 0.3)
+	base.material_override = Mats.wall(Level.HULL_DARK, Color.BLACK, 0.0, 1.6, 0.5, 0.3, 0.6)
 	add_child(base)
 	var torus := TorusMesh.new()
 	torus.inner_radius = 3.05

@@ -46,7 +46,10 @@ func build() -> void:
 func _box(center: Vector3, size: Vector3, mat: Material, solid: bool = true, nav: bool = true, yaw: float = 0.0, bevel: float = 0.0) -> MeshInstance3D:
 	var visual := MeshInstance3D.new()
 	if bevel > 0.0:
-		visual.mesh = Shapes.rounded_box(size, bevel, 2)
+		# Decorative pieces get a cheaper bevel and no shadow of their own.
+		visual.mesh = Shapes.rounded_box(size, bevel, 2 if solid else 1)
+		if not solid:
+			visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	else:
 		var mesh := BoxMesh.new()
 		mesh.size = size
@@ -416,7 +419,7 @@ func _courtyard() -> void:
 	disc.height = 0.06
 	disc.radial_segments = 48
 	pad.mesh = disc
-	pad.material_override = Mats.surface(HULL_DARK, "concrete", 0.6, 0.2)
+	pad.material_override = Mats.wall(HULL_DARK, Color.BLACK, 0.0, 3.5, 0.6, 0.15, 0.8)
 	pad.position = Vector3(2.0, 0.03, 4.0)
 	add_child(pad)
 	for i in 12:

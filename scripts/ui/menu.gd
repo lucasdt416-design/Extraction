@@ -25,7 +25,7 @@ func _ready() -> void:
 		margin.add_theme_constant_override("margin_" + side, 72)
 	add_child(margin)
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 96)
+	columns.add_theme_constant_override("separation", 72)
 	margin.add_child(columns)
 
 	# Left: title, credits, navigation.
@@ -34,7 +34,7 @@ func _ready() -> void:
 	side_bar.add_theme_constant_override("separation", 6)
 	columns.add_child(side_bar)
 	side_bar.add_child(UiKit.text("Extraction", 34))
-	side_bar.add_child(UiKit.text("Relay Station", 15, UiKit.DIM))
+	side_bar.add_child(UiKit.text("Kestrel  ·  salvage courier", 15, UiKit.DIM))
 	side_bar.add_child(_gap(36))
 	_credits = UiKit.text("", 22)
 	side_bar.add_child(_credits)
@@ -67,6 +67,8 @@ func _ready() -> void:
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", 10)
 	scroll.add_child(_content)
+
+	columns.add_child(_showcase())
 
 	GameManager.profile_changed.connect(_refresh)
 	_refresh()
@@ -174,6 +176,66 @@ func _frames() -> void:
 				"E  %s: %s" % [frame["prime"]["name"], frame["prime"]["desc"]]]:
 			_content.add_child(UiKit.text(line, 14, UiKit.DIM, true))
 		_content.add_child(_gap(16))
+
+# Kestrel on a slow turntable, in its own small lit world.
+func _showcase() -> Control:
+	var holder := SubViewportContainer.new()
+	holder.stretch = true
+	holder.custom_minimum_size = Vector2(430, 0)
+	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var viewport := SubViewport.new()
+	viewport.own_world_3d = true
+	viewport.transparent_bg = true
+	viewport.msaa_3d = Viewport.MSAA_4X
+	holder.add_child(viewport)
+
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.32, 0.36, 0.44)
+	env.ambient_light_energy = 0.7
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.glow_enabled = true
+	env.glow_intensity = 0.5
+	env.ssao_enabled = true
+	var world := WorldEnvironment.new()
+	world.environment = env
+	viewport.add_child(world)
+	# Key from the front-left, a cool rim from behind, a soft fill.
+	for light: Array in [[Vector3(-38, 35, 0), Color(1.0, 0.95, 0.88), 2.4, true], [Vector3(-20, -150, 0), Color(0.55, 0.8, 1.0), 2.2, false], [Vector3(-10, -60, 0), Color(1.0, 0.9, 0.8), 0.5, false]]:
+		var lamp := DirectionalLight3D.new()
+		lamp.rotation_degrees = light[0]
+		lamp.light_color = light[1]
+		lamp.light_energy = light[2]
+		lamp.shadow_enabled = light[3]
+		viewport.add_child(lamp)
+
+	var turntable := Node3D.new()
+	viewport.add_child(turntable)
+	var kestrel := KestrelBody.new()
+	turntable.add_child(kestrel)
+	kestrel.build(KestrelBody.MODEL_HEIGHT)
+	var pad := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.75
+	disc.bottom_radius = 0.8
+	disc.height = 0.05
+	disc.radial_segments = 64
+	pad.mesh = disc
+	pad.position.y = -0.025
+	pad.material_override = Mats.surface(Color(0.1, 0.11, 0.13), "plain", 0.35, 0.6)
+	turntable.add_child(pad)
+	turntable.rotation.y = PI - 0.5
+	var spin := turntable.create_tween().set_loops()
+	spin.tween_property(turntable, "rotation:y", PI - 0.5 + TAU, 36.0).from(PI - 0.5)
+
+	var camera := Camera3D.new()
+	camera.fov = 30.0
+	camera.position = Vector3(0.0, 1.12, 4.9)
+	camera.rotation.x = -0.02
+	viewport.add_child(camera)
+	return holder
 
 # --- Pieces ------------------------------------------------------------------
 

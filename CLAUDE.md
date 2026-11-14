@@ -36,6 +36,11 @@ The whole loop is playable end to end. Everything below was run through
 - **Player** (`actors/player.gd`). First-person controller: sprint, crouch, jump, ADS,
   two weapon slots, reload, recoil and bloom, regenerating shield over health, medkits,
   hold-to-use, and a frame's two abilities. Consumes one `InputFrame` per tick.
+- **Kestrel** (`actors/kestrel_body.gd`, `assets/characters/kestrel/kestrel.glb`). The
+  player character: a rigged android courier with Idle/Walk/Run clips. Used as the body
+  you see looking down in first person (head and arms hidden), as a shadow-only copy so
+  your shadow is complete, and on a turntable in the menu. Enemy bodies (`actors/rig.gd`)
+  are still built in code, in the same design language.
 - **Frames** (classes): Striker (Dash / Overcharge), Wraith (Cloak / Pulse), Mender
   (Stim / Fortify). Armor and two implant slots adjust stats.
 - **Shooting** (`core/gun.gd`). Hitscan, shared by player and enemies: magazine, fire
@@ -98,7 +103,8 @@ Individuals perceive and act; the `Squad` pools what they know and coordinates t
   are on unconditionally, tuned on an Apple M5 Pro.
 - First-person weapons are modelled per type with hands and a magazine-drop reload,
   but there is no melee and no inspect or equip animation.
-- The player has no visible body or shadow yet; a main-character design is planned.
+- Kestrel has only Idle, Walk and Run clips: no crouch, jump, aim or death animation,
+  so crouching squashes the body and there is no third-person death view.
 
 ## Decisions already made
 
@@ -111,7 +117,7 @@ Don't quietly reverse these; raise it with the user first.
 | Eventual MP target | **Co-op vs AI**, host-authoritative | Achievable for two people. |
 | PvP | **Explicitly not a goal** | Needs a real backend, server-side stash and anti-cheat. |
 | Physics | Jolt (Godot 3D), 120 ticks/s | Mouse look is applied on the tick, so it needs to be fine-grained. |
-| Assets | **None imported** | Geometry from primitives, textures generated, audio synthesized. |
+| Assets | **Imported only for the player character** | Kestrel is a rigged GLB in `assets/characters/kestrel/` (user's call, 2026-11-13). Everything else is primitives, generated textures and synthesized audio. |
 
 ## Network-readiness rules
 
@@ -167,13 +173,14 @@ outcomes.
 
 ```
 project.godot
+assets/characters/kestrel/   # kestrel.glb (rigged model) and its concept image
 scenes/
   menu.tscn  raid.tscn        # a root node and a script each; everything else is built in code
 scripts/
   autoload/  game_manager.gd  sfx.gd
   data/      catalog.gd
   core/      input_frame.gd  player_input_source.gd  gun.gd  layers.gd
-  actors/    player.gd  enemy.gd  squad.gd  rig.gd  grenade.gd
+  actors/    player.gd  kestrel_body.gd  enemy.gd  squad.gd  rig.gd  grenade.gd
   world/     raid.gd  level.gd  loot.gd  loot_container.gd  extract_point.gd
   fx/        mats.gd  shapes.gd  fx.gd
   ui/        hud.gd  menu.gd  ui_kit.gd
@@ -250,5 +257,4 @@ raise it first.
 - PvP, matchmaking, lobbies, dedicated servers, anti-cheat
 - Backend services or server-side persistence (stash saves to a local file)
 - Procedural map generation
-- Imported art, models or audio files — everything is built from primitives and
-  synthesized sound for now, and that look is deliberate
+- Imported art or audio beyond the Kestrel character model — raise it before adding more

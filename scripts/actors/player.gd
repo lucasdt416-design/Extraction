@@ -79,6 +79,8 @@ var _view: Node3D
 var _view_models: Array[Node3D] = []
 var _mags: Array[Node3D] = []
 var _flash: MeshInstance3D
+var _body: KestrelBody
+var _shadow_body: KestrelBody
 var _collider: CollisionShape3D
 var _kick: float = 0.0
 var _kick_target: float = 0.0
@@ -120,6 +122,16 @@ func _ready() -> void:
 	_camera.far = 600.0
 	_head.add_child(_camera)
 	_camera.make_current()
+
+	# Kestrel's body: one copy you see when you look down, one that only casts
+	# the shadow (so your shadow keeps its head and arms).
+	_body = KestrelBody.new()
+	_body.position.z = 0.2
+	add_child(_body)
+	_body.build(STAND_HEIGHT, KestrelBody.Mode.FIRST_PERSON)
+	_shadow_body = KestrelBody.new()
+	add_child(_shadow_body)
+	_shadow_body.build(STAND_HEIGHT, KestrelBody.Mode.SHADOW)
 
 	input_source = PlayerInputSource.new()
 	add_child(input_source)
@@ -467,6 +479,11 @@ func _process(delta: float) -> void:
 	_camera.h_offset = randf_range(-1.0, 1.0) * _shake * 0.05
 	_camera.v_offset = randf_range(-1.0, 1.0) * _shake * 0.05
 
+	var ground_speed := Vector2(velocity.x, velocity.z).length() if is_on_floor() else 0.0
+	for body: KestrelBody in [_body, _shadow_body]:
+		body.animate(ground_speed)
+		body.scale.y = _height / STAND_HEIGHT
+
 	var def := gun().def
 	var target_fov: float = lerpf(BASE_FOV + (5.0 if is_sprinting else 0.0), float(def["ads_fov"]), _aim_blend)
 	_camera.fov = lerpf(_camera.fov, target_fov, minf(delta * 14.0, 1.0))
@@ -519,7 +536,9 @@ func _build_view_models() -> void:
 	var steel := Mats.surface(Color(0.2, 0.21, 0.23), "plain", 0.3, 0.9)
 	var pale := Mats.surface(Color(0.74, 0.73, 0.69), "plain", 0.55, 0.1)
 	var rubber := Mats.surface(Color(0.05, 0.05, 0.055), "plain", 0.85, 0.0)
-	var sleeve := Mats.surface(Color(0.16, 0.17, 0.19), "plain", 0.9, 0.0)
+	# Kestrel's forearms: chalk ceramic, carbon gloves, an acid-yellow cuff.
+	var sleeve := Mats.surface(Color(0.90, 0.91, 0.89), "plain", 0.32, 0.2)
+	var cuff := Mats.surface(Color(0.62, 0.66, 0.07), "plain", 0.45, 0.1)
 	var accent: Color = frame_def["accent"]
 	var lit := Mats.glow(accent, 3.0)
 	for g in guns:
@@ -599,9 +618,9 @@ func _build_view_models() -> void:
 
 		# Hands and forearms: trigger hand on the grip, support hand forward.
 		var hold := Vector3(0.0, -0.085, 0.01 if long else -0.01)
-		_arm(model, hold + Vector3(0.012, -0.012, 0.0), Vector3(0.1, -0.2, 0.34), rubber, sleeve, pale)
+		_arm(model, hold + Vector3(0.012, -0.012, 0.0), Vector3(0.1, -0.2, 0.34), rubber, sleeve, cuff)
 		var support := Vector3(0.0, -0.045, -body - reach * 0.3) if long else Vector3(-0.012, -0.11, -0.012)
-		_arm(model, support + Vector3(-0.012, -0.012, 0.0), Vector3(-0.2, -0.22, 0.2 if long else 0.3), rubber, sleeve, pale)
+		_arm(model, support + Vector3(-0.012, -0.012, 0.0), Vector3(-0.2, -0.22, 0.2 if long else 0.3), rubber, sleeve, cuff)
 
 	_flash = MeshInstance3D.new()
 	var burst := SphereMesh.new()
@@ -620,7 +639,7 @@ func _arm(parent: Node3D, hand: Vector3, elbow: Vector3, glove: Material, cloth:
 	var along := elbow - hand
 	var wrist := hand + along * 0.12
 	_limb(parent, wrist, elbow, 0.036, cloth)
-	_limb(parent, wrist + along * 0.02, wrist + along * 0.13, 0.041, cuff)
+	_limb(parent, wrist + along * 0.02, wrist + along * 0.07, 0.04, cuff)
 
 # A capsule between two points.
 func _limb(parent: Node3D, from: Vector3, to: Vector3, radius: float, mat: Material) -> void:
