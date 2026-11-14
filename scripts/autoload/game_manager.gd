@@ -220,6 +220,14 @@ func wear_found(id: String) -> bool:
 	backpack_changed.emit()
 	return true
 
+# A weapon found mid-raid fills the primary slot if it is empty.
+func wield_found(id: String) -> bool:
+	if not in_raid or Catalog.item(id)["kind"] != "weapon" or loadout["primary"] != "":
+		return false
+	loadout["primary"] = id
+	backpack_changed.emit()
+	return true
+
 func take_from_backpack(id: String) -> bool:
 	var at := backpack.find(id)
 	if at < 0:
@@ -272,6 +280,7 @@ func _finish(result: Dictionary) -> void:
 func return_to_menu() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
+	Sfx.stop_ambience()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().change_scene_to_file(MENU_SCENE)
 

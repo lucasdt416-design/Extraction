@@ -16,10 +16,17 @@ var elapsed: float = 0.0
 var over: bool = false
 var extract_points: Array[ExtractPoint] = []
 var _squads: Array[Squad] = []
+# Escalation: see _escalate.
+const HEAT_FOR_WAVE: float = 24.0
+const WAVES: Array = [["trooper", "trooper", "rusher"], ["trooper", "bulwark", "lobber", "rusher"], ["overseer", "marksman", "trooper", "rusher"]]
+var heat: float = 0.0
+var waves_sent: int = 0
+var _wave_cooldown: float = 20.0
 var _env: Environment
 var _sun: DirectionalLight3D
 
 func _ready() -> void:
+	add_to_group("raid")
 	Squad.all.clear()
 	_build_environment()
 
@@ -54,6 +61,7 @@ func _ready() -> void:
 	add_child(hud)
 	hud.bind(self)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	Sfx.start_ambience()
 
 	# The navigation map only picks up the freshly baked mesh on the next
 	# physics sync, and enemies read it the moment they spawn.
@@ -63,18 +71,21 @@ func _ready() -> void:
 
 func _spawn_squads() -> void:
 	for spec in level.squads:
-		var squad := Squad.new(spec["points"], GameManager.rng.randi())
-		var members: Array = spec["members"]
-		for i in members.size():
-			var enemy := Enemy.new()
-			enemy.setup(members[i], squad, i)
-			var point: Vector3 = spec["points"][i % spec["points"].size()]
-			enemy.position = point + Vector3(0.6 * i, 0.0, 0.0)
-			enemy.rotation.y = GameManager.rng.randf() * TAU
-			squad.members.append(enemy)
-			add_child(enemy)
-			enemy.died.connect(_on_enemy_died)
-		_squads.append(squad)
+		_spawn_squad(spec["members"], spec["points"])
+
+func _spawn_squad(members: Array, points: Array) -> Squad:
+	var squad := Squad.new(points, GameManager.rng.randi())
+	for i in members.size():
+		var enemy := Enemy.new()
+		enemy.setup(members[i], squad, i)
+		var point: Vector3 = points[i % points.size()]
+		enemy.position = point + Vector3(0.6 * i, 0.0, 0.0)
+		enemy.rotation.y = GameManager.rng.randf() * TAU
+		squad.members.append(enemy)
+		add_child(enemy)
+		enemy.died.connect(_on_enemy_died)
+	_squads.append(squad)
+	return squad
 
 func _physics_process(delta: float) -> void:
 	if over:
@@ -83,9 +94,61 @@ func _physics_process(delta: float) -> void:
 	time_left -= delta
 	for squad in _squads:
 		squad.tick(delta)
+	_escalate(delta)
 	if time_left <= 0.0:
 		# The station locks down. Whatever you were carrying stays here.
 		_end("lost")
+
+# --- Escalation --------------------------------------------------------------
+# A raid gets harder the longer and louder it goes. "Heat" builds while any
+# squad is in a firefight and bleeds off in the quiet; enough of it calls in a
+# fresh squad. Tripping a vault alarm calls one at once, and one always arrives
+# by the halfway mark so a careful raid still tightens.
+
+func _escalate(delta: float) -> void:
+	_wave_cooldown = maxf(_wave_cooldown - delta, 0.0)
+	var fighting := false
+	for squad in _squads:
+		if squad.mode == Squad.Mode.COMBAT and not squad.living().is_empty():
+			fighting = true
+	heat = heat + delta if fighting else maxf(heat - delta * 0.35, 0.0)
+	if heat >= HEAT_FOR_WAVE or (waves_sent == 0 and time_left < RAID_LENGTH * 0.5):
+		send_reinforcements(player.global_position)
+
+# Called through the "raid" group by anything that trips an alarm.
+func alarm(position: Vector3) -> void:
+	send_reinforcements(position)
+
+# Brings a squad in from whichever entry point is farthest from the player and
+# out of their sight, and sends it to search where the trouble was.
+func send_reinforcements(toward: Vector3) -> bool:
+	if over or waves_sent >= WAVES.size() or _wave_cooldown > 0.0:
+		return false
+	var space := get_world_3d().direct_space_state
+	var eye := player.eye_position()
+	var best := Vector3.ZERO
+	var best_distance := -1.0
+	for point: Vector3 in level.reinforce_points:
+		var distance := point.distance_to(player.global_position)
+		if distance < 30.0:
+			continue
+		var query := PhysicsRayQueryParameters3D.create(eye, point + Vector3.UP * 1.2, Layers.WORLD)
+		# Seen from where the player stands: not an option, however far away.
+		if space.intersect_ray(query).is_empty():
+			continue
+		if distance > best_distance:
+			best_distance = distance
+			best = point
+	if best_distance < 0.0:
+		return false
+	var squad := _spawn_squad(WAVES[waves_sent], [best, best + Vector3(2.0, 0.0, 1.5), best + Vector3(-1.5, 0.0, 2.0)])
+	squad.respond_to(toward)
+	waves_sent += 1
+	heat = 0.0
+	_wave_cooldown = 45.0
+	Sfx.play("alert", 2.0, 0.6)
+	hud.show_alert("REINFORCEMENTS INBOUND")
+	return true
 
 func _on_enemy_died(enemy: Enemy, killer: Node) -> void:
 	if killer is Player:

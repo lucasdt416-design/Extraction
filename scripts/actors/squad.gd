@@ -163,6 +163,10 @@ func _enter_combat() -> void:
 			other._backup_in = other.rng.randf_range(4.0, 8.0)
 			other._backup_at = last_known
 
+# Sent in from outside the fight: go to where the trouble was and sweep it.
+func respond_to(position: Vector3) -> void:
+	_start_search(position, 45.0)
+
 func _start_search(around: Vector3, duration: float) -> void:
 	last_known = around
 	_search_left = duration

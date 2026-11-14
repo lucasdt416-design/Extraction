@@ -10,10 +10,13 @@ const RATE: int = 22050
 var _streams: Dictionary = {}
 var _noise := RandomNumberGenerator.new()
 var _lp: float = 0.0
+var _ambience: AudioStreamPlayer
+const WORLD_BUS: StringName = &"World"
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_noise.seed = 7
+	_build_buses()
 	# Gunshots: a noise crack over a falling sine thump. `tone` is the body.
 	_streams["shot_sidearm"] = _shot(0.22, 190.0, 0.55, 0.5)
 	_streams["shot_smg"] = _shot(0.16, 230.0, 0.45, 0.62)
@@ -44,6 +47,7 @@ func play(id: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 		return
 	var player := AudioStreamPlayer.new()
 	player.stream = _streams[id]
+	player.bus = WORLD_BUS if _is_world_sound(id) else &"Master"
 	player.volume_db = volume_db
 	player.pitch_scale = pitch * randf_range(0.96, 1.04)
 	add_child(player)
@@ -61,12 +65,95 @@ func play_at(id: String, position: Vector3, volume_db: float = 0.0, pitch: float
 	player.stream = _streams[id]
 	player.volume_db = volume_db
 	player.unit_size = 9.0
+	player.bus = WORLD_BUS
 	player.max_distance = reach
 	player.pitch_scale = pitch * randf_range(0.94, 1.06)
 	scene.add_child(player)
 	player.global_position = position
 	player.finished.connect(player.queue_free)
 	player.play()
+
+# --- Space ---------------------------------------------------------------------
+# Everything that happens in the world goes through one bus with a reverb on
+# it, so shots and footsteps sit in a place instead of in your ears. Interface
+# sounds stay dry on the master bus, which carries a limiter so a firefight
+# can't clip.
+
+func _build_buses() -> void:
+	if AudioServer.get_bus_index(WORLD_BUS) >= 0:
+		return
+	AudioServer.add_bus()
+	var index := AudioServer.bus_count - 1
+	AudioServer.set_bus_name(index, WORLD_BUS)
+	AudioServer.set_bus_send(index, &"Master")
+	var reverb := AudioEffectReverb.new()
+	reverb.room_size = 0.62
+	reverb.damping = 0.55
+	reverb.spread = 0.8
+	reverb.predelay_msec = 28.0
+	reverb.wet = 0.2
+	reverb.dry = 1.0
+	reverb.hipass = 0.25
+	AudioServer.add_bus_effect(index, reverb)
+	var limiter := AudioEffectCompressor.new()
+	limiter.threshold = -8.0
+	limiter.ratio = 6.0
+	limiter.attack_us = 300.0
+	limiter.release_ms = 180.0
+	AudioServer.add_bus_effect(0, limiter)
+
+func _is_world_sound(id: String) -> bool:
+	return id.begins_with("shot_") or id in ["step", "hurt", "explosion", "reload", "open", "empty", "shield_break"]
+
+# A bed of wind and a low hum under the raid, looping. Without it, the moments
+# between shots are dead silent, which reads as the game being broken.
+func start_ambience() -> void:
+	if _ambience != null:
+		return
+	const LENGTH := 9.0
+	const BLEND := 1.0
+	var total := int((LENGTH + BLEND) * RATE)
+	var body := int(LENGTH * RATE)
+	var blend := int(BLEND * RATE)
+	var raw := PackedFloat32Array()
+	raw.resize(total)
+	var slow := 0.0
+	var mid := 0.0
+	for i in total:
+		var t := float(i) / RATE
+		var white := _n()
+		slow += (white - slow) * 0.012
+		mid += (white - mid) * 0.09
+		var gust := 0.55 + 0.45 * sin(TAU * t / LENGTH) * sin(TAU * t / (LENGTH / 3.0) + 1.3)
+		var hum := sin(TAU * 55.0 * t) * 0.05 + sin(TAU * 82.5 * t) * 0.025
+		raw[i] = slow * 5.0 * gust + mid * 0.22 * gust + hum
+	# Fold the tail back over the start so the loop point can't be heard.
+	var data := PackedByteArray()
+	data.resize(body * 2)
+	for i in body:
+		var sample := raw[i]
+		if i < blend:
+			var mix := float(i) / blend
+			sample = raw[i] * mix + raw[body + i] * (1.0 - mix)
+		data.encode_s16(i * 2, int(clampf(sample, -1.0, 1.0) * 30000.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = RATE
+	stream.data = data
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = body
+	_ambience = AudioStreamPlayer.new()
+	_ambience.stream = stream
+	_ambience.volume_db = -40.0
+	_ambience.bus = WORLD_BUS
+	add_child(_ambience)
+	_ambience.play()
+	create_tween().tween_property(_ambience, "volume_db", -15.0, 3.0)
+
+func stop_ambience() -> void:
+	if _ambience != null:
+		_ambience.queue_free()
+		_ambience = null
 
 func _n() -> float:
 	return _noise.randf_range(-1.0, 1.0)

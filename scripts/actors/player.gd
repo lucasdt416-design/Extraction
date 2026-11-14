@@ -435,6 +435,20 @@ func refresh_build() -> void:
 	max_shield = build_stats["shield"]
 	_since_damage = 0.0
 
+# A weapon picked up mid-raid becomes the primary and comes straight to hand.
+func add_gun(id: String) -> void:
+	var found := Gun.new(id)
+	found.reload_mult = build_stats["reload"]
+	gun().cancel_reload()
+	guns.insert(0, found)
+	# The view models are built per gun, so rebuild the set.
+	_view.queue_free()
+	_view_models.clear()
+	_mags.clear()
+	_build_view_models()
+	gun_index = 0
+	_swap_left = SWAP_TIME
+
 func add_ammo(mags: int) -> void:
 	for g in guns:
 		g.reserve += int(g.def["mag"]) * mags
