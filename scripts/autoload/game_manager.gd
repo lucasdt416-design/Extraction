@@ -211,6 +211,15 @@ func add_to_backpack(id: String) -> bool:
 	backpack_changed.emit()
 	return true
 
+# Armour found mid-raid goes straight on if nothing is being worn. Worn kit
+# takes no backpack slot and comes home with you if you extract.
+func wear_found(id: String) -> bool:
+	if not in_raid or Catalog.item(id)["kind"] != "armor" or loadout["armor"] != "":
+		return false
+	loadout["armor"] = id
+	backpack_changed.emit()
+	return true
+
 func take_from_backpack(id: String) -> bool:
 	var at := backpack.find(id)
 	if at < 0:

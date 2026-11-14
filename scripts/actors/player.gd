@@ -427,6 +427,14 @@ func take_damage(amount: float, from: Node = null, _position: Vector3 = Vector3.
 		return 3
 	return 1
 
+# Re-reads what the frame, armour and implants add up to. Called when kit
+# changes mid-raid; the new shield capacity starts empty and recharges.
+func refresh_build() -> void:
+	build_stats = GameManager.player_stats()
+	max_health = build_stats["health"]
+	max_shield = build_stats["shield"]
+	_since_damage = 0.0
+
 func add_ammo(mags: int) -> void:
 	for g in guns:
 		g.reserve += int(g.def["mag"]) * mags
