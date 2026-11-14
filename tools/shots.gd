@@ -107,6 +107,11 @@ func _ready() -> void:
 			get_viewport().get_texture().get_image().save_png("%s/closeup_%d.png" % [out, n])
 			n += 1
 			break
+	# The death view.
+	player.global_position = Vector3(-3.0, 0.1, 17.0)
+	player.take_damage(9999.0, null)
+	await get_tree().create_timer(2.2).timeout
+	get_viewport().get_texture().get_image().save_png("%s/death.png" % out)
 	var states := {}
 	for node in get_tree().get_nodes_in_group("enemy"):
 		var enemy := node as Enemy

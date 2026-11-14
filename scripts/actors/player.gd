@@ -81,6 +81,8 @@ var _mags: Array[Node3D] = []
 var _flash: MeshInstance3D
 var _body: KestrelBody
 var _shadow_body: KestrelBody
+var _fallen: KestrelBody   # the full character, shown once we're dead
+var _death_time: float = 0.0
 var _collider: CollisionShape3D
 var _kick: float = 0.0
 var _kick_target: float = 0.0
@@ -472,8 +474,8 @@ func _process(delta: float) -> void:
 
 	var eye := _height - EYE_OFFSET - _land_dip
 	if is_dead:
-		eye = lerpf(_head.position.y, 0.35, minf(delta * 3.0, 1.0))
-		_head.rotation.z = lerpf(_head.rotation.z, 0.9, minf(delta * 3.0, 1.0))
+		_death_view(delta)
+		return
 	_head.position.y = eye
 	_head.rotation.x = _pitch + _kick
 	_camera.h_offset = randf_range(-1.0, 1.0) * _shake * 0.05
@@ -518,6 +520,35 @@ func _process(delta: float) -> void:
 		_flash.visible = false
 	var length: float = def["length"]
 	_flash.position = Vector3(0.0, 0.0, -0.1 - length)
+
+# Death pulls the camera out of Kestrel's head to watch it fall: the full
+# character replaces the first-person body, topples, and the camera settles
+# behind and above it, kept out of walls by a ray.
+func _death_view(delta: float) -> void:
+	if _fallen == null:
+		_view.visible = false
+		_body.visible = false
+		_shadow_body.visible = false
+		_fallen = KestrelBody.new()
+		add_child(_fallen)
+		_fallen.build(STAND_HEIGHT)
+		var fall := _fallen.create_tween().set_parallel(true).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		fall.tween_property(_fallen, "rotation:x", -1.45, 0.55)
+		fall.tween_property(_fallen, "position:y", 0.2, 0.55)
+		_camera.top_level = true
+	_death_time += delta
+	var focus := global_position + Vector3.UP * 0.7
+	var orbit := _yaw + PI * 0.25 + _death_time * 0.12
+	var wanted := focus + Vector3(sin(orbit), 0.0, cos(orbit)) * 3.6 + Vector3.UP * 1.7
+	var query := PhysicsRayQueryParameters3D.create(focus, wanted, Layers.WORLD)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty():
+		wanted = focus.lerp(hit["position"], 0.85)
+	_camera.global_position = _camera.global_position.lerp(wanted, minf(delta * 2.5, 1.0))
+	_camera.look_at(focus, Vector3.UP)
+	_camera.fov = lerpf(_camera.fov, 60.0, minf(delta * 3.0, 1.0))
+	_camera.h_offset = 0.0
+	_camera.v_offset = 0.0
 
 func _unhandled_input(event: InputEvent) -> void:
 	# View lag only: the turn itself is applied from the InputFrame.
