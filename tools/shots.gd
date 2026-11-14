@@ -24,9 +24,9 @@ func _ready() -> void:
 	get_viewport().get_texture().get_image().save_png("%s/menu_Title.png" % out)
 	menu.call("_enter")
 	await get_tree().create_timer(2.2).timeout
-	for tab: String in ["Play", "Loadout", "Trader", "Frame", "Settings"]:
+	for tab: String in ["Play", "Armoury", "Loadout", "Trader", "Frame", "Settings"]:
 		menu.call("_show_tab", tab)
-		await get_tree().create_timer(0.7).timeout
+		await get_tree().create_timer(1.4).timeout
 		get_viewport().get_texture().get_image().save_png("%s/menu_%s.png" % [out, tab])
 	menu.queue_free()
 	GameManager.loadout["primary"] = "rifle"

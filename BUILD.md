@@ -21,6 +21,7 @@ play-through passes. **No person has played it yet**, so feel and balance are un
 | `graphics` | Graphics pass, Kestrel, enemy rebuild, death view, these docs | Pushed, built on `three-d`, no PR until #1 merges |
 | `settings` | Settings screen (sensitivity, FOV, volume, quality), enemy stagger | Pushed, built on `graphics` |
 | `menu` | Title screen and poster-style main menu over a live 3D studio; bundled fonts | Pushed, built on `settings` |
+| `polish` | Death and extraction sequences, Armoury page, map list, animated controls | Pushed, built on `menu` |
 
 Merging PR #1 deletes the 42 2D files from `main`'s working tree (they stay in git
 history) and adds the 3D game. Nothing else in the repo is touched.
@@ -87,7 +88,9 @@ tools/                       selftest, sim, shots: development helpers
 | Sky, fog, exposure, reflections | `Raid._build_environment` |
 | Wall/floor look | `shaders/surface.gdshader`, `Mats.wall` |
 | First-person weapon models | `Player._build_view_models` |
-| Menu pages and their content | `ui/menu.gd` (`_play`, `_loadout`, `_trader`, `_frames`, `_settings`) |
+| Menu pages and their content | `ui/menu.gd` (`_play`, `_armoury`, `_loadout`, `_trader`, `_frames`, `_settings`) |
+| Adding a map to the Play page | a new entry in `Catalog.MAPS` (name, title, wall mark, scene, brief) |
+| Death fall, slow motion, raid-over screen | `KestrelBody.collapse`, `Player._death_view`, `Raid._end`, `Hud.show_result` |
 | Each page's wall word, disc colour and camera angle | `PAGES` at the top of `ui/menu.gd` |
 | The menu's 3D studio | `ui/menu.gd` `_build_stage` |
 | Typefaces and accent colours | `UiKit.display` / `font` / `mono`, `UiKit.ACID` / `CORAL`; files in `assets/fonts/` |

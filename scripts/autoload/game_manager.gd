@@ -26,6 +26,7 @@ var credits: int = 0
 var stash: Array[String] = []
 var loadout: Dictionary = {"primary": "", "secondary": "", "armor": "", "implant_a": "", "implant_b": ""}
 var frame_id: String = "striker"
+var map_id: String = "relay_07"
 var stats: Dictionary = {"raids": 0, "extracted": 0, "kills": 0, "earned": 0}
 
 # --- Settings ---------------------------------------------------------------
@@ -173,6 +174,11 @@ func unequip(slot: String) -> void:
 	loadout[slot] = ""
 	_profile_dirty()
 
+func set_map(id: String) -> void:
+	if Catalog.MAPS.has(id):
+		map_id = id
+		profile_changed.emit()
+
 func set_frame(id: String) -> void:
 	if Catalog.FRAMES.has(id):
 		frame_id = id
@@ -195,7 +201,7 @@ func start_raid() -> void:
 	stats["raids"] += 1
 	save_profile()
 	get_tree().paused = false
-	get_tree().change_scene_to_file(RAID_SCENE)
+	get_tree().change_scene_to_file(Catalog.MAPS[map_id]["scene"])
 
 # The one place the backpack grows. False means it was full.
 func add_to_backpack(id: String) -> bool:

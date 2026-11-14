@@ -8,7 +8,7 @@ extends Control
 # UI only (rule 6): every control calls a GameManager function, and the screen
 # redraws itself from GameManager's state when profile_changed fires.
 
-const TABS: Array[String] = ["Play", "Loadout", "Trader", "Frame", "Settings"]
+const TABS: Array[String] = ["Play", "Armoury", "Loadout", "Trader", "Frame", "Settings"]
 const SLOT_NAMES: Dictionary = {"primary": "PRIMARY", "secondary": "SECONDARY", "armor": "ARMOR", "implant_a": "IMPLANT", "implant_b": "IMPLANT"}
 
 const CHALK := Color(0.925, 0.93, 0.905)
@@ -25,14 +25,16 @@ const PAGES: Dictionary = {
 		"camera": Vector3(1.9, 1.45, 8.4), "look": Vector3(1.9, 1.85, 0.0), "fov": 33.0},
 	"Play": {"word": "07", "at": Vector3(8.5, 2.7, -5.86), "height": 4.4, "disc": ACID, "disc_at": Vector3(6.9, 2.7, -5.89),
 		"camera": Vector3(-1.5, 1.3, 6.4), "look": Vector3(0.95, 1.2, 0.0), "fov": 36.0},
+	"Armoury": {"word": "ARMS", "at": Vector3(7.0, 1.75, -5.86), "height": 1.7, "disc": Color(0.16, 0.62, 0.62), "disc_at": Vector3(6.9, 1.7, -5.89),
+		"camera": Vector3(0.35, 1.0, 3.3), "look": Vector3(1.5, 1.22, 0.0), "fov": 34.0, "roll": -4.0},
 	"Loadout": {"word": "KIT", "at": Vector3(6.9, 2.25, -5.86), "height": 2.6, "disc": Color(0.13, 0.14, 0.16), "disc_at": Vector3(6.6, 2.3, -5.89), "word_color": CHALK,
-		"camera": Vector3(-0.3, 1.5, 4.3), "look": Vector3(1.35, 1.3, 0.0), "fov": 36.0},
+		"camera": Vector3(-0.5, 1.75, 4.6), "look": Vector3(1.3, 1.2, 0.0), "fov": 36.0, "roll": 3.0},
 	"Trader": {"word": "TRADE", "at": Vector3(7.6, 2.8, -5.86), "height": 2.4, "disc": CORAL, "disc_at": Vector3(7.2, 2.8, -5.89),
-		"camera": Vector3(-2.0, 1.05, 6.8), "look": Vector3(0.8, 1.25, 0.0), "fov": 36.0},
+		"camera": Vector3(-2.6, 0.5, 7.4), "look": Vector3(0.7, 1.35, 0.0), "fov": 38.0},
 	"Frame": {"word": "", "at": Vector3(7.7, 2.75, -5.86), "height": 2.0, "disc": ACID, "disc_at": Vector3(6.6, 3.0, -5.89),
-		"camera": Vector3(-0.2, 0.55, 5.2), "look": Vector3(1.3, 1.3, 0.0), "fov": 36.0},
+		"camera": Vector3(0.1, 0.3, 4.6), "look": Vector3(1.35, 1.35, 0.0), "fov": 40.0, "roll": -6.0},
 	"Settings": {"word": "SETUP", "at": Vector3(7.5, 2.6, -5.86), "height": 2.3, "disc": Color(0.74, 0.75, 0.73), "disc_at": Vector3(7.0, 2.5, -5.89),
-		"camera": Vector3(-1.4, 2.4, 7.6), "look": Vector3(0.9, 1.0, 0.0), "fov": 36.0},
+		"camera": Vector3(-1.8, 3.6, 8.0), "look": Vector3(0.8, 0.9, 0.0), "fov": 34.0, "roll": 2.0},
 }
 
 # The title screen shows once per launch, not every time a raid ends.
@@ -58,6 +60,8 @@ var _disc_material: StandardMaterial3D
 var _disc: MeshInstance3D
 var _rim: OmniLight3D
 var _drift: Vector2 = Vector2.ZERO
+var _roll: float = 0.0
+var _armoury_pick: String = "rifle"
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -224,6 +228,8 @@ func _set_scene(page: String, animate: bool = true) -> void:
 	var spec: Dictionary = PAGES[page]
 	var word: String = spec["word"]
 	var disc: Color = spec["disc"]
+	if page == "Play":
+		word = Catalog.MAPS[GameManager.map_id]["mark"]
 	if page == "Frame":
 		var frame: Dictionary = Catalog.FRAMES[GameManager.frame_id]
 		word = (frame["name"] as String).to_upper()
@@ -243,11 +249,13 @@ func _set_scene(page: String, animate: bool = true) -> void:
 		_camera.fov = spec["fov"]
 		_camera_base = spec["camera"]
 		_camera_look = spec["look"]
+		_roll = deg_to_rad(spec.get("roll", 0.0))
 		return
 	var tween := create_tween().set_parallel(true).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
 	tween.tween_property(self, "_camera_base", spec["camera"], 1.1)
 	tween.tween_property(self, "_camera_look", spec["look"], 1.1)
 	tween.tween_property(_camera, "fov", spec["fov"], 1.1)
+	tween.tween_property(self, "_roll", deg_to_rad(spec.get("roll", 0.0)), 1.1)
 	tween.tween_property(_disc_material, "albedo_color", disc, 0.6)
 	tween.tween_property(_disc, "position", spec["disc_at"], 1.1)
 	tween.tween_property(_rim, "light_color", disc, 0.6)
@@ -265,6 +273,7 @@ func _process(delta: float) -> void:
 	var t := Time.get_ticks_msec() * 0.001
 	_camera.position = _camera_base + Vector3(_drift.x * 0.3 + sin(t * 0.21) * 0.05, -_drift.y * 0.12 + sin(t * 0.33) * 0.025, 0.0)
 	_camera.look_at(_camera_look, Vector3.UP)
+	_camera.rotate_object_local(Vector3.FORWARD, _roll)
 	if _title.visible:
 		_prompt.modulate.a = 0.55 + 0.45 * sin(t * 2.4)
 	# The ticker crawls left and wraps on its own repeat.
@@ -457,6 +466,7 @@ func _refresh() -> void:
 		child.queue_free()
 	match _tab:
 		"Play": _play()
+		"Armoury": _armoury()
 		"Loadout": _loadout()
 		"Trader": _trader()
 		"Frame": _frames()
@@ -465,12 +475,26 @@ func _refresh() -> void:
 # --- Pages -------------------------------------------------------------------
 
 func _play() -> void:
-	_content.add_child(_text("NEXT RAID", 13, INK, "mono-bold", 3))
-	var title := _text("RELAY\nSTATION 07", 132, INK, "display-black")
+	var map_ids := Catalog.MAPS.keys()
+	var map: Dictionary = Catalog.MAPS[GameManager.map_id]
+	_content.add_child(_text("NEXT RAID   /   MAP %02d OF %02d" % [map_ids.find(GameManager.map_id) + 1, map_ids.size()], 13, INK, "mono-bold", 3))
+	var title := _text(map["title"], 132, INK, "display-black")
 	title.add_theme_constant_override("line_spacing", -30)
 	_content.add_child(title)
 	_content.add_child(_gap(4))
-	_content.add_child(_text("Twelve minutes before the station locks down. Two ways out. Squads hold every building.", 18, DIM, "text", 0, true))
+	_content.add_child(_text(map["brief"], 18, DIM, "text", 0, true))
+	# Other maps, once there are any: pick one and the page re-forms around it.
+	if map_ids.size() > 1:
+		var others := HBoxContainer.new()
+		others.add_theme_constant_override("separation", 6)
+		for id: String in map_ids:
+			var pick := _link((Catalog.MAPS[id]["name"] as String).to_upper())
+			pick.disabled = id == GameManager.map_id
+			pick.pressed.connect(func() -> void:
+				GameManager.set_map(id)
+				_set_scene("Play"))
+			others.add_child(pick)
+		_content.add_child(others)
 	_content.add_child(_gap(18))
 
 	var frame: Dictionary = Catalog.FRAMES[GameManager.frame_id]
@@ -567,6 +591,98 @@ func _trader() -> void:
 		buy.pressed.connect(func() -> void: GameManager.buy(id))
 		_row((it["kind"] as String).to_upper(), it["name"], Catalog.rarity_color(id), [buy], false, it.get("desc", ""))
 
+# Every weapon in the game, with what it does. Pick one to read its numbers;
+# the action depends on whether you own it.
+func _armoury() -> void:
+	_content.add_child(_text("ARMOURY", 13, INK, "mono-bold", 3))
+	var names := HFlowContainer.new()
+	names.add_theme_constant_override("h_separation", 22)
+	names.add_theme_constant_override("v_separation", 0)
+	for id: String in Catalog.WEAPONS:
+		var b := Button.new()
+		b.text = Catalog.item_name(id).to_upper()
+		b.flat = true
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_override("font", UiKit.display(900))
+		b.add_theme_font_size_override("font_size", 46)
+		for state: String in ["normal", "hover", "pressed", "focus"]:
+			b.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+		b.add_theme_color_override("font_color", INK if id == _armoury_pick else Color(INK, 0.28))
+		b.add_theme_color_override("font_hover_color", INK)
+		b.add_theme_color_override("font_pressed_color", INK)
+		b.pressed.connect(func() -> void:
+			Sfx.play("click", -8.0)
+			_armoury_pick = id
+			_refresh())
+		_wipe(b)
+		names.add_child(b)
+	_content.add_child(names)
+	_content.add_child(_gap(10))
+
+	var id := _armoury_pick
+	var def: Dictionary = Catalog.WEAPONS[id]
+	var it := Catalog.item(id)
+	_content.add_child(_text(it.get("desc", ""), 18, INK, "text", 0, true))
+	_content.add_child(_gap(8))
+	# Each bar is this weapon against the best in the catalog for that number.
+	var best := {"damage": 0.0, "rpm": 0.0, "range": 0.0, "mag": 0.0}
+	for other: Dictionary in Catalog.WEAPONS.values():
+		best["damage"] = maxf(best["damage"], float(other["damage"]) * float(other["pellets"]))
+		best["rpm"] = maxf(best["rpm"], float(other["rpm"]))
+		best["range"] = maxf(best["range"], float(other["falloff"][1]))
+		best["mag"] = maxf(best["mag"], float(other["mag"]))
+	var shot := float(def["damage"]) * float(def["pellets"])
+	_stat("DAMAGE", shot / best["damage"], "%d%s" % [int(def["damage"]), (" × %d" % def["pellets"]) if int(def["pellets"]) > 1 else ""])
+	_stat("FIRE RATE", float(def["rpm"]) / best["rpm"], "%d RPM" % int(def["rpm"]))
+	_stat("RANGE", float(def["falloff"][1]) / best["range"], "%d M" % int(def["falloff"][1]))
+	_stat("MAGAZINE", float(def["mag"]) / best["mag"], "%d" % int(def["mag"]))
+	_stat("CONTROL", clampf(1.0 - float(def["recoil"]) / 5.0, 0.05, 1.0), "%.1fs RELOAD" % float(def["reload"]))
+	_content.add_child(_gap(14))
+
+	var equipped: bool = GameManager.loadout["primary"] == id or GameManager.loadout["secondary"] == id
+	var owned := GameManager.stash.count(id)
+	if id == "sidearm":
+		_content.add_child(_text("ISSUED FREE EVERY RAID", 12, DIM, "mono", 2))
+	elif equipped:
+		_content.add_child(_text("EQUIPPED", 12, INK, "mono-bold", 2))
+	elif owned > 0:
+		var equip := _block("EQUIP  →", 24, Vector2(220, 54))
+		equip.pressed.connect(func() -> void: GameManager.equip(GameManager.stash.find(id), ""))
+		_content.add_child(equip)
+		_content.add_child(_text("%d IN STASH" % owned, 12, DIM, "mono", 2))
+	else:
+		var price: int = it["value"]
+		var buy := _block("BUY   %s" % _money(price).to_upper(), 24, Vector2(260, 54))
+		buy.disabled = GameManager.credits < price
+		buy.pressed.connect(func() -> void: GameManager.buy(id))
+		_content.add_child(buy)
+		if buy.disabled:
+			_content.add_child(_text("NOT ENOUGH CREDITS", 12, CORAL.darkened(0.2), "mono", 2))
+
+# A labelled bar: how this number compares with the best there is.
+func _stat(label: String, amount: float, value: String) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	var name_label := _text(label, 12, DIM, "mono", 2)
+	name_label.custom_minimum_size.x = 110
+	row.add_child(name_label)
+	var track := ColorRect.new()
+	track.color = LINE
+	track.custom_minimum_size = Vector2(360, 10)
+	track.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(track)
+	var fill := ColorRect.new()
+	fill.color = INK
+	fill.anchor_bottom = 1.0
+	fill.anchor_right = 0.0
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.add_child(fill)
+	# The bar grows to its value each time the page forms.
+	fill.create_tween().tween_property(fill, "anchor_right", clampf(amount, 0.0, 1.0), 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	row.add_child(_text(value, 13, INK, "mono-bold", 1))
+	_content.add_child(row)
+
 # Three names stacked like a poster; the chosen one is inked, the others faint.
 func _frames() -> void:
 	_content.add_child(_text("FRAME", 13, INK, "mono-bold", 3))
@@ -587,6 +703,8 @@ func _frames() -> void:
 		b.add_theme_color_override("font_hover_color", INK)
 		b.add_theme_color_override("font_pressed_color", INK)
 		b.custom_minimum_size.y = 84
+		b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		_wipe(b, frame["accent"])
 		b.pressed.connect(func() -> void:
 			if id != GameManager.frame_id:
 				Sfx.play("ability", -12.0, 1.2)
@@ -654,7 +772,7 @@ func _fact(label: String, value: String, color: Color = INK) -> void:
 func _row(tag: String, title: String, tick: Color, actions: Array, faint: bool = false, desc: String = "") -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
-	row.custom_minimum_size.y = 34
+	row.custom_minimum_size.y = 40
 	var mark := ColorRect.new()
 	mark.color = tick
 	mark.custom_minimum_size = Vector2(5, 20)
@@ -663,9 +781,8 @@ func _row(tag: String, title: String, tick: Color, actions: Array, faint: bool =
 	var tag_label := _text(tag, 11, DIM, "mono", 2)
 	tag_label.custom_minimum_size.x = 96
 	row.add_child(tag_label)
-	var name_label := _text(title, 18, DIM if faint else INK)
-	name_label.add_theme_font_override("font", UiKit.font(600))
-	name_label.custom_minimum_size.x = 210
+	var name_label := _text(title.to_upper(), 27, DIM if faint else INK, "display", 1)
+	name_label.custom_minimum_size.x = 250
 	row.add_child(name_label)
 	var desc_label := _text(desc, 13, DIM)
 	desc_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -690,7 +807,7 @@ func _link(text: String) -> Button:
 	b.add_theme_font_size_override("font_size", 12)
 	for state: String in ["normal", "hover", "pressed", "disabled", "focus"]:
 		var box := StyleBoxFlat.new()
-		box.bg_color = ACID if state == "hover" else (INK if state == "pressed" else Color(0, 0, 0, 0))
+		box.bg_color = INK if state == "pressed" else Color(0, 0, 0, 0)
 		box.content_margin_left = 9
 		box.content_margin_right = 9
 		box.content_margin_top = 5
@@ -701,7 +818,33 @@ func _link(text: String) -> Button:
 	b.add_theme_color_override("font_pressed_color", CHALK)
 	b.add_theme_color_override("font_disabled_color", Color(INK, 0.28))
 	b.pressed.connect(func() -> void: Sfx.play("click", -8.0))
+	_wipe(b)
 	return b
+
+# Hover feedback shared by every control: a slab of colour wipes in from the
+# left behind the text, and wipes back out when the pointer leaves.
+func _wipe(b: Button, color: Color = ACID, base: Color = Color(0, 0, 0, 0)) -> void:
+	if base.a > 0.0:
+		var ground := ColorRect.new()
+		ground.color = base
+		ground.show_behind_parent = true
+		ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ground.set_anchors_preset(Control.PRESET_FULL_RECT)
+		b.add_child(ground)
+	var slab := ColorRect.new()
+	slab.color = color
+	slab.show_behind_parent = true
+	slab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slab.anchor_bottom = 1.0
+	slab.anchor_right = 0.0
+	b.add_child(slab)
+	b.mouse_entered.connect(func() -> void:
+		if b.disabled:
+			return
+		Sfx.play("tick", -24.0, 1.4)
+		slab.create_tween().tween_property(slab, "anchor_right", 1.0, 0.16).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC))
+	b.mouse_exited.connect(func() -> void:
+		slab.create_tween().tween_property(slab, "anchor_right", 0.0, 0.26).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC))
 
 # The one heavy button: an ink block that turns acid under the pointer.
 func _block(text: String, font_size: int, minimum: Vector2) -> Button:
@@ -714,14 +857,15 @@ func _block(text: String, font_size: int, minimum: Vector2) -> Button:
 	b.add_theme_font_size_override("font_size", font_size)
 	for state: String in ["normal", "hover", "pressed", "focus"]:
 		var box := StyleBoxFlat.new()
-		box.bg_color = ACID if state == "hover" else (INK.lightened(0.15) if state == "pressed" else INK)
+		box.bg_color = Color(0, 0, 0, 0)
 		box.content_margin_left = 26
 		box.content_margin_right = 26
 		b.add_theme_stylebox_override(state, box)
 	b.add_theme_color_override("font_color", CHALK)
 	b.add_theme_color_override("font_hover_color", INK)
-	b.add_theme_color_override("font_pressed_color", CHALK)
+	b.add_theme_color_override("font_pressed_color", INK)
 	b.pressed.connect(func() -> void: Sfx.play("click", -8.0))
+	_wipe(b, ACID, INK)
 	return b
 
 func _gap(height: float) -> Control:
