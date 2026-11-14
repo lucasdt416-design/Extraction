@@ -20,23 +20,51 @@ func _ready() -> void:
 	var out := args[0] if args.size() > 0 else "user://"
 	var menu: Control = load("res://scenes/menu.tscn").instantiate()
 	add_child(menu)
-	for tab: String in ["Deploy", "Trader", "Frame"]:
-		menu.set("_tab", tab)
-		menu.call("_refresh")
-		await get_tree().create_timer(0.4).timeout
+	await get_tree().create_timer(1.2).timeout
+	get_viewport().get_texture().get_image().save_png("%s/menu_Title.png" % out)
+	menu.call("_enter")
+	await get_tree().create_timer(2.2).timeout
+	for tab: String in ["Play", "Armoury", "Loadout", "Trader", "Frame", "Settings"]:
+		menu.call("_show_tab", tab)
+		await get_tree().create_timer(1.4).timeout
 		get_viewport().get_texture().get_image().save_png("%s/menu_%s.png" % [out, tab])
 	menu.queue_free()
+	GameManager.loadout["primary"] = "rifle"
+	GameManager.set_setting("quality", 0.0 if args.has("--low") else 2.0)
+	GameManager.loadout["secondary"] = "dmr" if args.has("--dmr") else ""
 	var raid: Raid = load("res://scenes/raid.tscn").instantiate()
 	add_child(raid)
 	await get_tree().create_timer(0.3).timeout
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var player := raid.player
+	# Unkillable until the death shot, so earlier views can't end the raid.
+	player.max_shield = 1.0e9
+	player.shield = 1.0e9
+	if args.has("--no-enemies"):
+		for node in get_tree().get_nodes_in_group("enemy"):
+			node.queue_free()
+	if args.has("--no-body"):
+		player.get("_body").visible = false
+		player.get("_shadow_body").visible = false
+	if args.has("--no-probes"):
+		for node in raid.level.find_children("*", "ReflectionProbe", true, false):
+			node.queue_free()
+	if args.has("--no-sdfgi"):
+		get_viewport().world_3d.environment.sdfgi_enabled = false
 	if args.has("--fps"):
+		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 		# Clean frame-rate samples, with nothing else going on.
 		for spot: Vector3 in [Vector3(-39.0, 0.1, 30.0), Vector3(-1.0, 0.1, 1.5), Vector3(-20.0, 0.1, -8.0)]:
 			player.global_position = spot
 			await get_tree().create_timer(3.0).timeout
-			print("FPS at %s: %d (vsync %d)" % [str(spot), Engine.get_frames_per_second(), DisplayServer.window_get_vsync_mode()])
+			# Measured render cost, which unlike the frame rate isn't affected by
+			# macOS throttling a window that isn't in front.
+			var rid := get_viewport().get_viewport_rid()
+			print("AT %s: cpu %.1fms  gpu %.1fms  draws %d  prims %d  script %.1fms  physics %.1fms" % [str(spot),
+				RenderingServer.viewport_get_measured_render_time_cpu(rid) + RenderingServer.get_frame_setup_time_cpu(),
+				RenderingServer.viewport_get_measured_render_time_gpu(rid),
+				Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+				Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0])
 		get_tree().quit()
 		return
 	for i in VIEWS.size():
@@ -51,15 +79,32 @@ func _ready() -> void:
 		player.is_dead = false
 		await get_tree().create_timer(2.5 if i == 0 else 1.2).timeout
 		get_viewport().get_texture().get_image().save_png("%s/shot_%d.png" % [out, i])
+	# Looking down at Kestrel's own body, then at its shadow on the ground.
+	player.set_physics_process(true)
+	player.global_position = Vector3(-1.0, 0.1, 9.0)
+	player.set("_yaw", deg_to_rad(40.0))
+	player.set("_pitch", deg_to_rad(-62.0))
+	await get_tree().create_timer(0.6).timeout
+	get_viewport().get_texture().get_image().save_png("%s/body_down.png" % out)
+	# Face the way the sunlight travels, so our own shadow is in front of us.
+	var sun: DirectionalLight3D = raid.find_children("*", "DirectionalLight3D", false, false)[0]
+	var travel := -sun.global_transform.basis.z
+	player.global_position = Vector3(-14.0, 0.1, 17.0)
+	player.set("_pitch", deg_to_rad(-35.0))
+	player.set("_yaw", atan2(-travel.x, -travel.z))
+	await get_tree().create_timer(0.4).timeout
+	get_viewport().get_texture().get_image().save_png("%s/body_shadow.png" % out)
 	# Close-ups of two archetypes, for judging the character rigs.
 	var n := 0
-	for kind: String in ["lobber", "trooper", "marksman"]:
+	for kind: String in ["trooper", "bulwark", "overseer", "rusher"]:
 		for node in get_tree().get_nodes_in_group("enemy"):
 			var enemy := node as Enemy
-			if enemy.kind != kind or enemy.is_dead or enemy.global_position.distance_to(Vector3(2, 0, 4)) > 22.0:
+			if enemy.kind != kind or enemy.is_dead :
 				continue
 			enemy.set_physics_process(false)
-			var front := enemy.global_position - enemy.global_transform.basis.z * 2.6 + enemy.global_transform.basis.x * 0.9
+			enemy.global_position = Vector3(-8.0 + n * 4.0, 0.1, 17.5)
+			enemy.rotation.y = 0.5
+			var front := enemy.global_position - enemy.global_transform.basis.z * 2.4 + enemy.global_transform.basis.x * 0.8
 			player.set_physics_process(true)
 			player.global_position = front
 			var to := enemy.global_position + Vector3.UP * 1.15 - (front + Vector3.UP * 1.64)
@@ -69,6 +114,17 @@ func _ready() -> void:
 			get_viewport().get_texture().get_image().save_png("%s/closeup_%d.png" % [out, n])
 			n += 1
 			break
+	# The death view.
+	player.global_position = Vector3(-39.0, 0.1, 30.0)
+	player.set("_yaw", deg_to_rad(-50.0))
+	await get_tree().create_timer(0.4).timeout
+	GameManager.in_raid = true
+	GameManager.backpack.assign(["fusion_cap", "data_shard", "medkit"])
+	player.shield = 0.0
+	player.take_damage(9999.0, null)
+	for stamp: Array in [[1.0, "death_a"], [1.3, "death_b"], [1.4, "death_c"], [4.0, "death"]]:
+		await get_tree().create_timer(stamp[0], true, false, true).timeout
+		get_viewport().get_texture().get_image().save_png("%s/%s.png" % [out, stamp[1]])
 	var states := {}
 	for node in get_tree().get_nodes_in_group("enemy"):
 		var enemy := node as Enemy

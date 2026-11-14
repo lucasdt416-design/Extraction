@@ -31,6 +31,41 @@ static func surface(color: Color, kind: String = "panel", roughness: float = 0.7
 	_cache[key] = mat
 	return mat
 
+# Walls and floors: the world-space surface shader (panel seams, painted band,
+# grime, patchy floors). `band` is the colour of the strip along the foot of a
+# wall; pass band_height 0 for none.
+static func wall(color: Color, band: Color = Color.BLACK, band_height: float = 0.0, panel: float = 2.0,
+		roughness: float = 0.65, metallic: float = 0.05, wear: float = 1.0) -> ShaderMaterial:
+	var key := "w%s%s%.2f%.2f%.2f%.2f%.2f" % [color.to_html(), band.to_html(), band_height, panel, roughness, metallic, wear]
+	if _cache.has(key):
+		return _cache[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/surface.gdshader")
+	mat.set_shader_parameter("base_color", color)
+	mat.set_shader_parameter("band_color", band)
+	mat.set_shader_parameter("band_height", band_height)
+	mat.set_shader_parameter("panel_size", panel)
+	mat.set_shader_parameter("roughness_base", roughness)
+	mat.set_shader_parameter("metallic_base", metallic)
+	mat.set_shader_parameter("wear", wear)
+	mat.set_shader_parameter("noise_tex", noise())
+	_cache[key] = mat
+	return mat
+
+# One shared tileable noise texture, used by the surface and sky shaders.
+static func noise() -> ImageTexture:
+	if _cache.has("noise"):
+		return _cache["noise"]
+	var generator := FastNoiseLite.new()
+	generator.seed = 3
+	generator.frequency = 0.02
+	generator.fractal_octaves = 5
+	var image := generator.get_seamless_image(512, 512)
+	image.generate_mipmaps()
+	var texture := ImageTexture.create_from_image(image)
+	_cache["noise"] = texture
+	return texture
+
 # Unshaded-looking light source surface: strips, screens, visors, beacons.
 static func glow(color: Color, energy: float = 3.0) -> StandardMaterial3D:
 	var key := "g%s%.1f" % [color.to_html(), energy]

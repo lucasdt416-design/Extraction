@@ -169,6 +169,17 @@ func _ready() -> void:
 	check("loot banked in stash", GameManager.stash.has("fusion_cap"))
 	check("loadout kept", GameManager.loadout["primary"] == "rifle")
 
+	# Settings clamp, persist through a reset, and reach the game.
+	GameManager.set_setting("sensitivity", 99.0)
+	GameManager.set_setting("quality", 0.0)
+	check("settings clamp", is_equal_approx(GameManager.settings["sensitivity"], 3.0))
+	check("quality applies", not raid.get("_env").sdfgi_enabled and raid.get("_env").fog_enabled)
+	GameManager.reset_profile()
+	check("settings survive a reset", is_equal_approx(GameManager.settings["sensitivity"], 3.0))
+	GameManager.set_setting("sensitivity", 1.0)
+	GameManager.set_setting("quality", 2.0)
+	GameManager.loadout["primary"] = "rifle"
+
 	# Death loses the kit.
 	GameManager.in_raid = true
 	GameManager.backpack.assign(["data_shard"])

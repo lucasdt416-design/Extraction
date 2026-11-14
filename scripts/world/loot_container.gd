@@ -43,10 +43,8 @@ func _ready() -> void:
 	_light = _add(Vector3(0.0, size.y * 0.62, -size.z * 0.5 - 0.005), Vector3(size.x * 0.4, 0.035, 0.01), Mats.glow(color, 4.0))
 
 func _add(at: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
 	var instance := MeshInstance3D.new()
-	instance.mesh = mesh
+	instance.mesh = Shapes.rounded_box(size, minf(0.04, minf(size.x, minf(size.y, size.z)) * 0.3), 2)
 	instance.material_override = mat
 	instance.position = at
 	add_child(instance)

@@ -16,6 +16,8 @@ var elapsed: float = 0.0
 var over: bool = false
 var extract_points: Array[ExtractPoint] = []
 var _squads: Array[Squad] = []
+var _env: Environment
+var _sun: DirectionalLight3D
 
 func _ready() -> void:
 	Squad.all.clear()
@@ -47,6 +49,7 @@ func _ready() -> void:
 	add_child(player)
 	player.died.connect(_on_player_died)
 
+	_build_lens_and_dust()
 	hud = Hud.new()
 	add_child(hud)
 	hud.bind(self)
@@ -104,6 +107,7 @@ func _on_extracted(_who: Player) -> void:
 	Sfx.play("extract")
 	Fx.burst(self, player.global_position + Vector3.UP, 8.0, Level.TEAL.lightened(0.3), 0.8)
 	GameManager.extract_success(elapsed)
+	hud.begin_ending()
 	hud.show_result(GameManager.last_result)
 
 func _end(outcome: String) -> void:
@@ -111,11 +115,62 @@ func _end(outcome: String) -> void:
 		return
 	over = true
 	GameManager.raid_failed(outcome, elapsed)
-	hud.show_result(GameManager.last_result)
+	# The world slows and drains of colour; the result waits for the fall.
+	Engine.time_scale = 0.22
+	var tween := create_tween().set_ignore_time_scale(true).set_parallel(true)
+	tween.tween_property(Engine, "time_scale", 1.0, 2.4).set_delay(0.7).set_ease(Tween.EASE_IN)
+	tween.tween_property(_env, "adjustment_saturation", 0.12, 1.6)
+	tween.tween_property(_env, "adjustment_contrast", 1.25, 1.6)
+	tween.tween_property(_env, "adjustment_brightness", 0.96, 1.6)
+	tween.chain().tween_callback(func() -> void: hud.show_result(GameManager.last_result))
+	hud.begin_ending()
+
+func _build_lens_and_dust() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 0
+	var lens := ColorRect.new()
+	lens.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lens.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var material := ShaderMaterial.new()
+	material.shader = load("res://shaders/post.gdshader")
+	lens.material = material
+	layer.add_child(lens)
+	add_child(layer)
+
+	# Dust hanging in the air around the player; it catches the sun and the lamps.
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.03, 0.03)
+	var mote := StandardMaterial3D.new()
+	mote.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mote.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mote.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mote.albedo_color = Color(1.0, 0.93, 0.8, 0.4)
+	quad.material = mote
+	var dust := CPUParticles3D.new()
+	dust.mesh = quad
+	dust.amount = 320
+	dust.lifetime = 10.0
+	dust.preprocess = 10.0
+	dust.local_coords = false
+	dust.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	dust.emission_box_extents = Vector3(12.0, 3.5, 12.0)
+	dust.direction = Vector3(1.0, 0.1, 0.3)
+	dust.spread = 50.0
+	dust.gravity = Vector3.ZERO
+	dust.initial_velocity_min = 0.05
+	dust.initial_velocity_max = 0.3
+	dust.scale_amount_min = 0.4
+	dust.scale_amount_max = 1.4
+	dust.position.y = 2.5
+	dust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	player.add_child(dust)
 
 # Late afternoon on a dusty plateau: a low warm sun, long shadows, cool shade,
 # haze in the distance. Interiors get their own lamps from the level.
 func _build_environment() -> void:
+	var sky_shader := ShaderMaterial.new()
+	sky_shader.shader = load("res://shaders/sky.gdshader")
+	sky_shader.set_shader_parameter("noise_tex", Mats.noise())
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.17, 0.33, 0.60)
 	sky_material.sky_horizon_color = Color(0.86, 0.74, 0.66)
@@ -125,7 +180,8 @@ func _build_environment() -> void:
 	sky_material.sun_angle_max = 9.0
 	sky_material.sun_curve = 0.08
 	var sky := Sky.new()
-	sky.sky_material = sky_material
+	sky.sky_material = sky_shader
+	sky.radiance_size = Sky.RADIANCE_SIZE_256
 
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
@@ -138,7 +194,7 @@ func _build_environment() -> void:
 	env.glow_enabled = true
 	env.glow_intensity = 0.55
 	env.glow_bloom = 0.04
-	env.glow_hdr_threshold = 1.1
+	env.glow_hdr_threshold = 1.5
 	env.ssao_enabled = true
 	env.ssao_radius = 1.4
 	env.ssao_intensity = 2.2
@@ -146,16 +202,29 @@ func _build_environment() -> void:
 	env.sdfgi_cascades = 4
 	env.sdfgi_max_distance = 110.0
 	env.sdfgi_energy = 1.1
+	env.ssr_enabled = true
+	env.ssr_max_steps = 48
+	env.ssr_fade_in = 0.2
+	env.ssr_fade_out = 2.5
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.0035
+	env.volumetric_fog_density = 0.0028
 	env.volumetric_fog_albedo = Color(0.90, 0.88, 0.86)
 	env.volumetric_fog_length = 140.0
 	env.volumetric_fog_ambient_inject = 0.4
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.06
+	env.adjustment_contrast = 1.1
 	env.adjustment_saturation = 1.08
+	_env = env
 	var world := WorldEnvironment.new()
 	world.environment = env
+	# Eyes adjust: stepping indoors opens up, stepping back out is briefly bright.
+	var exposure := CameraAttributesPractical.new()
+	exposure.auto_exposure_enabled = true
+	exposure.auto_exposure_scale = 0.42
+	exposure.auto_exposure_speed = 1.2
+	exposure.auto_exposure_min_sensitivity = 90.0
+	exposure.auto_exposure_max_sensitivity = 420.0
+	world.camera_attributes = exposure
 	add_child(world)
 
 	var sun := DirectionalLight3D.new()
@@ -168,3 +237,23 @@ func _build_environment() -> void:
 	sun.light_angular_distance = 0.8
 	sun.light_volumetric_fog_energy = 1.4
 	add_child(sun)
+	_sun = sun
+	apply_quality()
+	GameManager.settings_changed.connect(apply_quality)
+
+# Graphics quality, from the settings. High is everything; medium drops the two
+# most expensive effects; low keeps only what the look can't do without.
+func apply_quality() -> void:
+	var quality := int(GameManager.settings["quality"])
+	_env.sdfgi_enabled = quality >= 2
+	_env.ssr_enabled = quality >= 2
+	_env.volumetric_fog_enabled = quality >= 1
+	_env.ssao_enabled = quality >= 1
+	# Without volumetric fog, plain distance fog keeps the haze.
+	_env.fog_enabled = quality < 1
+	_env.fog_light_color = Color(0.86, 0.78, 0.72)
+	_env.fog_density = 0.0022
+	_env.fog_sky_affect = 0.1
+	# Without bounce light the shade goes too dark, so lift the ambient.
+	_env.ambient_light_energy = 0.9 if quality >= 2 else 1.5
+	_sun.directional_shadow_max_distance = 110.0 if quality >= 1 else 60.0

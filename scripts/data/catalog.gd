@@ -72,6 +72,13 @@ const WEAPONS: Dictionary = {
 const MIN_FALLOFF: float = 0.45
 const HEADSHOT_MULT: float = 1.75
 
+# Raid maps. One today; the Play page lists whatever is here, so a new map is a
+# new entry plus its level. `scene` is what GameManager loads.
+const MAPS: Dictionary = {
+	"relay_07": {"name": "Relay Station 07", "title": "RELAY\nSTATION 07", "mark": "07", "scene": "res://scenes/raid.tscn",
+		"minutes": 12, "exits": 2, "brief": "Twelve minutes before the station locks down. Two ways out. Squads hold every building."},
+}
+
 # Player classes. Each has a passive, a tactical (short cooldown) and a prime
 # (long cooldown). The ability ids are resolved in player.gd.
 const FRAMES: Dictionary = {

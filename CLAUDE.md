@@ -36,6 +36,11 @@ The whole loop is playable end to end. Everything below was run through
 - **Player** (`actors/player.gd`). First-person controller: sprint, crouch, jump, ADS,
   two weapon slots, reload, recoil and bloom, regenerating shield over health, medkits,
   hold-to-use, and a frame's two abilities. Consumes one `InputFrame` per tick.
+- **Kestrel** (`actors/kestrel_body.gd`, `assets/characters/kestrel/kestrel.glb`). The
+  player character: a rigged android courier with Idle/Walk/Run clips. Used as the body
+  you see looking down in first person (head and arms hidden), as a shadow-only copy so
+  your shadow is complete, and on a turntable in the menu. Enemy bodies (`actors/rig.gd`)
+  are still built in code, in the same design language.
 - **Frames** (classes): Striker (Dash / Overcharge), Wraith (Cloak / Pulse), Mender
   (Stim / Fortify). Armor and two implant slots adjust stats.
 - **Shooting** (`core/gun.gd`). Hitscan, shared by player and enemies: magazine, fire
@@ -50,11 +55,18 @@ The whole loop is playable end to end. Everything below was run through
 - **Extraction** (`world/extract_point.gd`), raid clock and win/lose (`world/raid.gd`).
 - **Interface** (`ui/hud.gd`, `ui/menu.gd`, `ui/ui_kit.gd`). HUD with health/shield,
   ammo, abilities, detection meter, damage direction, extract markers, the enemy comms
-  feed, pause and result screens. Menu with Deploy, Stash, Trader and Frame tabs.
-- **Look and sound** (`fx/mats.gd`, `fx/fx.gd`, `actors/rig.gd`, `autoload/sfx.gd`).
-  Generated triplanar textures, procedurally animated primitive characters, tracers and
-  impacts, SDFGI / volumetric fog / glow, and every sound synthesized at startup. No
-  imported assets.
+  feed, pause and result screens. The menu is a title screen, then Play, Loadout, Trader, Frame and
+  Settings. Behind it is a live 3D studio: Kestrel in front of a huge word on the wall
+  and a disc of colour, with a different word, colour and camera angle per page.
+- **Look and sound** (`fx/mats.gd`, `fx/shapes.gd`, `fx/fx.gd`, `actors/rig.gd`,
+  `autoload/sfx.gd`, `shaders/`). No imported assets. Props, armour and weapons use
+  bevelled meshes from `Shapes.rounded_box`. `shaders/surface.gdshader` gives walls and
+  floors world-space panel seams, a painted band, grime and patchy wear;
+  `shaders/sky.gdshader` draws the sky, clouds and ringed planet; `shaders/post.gdshader`
+  is the lens (vignette, slight fringing, grain). The raid adds SDFGI, screen-space
+  reflections, per-building reflection probes, volumetric fog, glow, auto exposure and
+  drifting dust. Buildings get trim, lit windows, rooftop plant and painted lettering
+  from `Level._dress_shell` / `_dress_site`. All sound is synthesized at startup.
 
 ### How the AI works
 
@@ -91,7 +103,10 @@ Individuals perceive and act; the `Squad` pools what they know and coordinates t
 - Crouching doesn't lower an enemy's hit capsule; only the player's.
 - No settings screen (sensitivity, volume, graphics quality). SDFGI and volumetric fog
   are on unconditionally, tuned on an Apple M5 Pro.
-- The view model is a few boxes; there are no reload or melee animations.
+- First-person weapons are modelled per type with hands and a magazine-drop reload,
+  but there is no melee and no inspect or equip animation.
+- Kestrel has only Idle, Walk and Run clips: no crouch, jump, aim or death animation,
+  so crouching squashes the body and there is no third-person death view.
 
 ## Decisions already made
 
@@ -104,7 +119,7 @@ Don't quietly reverse these; raise it with the user first.
 | Eventual MP target | **Co-op vs AI**, host-authoritative | Achievable for two people. |
 | PvP | **Explicitly not a goal** | Needs a real backend, server-side stash and anti-cheat. |
 | Physics | Jolt (Godot 3D), 120 ticks/s | Mouse look is applied on the tick, so it needs to be fine-grained. |
-| Assets | **None imported** | Geometry from primitives, textures generated, audio synthesized. |
+| Assets | **Imported only for the player character and fonts** | Kestrel is a rigged GLB in `assets/characters/kestrel/` (user's call, 2026-11-13). Everything else is primitives, generated textures and synthesized audio. |
 
 ## Network-readiness rules
 
@@ -160,16 +175,18 @@ outcomes.
 
 ```
 project.godot
+assets/characters/kestrel/   # kestrel.glb (rigged model) and its concept image
 scenes/
   menu.tscn  raid.tscn        # a root node and a script each; everything else is built in code
 scripts/
   autoload/  game_manager.gd  sfx.gd
   data/      catalog.gd
   core/      input_frame.gd  player_input_source.gd  gun.gd  layers.gd
-  actors/    player.gd  enemy.gd  squad.gd  rig.gd  grenade.gd
+  actors/    player.gd  kestrel_body.gd  enemy.gd  squad.gd  rig.gd  grenade.gd
   world/     raid.gd  level.gd  loot.gd  loot_container.gd  extract_point.gd
-  fx/        mats.gd  fx.gd
+  fx/        mats.gd  shapes.gd  fx.gd
   ui/        hud.gd  menu.gd  ui_kit.gd
+shaders/     surface.gdshader  sky.gdshader  post.gdshader
 tools/       selftest.*  shots.*  bark_counter.gd   # development helpers, not shipped gameplay
 ```
 
@@ -193,7 +210,11 @@ never touched. Run it after changing gameplay code.
   uses (`Container` is taken; that's why it's `LootContainer`).
 - Tuning numbers live in `Catalog` or as constants at the top of the script that uses
   them.
-- Interface: plain wording, flat and square, no decorative icons or boxes.
+- Interface: plain wording, no decorative icons. The menu is a bright poster: chalk
+  ground, ink type, Kestrel's acid and coral as flat colour fields, very large display
+  type. Three bundled faces from `assets/fonts` (all OFL): `UiKit.display` (Big Shoulders
+  Display) for headlines and figures, `UiKit.font` (Space Grotesk) for text, `UiKit.mono`
+  (Space Mono) for small labels. The in-raid HUD stays light-on-dark over the 3D view.
 
 ## Working in this repo
 
@@ -242,5 +263,4 @@ raise it first.
 - PvP, matchmaking, lobbies, dedicated servers, anti-cheat
 - Backend services or server-side persistence (stash saves to a local file)
 - Procedural map generation
-- Imported art, models or audio files — everything is built from primitives and
-  synthesized sound for now, and that look is deliberate
+- Imported art or audio beyond the Kestrel character model — raise it before adding more
