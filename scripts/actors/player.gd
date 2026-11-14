@@ -525,6 +525,8 @@ func _process(delta: float) -> void:
 # character replaces the first-person body, topples, and the camera settles
 # behind and above it, kept out of walls by a ray.
 func _death_view(delta: float) -> void:
+	# The world is in slow motion; the camera is not.
+	delta /= maxf(Engine.time_scale, 0.05)
 	if _fallen == null:
 		_view.visible = false
 		_body.visible = false
@@ -532,21 +534,22 @@ func _death_view(delta: float) -> void:
 		_fallen = KestrelBody.new()
 		add_child(_fallen)
 		_fallen.build(STAND_HEIGHT)
-		var fall := _fallen.create_tween().set_parallel(true).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-		fall.tween_property(_fallen, "rotation:x", -1.45, 0.55)
-		fall.tween_property(_fallen, "position:y", 0.2, 0.55)
+		_fallen.animate(Vector2(velocity.x, velocity.z).length())
+		_fallen.collapse()
 		_camera.top_level = true
 	_death_time += delta
-	var focus := global_position + Vector3.UP * 0.7
-	var orbit := _yaw + PI * 0.25 + _death_time * 0.12
-	var wanted := focus + Vector3(sin(orbit), 0.0, cos(orbit)) * 3.6 + Vector3.UP * 1.7
+	var focus := global_position + Vector3.UP * lerpf(1.1, 0.45, smoothstep(0.3, 1.2, _death_time))
+	# Starts low and close in front of Kestrel, then rises and circles away.
+	var out := smoothstep(1.2, 4.2, _death_time)
+	var orbit := _yaw + PI + 0.5 + _death_time * 0.1
+	var wanted := focus + Vector3(sin(orbit), 0.0, cos(orbit)) * lerpf(2.6, 3.3, out) + Vector3.UP * lerpf(0.35, 1.9, out)
 	var query := PhysicsRayQueryParameters3D.create(focus, wanted, Layers.WORLD)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
 		wanted = focus.lerp(hit["position"], 0.85)
-	_camera.global_position = _camera.global_position.lerp(wanted, minf(delta * 2.5, 1.0))
+	_camera.global_position = _camera.global_position.lerp(wanted, minf(delta * 4.0, 1.0))
 	_camera.look_at(focus, Vector3.UP)
-	_camera.fov = lerpf(_camera.fov, 60.0, minf(delta * 3.0, 1.0))
+	_camera.fov = lerpf(_camera.fov, 48.0, minf(delta * 3.0, 1.0))
 	_camera.h_offset = 0.0
 	_camera.v_offset = 0.0
 

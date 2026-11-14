@@ -241,21 +241,128 @@ func _edge_tint(size: Vector2, color: Color) -> void:
 
 # --- Overlays ----------------------------------------------------------------
 
+# The moment the raid ends: the play HUD clears and the frame goes widescreen.
+func begin_ending() -> void:
+	_canvas.visible = false
+	for top: bool in [true, false]:
+		var bar := ColorRect.new()
+		bar.color = Color(0.03, 0.035, 0.04)
+		bar.set_anchors_preset(Control.PRESET_TOP_WIDE if top else Control.PRESET_BOTTOM_WIDE)
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(bar)
+		var tween := bar.create_tween().set_ignore_time_scale(true).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tween.tween_property(bar, "offset_bottom" if top else "offset_top", 96.0 if top else -96.0, 0.7)
+
+# The result, told in beats: a headline slams in, a line of explanation, then
+# each item lost or secured ticks onto the screen, the totals, and the way out.
 func show_result(result: Dictionary) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	var title := "Extracted"
 	# Tolerates an empty result (a raid scene run on its own, outside the menu flow).
 	var outcome: String = result.get("outcome", "died")
-	var detail := "%d items secured, worth %d credits." % [result.get("items", []).size(), result.get("value", 0)]
+	var items: Array = result.get("items", [])
+	var won := outcome == "extracted"
+	var accent := UiKit.ACID if won else UiKit.CORAL
+	var headline := "EXTRACTED" if won else ("KESTREL DOWN" if outcome == "died" else "LOCKED IN")
+	var detail := "You made it out. Everything in the backpack is yours."
 	if outcome == "died":
-		title = "Killed in the raid"
-		detail = "Everything you carried and wore is gone."
+		detail = "Killed in the raid. What you carried and wore stays where you fell."
 	elif outcome == "lost":
-		title = "Locked in"
 		detail = "The station sealed before you got out. Your kit stays inside."
 	var seconds := int(result.get("time", 0.0))
-	var lines := "%s\n\n%d hostiles down   ·   %02d:%02d in the raid" % [detail, result.get("kills", 0), seconds / 60, seconds % 60]
-	_overlay = _panel(title, lines, [["Return to base", GameManager.return_to_menu]], 0.62 if outcome != "extracted" else 0.72)
+
+	var shade := ColorRect.new()
+	shade.color = Color(0.03, 0.035, 0.04, 0.0)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(shade)
+	move_child(shade, 1)
+	_overlay = shade
+	var column := VBoxContainer.new()
+	column.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	column.offset_left = 96.0
+	column.offset_right = 900.0
+	column.offset_top = 150.0
+	column.offset_bottom = -130.0
+	column.add_theme_constant_override("separation", 6)
+	shade.add_child(column)
+
+	var kicker := _line("RAID OVER   /   %02d:%02d   /   %d HOSTILE%s DOWN" % [seconds / 60, seconds % 60, result.get("kills", 0), "" if result.get("kills", 0) == 1 else "S"], 13, INK, UiKit.mono(true, 3))
+	var title := _line(headline, 168, accent, UiKit.display(900))
+	title.add_theme_constant_override("line_spacing", -40)
+	var sub := _line(detail, 19, INK, UiKit.font(500))
+	var rule := ColorRect.new()
+	rule.color = accent
+	rule.custom_minimum_size = Vector2(0, 4)
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 10
+	for node: Control in [kicker, title, sub, spacer, rule]:
+		node.modulate.a = 0.0
+		column.add_child(node)
+
+	var tween := create_tween().set_ignore_time_scale(true)
+	tween.tween_property(shade, "color:a", 0.45 if won else 0.5, 0.5)
+	tween.tween_callback(func() -> void: Sfx.play("extract" if won else "shield_break", -4.0, 1.0 if won else 0.55))
+	# The headline lands oversized and settles.
+	title.pivot_offset = Vector2(0, 90)
+	title.scale = Vector2(1.18, 1.18)
+	tween.tween_property(title, "modulate:a", 1.0, 0.12)
+	tween.parallel().tween_property(title, "scale", Vector2.ONE, 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_EXPO)
+	tween.parallel().tween_property(kicker, "modulate:a", 1.0, 0.4)
+	tween.tween_property(sub, "modulate:a", 1.0, 0.35)
+	tween.parallel().tween_property(rule, "modulate:a", 1.0, 0.35)
+
+	# One line per item, capped so a full backpack doesn't run off the screen.
+	var shown := mini(items.size(), 7)
+	for i in shown:
+		var id: String = items[i]
+		var text := "%s   %s" % [("+ %d CR" % Catalog.sell_price(id)).rpad(11) if won else "LOST".rpad(6), Catalog.item_name(id).to_upper()]
+		var row := _line(text, 14, DIM, UiKit.mono(false, 1))
+		row.modulate.a = 0.0
+		column.add_child(row)
+		tween.tween_callback(func() -> void: Sfx.play("tick", -12.0, 1.0 + i * 0.05))
+		tween.tween_property(row, "modulate:a", 1.0, 0.1)
+	if items.size() > shown:
+		var more := _line("AND %d MORE" % (items.size() - shown), 14, DIM, UiKit.mono(false, 1))
+		more.modulate.a = 0.0
+		column.add_child(more)
+		tween.tween_property(more, "modulate:a", 1.0, 0.1)
+	if items.is_empty():
+		var none := _line("NOTHING IN THE BACKPACK" if won else "NOTHING TO LOSE THIS TIME", 14, DIM, UiKit.mono(false, 1))
+		none.modulate.a = 0.0
+		column.add_child(none)
+		tween.tween_property(none, "modulate:a", 1.0, 0.2)
+
+	# The total counts up on a win.
+	if won:
+		var total := _line("0 CR", 72, INK, UiKit.display(800, 1))
+		total.modulate.a = 0.0
+		column.add_child(total)
+		var value: int = result.get("value", 0)
+		tween.tween_property(total, "modulate:a", 1.0, 0.2)
+		tween.tween_method(func(v: float) -> void: total.text = "%d CR SECURED" % int(v), 0.0, float(value), 0.9).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+	var gap := Control.new()
+	gap.custom_minimum_size.y = 14
+	column.add_child(gap)
+	var leave := UiKit.button("RETURN TO BASE  →", true)
+	leave.add_theme_font_override("font", UiKit.display(800, 2))
+	leave.add_theme_font_size_override("font_size", 28)
+	leave.custom_minimum_size = Vector2(320, 66)
+	leave.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	leave.modulate.a = 0.0
+	leave.pressed.connect(GameManager.return_to_menu)
+	column.add_child(leave)
+	tween.tween_property(leave, "modulate:a", 1.0, 0.4)
+
+func _line(text: String, size: int, color: Color, face: Font) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_override("font", face)
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
+	label.add_theme_constant_override("shadow_offset_y", 2)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("pause") or _raid == null or _raid.over:

@@ -256,6 +256,7 @@ func _finish(result: Dictionary) -> void:
 
 func return_to_menu() -> void:
 	get_tree().paused = false
+	Engine.time_scale = 1.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().change_scene_to_file(MENU_SCENE)
 

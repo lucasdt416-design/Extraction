@@ -37,6 +37,9 @@ func _ready() -> void:
 	await get_tree().create_timer(0.3).timeout
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var player := raid.player
+	# Unkillable until the death shot, so earlier views can't end the raid.
+	player.max_shield = 1.0e9
+	player.shield = 1.0e9
 	if args.has("--no-enemies"):
 		for node in get_tree().get_nodes_in_group("enemy"):
 			node.queue_free()
@@ -112,10 +115,16 @@ func _ready() -> void:
 			n += 1
 			break
 	# The death view.
-	player.global_position = Vector3(-3.0, 0.1, 17.0)
+	player.global_position = Vector3(-39.0, 0.1, 30.0)
+	player.set("_yaw", deg_to_rad(-50.0))
+	await get_tree().create_timer(0.4).timeout
+	GameManager.in_raid = true
+	GameManager.backpack.assign(["fusion_cap", "data_shard", "medkit"])
+	player.shield = 0.0
 	player.take_damage(9999.0, null)
-	await get_tree().create_timer(2.2).timeout
-	get_viewport().get_texture().get_image().save_png("%s/death.png" % out)
+	for stamp: Array in [[1.0, "death_a"], [1.3, "death_b"], [1.4, "death_c"], [4.0, "death"]]:
+		await get_tree().create_timer(stamp[0], true, false, true).timeout
+		get_viewport().get_texture().get_image().save_png("%s/%s.png" % [out, stamp[1]])
 	var states := {}
 	for node in get_tree().get_nodes_in_group("enemy"):
 		var enemy := node as Enemy

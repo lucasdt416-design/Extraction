@@ -107,6 +107,7 @@ func _on_extracted(_who: Player) -> void:
 	Sfx.play("extract")
 	Fx.burst(self, player.global_position + Vector3.UP, 8.0, Level.TEAL.lightened(0.3), 0.8)
 	GameManager.extract_success(elapsed)
+	hud.begin_ending()
 	hud.show_result(GameManager.last_result)
 
 func _end(outcome: String) -> void:
@@ -114,7 +115,15 @@ func _end(outcome: String) -> void:
 		return
 	over = true
 	GameManager.raid_failed(outcome, elapsed)
-	hud.show_result(GameManager.last_result)
+	# The world slows and drains of colour; the result waits for the fall.
+	Engine.time_scale = 0.22
+	var tween := create_tween().set_ignore_time_scale(true).set_parallel(true)
+	tween.tween_property(Engine, "time_scale", 1.0, 2.4).set_delay(0.7).set_ease(Tween.EASE_IN)
+	tween.tween_property(_env, "adjustment_saturation", 0.12, 1.6)
+	tween.tween_property(_env, "adjustment_contrast", 1.25, 1.6)
+	tween.tween_property(_env, "adjustment_brightness", 0.96, 1.6)
+	tween.chain().tween_callback(func() -> void: hud.show_result(GameManager.last_result))
+	hud.begin_ending()
 
 func _build_lens_and_dust() -> void:
 	var layer := CanvasLayer.new()
