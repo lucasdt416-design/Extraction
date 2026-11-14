@@ -56,7 +56,8 @@ The whole loop is playable end to end. Everything below was run through
 - **Interface** (`ui/hud.gd`, `ui/menu.gd`, `ui/ui_kit.gd`). HUD with health/shield,
   ammo, abilities, detection meter, damage direction, extract markers, the enemy comms
   feed, pause and result screens. The menu is a title screen, then Play, Loadout, Trader, Frame and
-  Settings over a live 3D staging bay with Kestrel in it.
+  Settings. Behind it is a live 3D studio: Kestrel in front of a huge word on the wall
+  and a disc of colour, with a different word, colour and camera angle per page.
 - **Look and sound** (`fx/mats.gd`, `fx/shapes.gd`, `fx/fx.gd`, `actors/rig.gd`,
   `autoload/sfx.gd`, `shaders/`). No imported assets. Props, armour and weapons use
   bevelled meshes from `Shapes.rounded_box`. `shaders/surface.gdshader` gives walls and
@@ -118,7 +119,7 @@ Don't quietly reverse these; raise it with the user first.
 | Eventual MP target | **Co-op vs AI**, host-authoritative | Achievable for two people. |
 | PvP | **Explicitly not a goal** | Needs a real backend, server-side stash and anti-cheat. |
 | Physics | Jolt (Godot 3D), 120 ticks/s | Mouse look is applied on the tick, so it needs to be fine-grained. |
-| Assets | **Imported only for the player character** | Kestrel is a rigged GLB in `assets/characters/kestrel/` (user's call, 2026-11-13). Everything else is primitives, generated textures and synthesized audio. |
+| Assets | **Imported only for the player character and fonts** | Kestrel is a rigged GLB in `assets/characters/kestrel/` (user's call, 2026-11-13). Everything else is primitives, generated textures and synthesized audio. |
 
 ## Network-readiness rules
 
@@ -209,9 +210,11 @@ never touched. Run it after changing gameplay code.
   uses (`Container` is taken; that's why it's `LootContainer`).
 - Tuning numbers live in `Catalog` or as constants at the top of the script that uses
   them.
-- Interface: plain wording, flat and square, no decorative icons or boxes. One accent
-  (`UiKit.ACID`, from Kestrel) for the primary action and the active tab; coral for loss.
-  Type comes from `UiKit.font`. Motion is quiet: fades, a sliding underline, camera drift.
+- Interface: plain wording, no decorative icons. The menu is a bright poster: chalk
+  ground, ink type, Kestrel's acid and coral as flat colour fields, very large display
+  type. Three bundled faces from `assets/fonts` (all OFL): `UiKit.display` (Big Shoulders
+  Display) for headlines and figures, `UiKit.font` (Space Grotesk) for text, `UiKit.mono`
+  (Space Mono) for small labels. The in-raid HUD stays light-on-dark over the 3D view.
 
 ## Working in this repo
 

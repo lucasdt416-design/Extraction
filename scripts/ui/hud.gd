@@ -49,16 +49,22 @@ func _ready() -> void:
 	_canvas.draw.connect(_draw_overlay)
 	add_child(_canvas)
 
-	_clock = _label(Control.PRESET_TOP_LEFT, Vector2(MARGIN, MARGIN - 8), 26, INK)
-	_pack = _label(Control.PRESET_TOP_LEFT, Vector2(MARGIN, MARGIN + 28), 15, DIM)
+	_clock = _label(Control.PRESET_TOP_LEFT, Vector2(MARGIN, MARGIN - 14), 38, INK)
+	_pack = _label(Control.PRESET_TOP_LEFT, Vector2(MARGIN, MARGIN + 34), 13, DIM)
 	_status = _label(Control.PRESET_BOTTOM_LEFT, Vector2(MARGIN, -MARGIN - 18), 15, DIM)
-	_ammo = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 300, -MARGIN - 74), 46, INK, HORIZONTAL_ALIGNMENT_RIGHT, 230)
+	_ammo = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 300, -MARGIN - 96), 46, INK, HORIZONTAL_ALIGNMENT_RIGHT, 230)
 	_reserve = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 62, -MARGIN - 48), 18, DIM, HORIZONTAL_ALIGNMENT_LEFT, 70)
 	_weapon = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 300, -MARGIN - 18), 15, DIM, HORIZONTAL_ALIGNMENT_RIGHT, 300)
-	_abilities = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 300, -MARGIN - 128), 15, DIM, HORIZONTAL_ALIGNMENT_RIGHT, 300)
+	_abilities = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 300, -MARGIN - 172), 15, DIM, HORIZONTAL_ALIGNMENT_RIGHT, 300)
 	_prompt = _label(Control.PRESET_CENTER, Vector2(-200, 62), 17, INK, HORIZONTAL_ALIGNMENT_CENTER, 400)
 	_notice = _label(Control.PRESET_CENTER, Vector2(-250, 150), 17, INK, HORIZONTAL_ALIGNMENT_CENTER, 500)
 	_comms = _label(Control.PRESET_TOP_RIGHT, Vector2(-MARGIN - 420, MARGIN - 8), 15, DIM, HORIZONTAL_ALIGNMENT_RIGHT, 420)
+	# Figures in the display face; everything else in the text face.
+	for figure: Label in [_clock, _ammo]:
+		figure.add_theme_font_override("font", UiKit.display(800, 1))
+	_ammo.add_theme_font_size_override("font_size", 64)
+	for small: Label in [_reserve, _comms, _pack]:
+		small.add_theme_font_override("font", UiKit.mono())
 
 func bind(raid: Raid) -> void:
 	_raid = raid
@@ -291,8 +297,8 @@ func _panel(title: String, body: String, actions: Array, dim: float, with_settin
 	shade.add_child(column)
 	var heading := Label.new()
 	heading.text = title
-	heading.add_theme_font_override("font", UiKit.font(700))
-	heading.add_theme_font_size_override("font_size", 44)
+	heading.add_theme_font_override("font", UiKit.display(800, 1))
+	heading.add_theme_font_size_override("font_size", 76)
 	heading.add_theme_color_override("font_color", INK)
 	column.add_child(heading)
 	var text := Label.new()

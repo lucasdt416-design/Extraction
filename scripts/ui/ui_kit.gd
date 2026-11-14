@@ -15,26 +15,31 @@ const CORAL := Color(0.99, 0.38, 0.26)
 
 static var _fonts: Dictionary = {}
 
-# The interface typeface: a geometric sans from the system, falling back to
-# Godot's default where none of these exist. `tracking` adds letter spacing,
-# for small capitalised labels and the wordmark.
+# Three bundled typefaces (all SIL Open Font License, in assets/fonts):
+#   font()     Space Grotesk       -- running text and controls
+#   display()  Big Shoulders Display -- headlines, numerals, the wordmark
+#   mono()     Space Mono          -- small technical labels and figures
+# `tracking` adds letter spacing in pixels.
 static func font(weight: int = 500, tracking: int = 0) -> Font:
-	var key := weight * 1000 + tracking
+	return _variable("res://assets/fonts/SpaceGrotesk.ttf", weight, tracking)
+
+static func display(weight: int = 800, tracking: int = 0) -> Font:
+	return _variable("res://assets/fonts/BigShouldersDisplay.ttf", weight, tracking)
+
+static func mono(bold: bool = false, tracking: int = 0) -> Font:
+	return _variable("res://assets/fonts/SpaceMono-%s.ttf" % ("Bold" if bold else "Regular"), 0, tracking)
+
+static func _variable(path: String, weight: int, tracking: int) -> Font:
+	var key := "%s%d/%d" % [path, weight, tracking]
 	if _fonts.has(key):
 		return _fonts[key]
-	var system := SystemFont.new()
-	system.font_names = PackedStringArray(["Avenir Next", "Helvetica Neue", "Segoe UI", "Inter", "Roboto", "Noto Sans"])
-	system.font_weight = weight
-	system.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
-	var result: Font = system
-	if tracking != 0:
-		var spaced := FontVariation.new()
-		spaced.base_font = system
-		spaced.spacing_glyph = tracking
-		result = spaced
-	_fonts[key] = result
-	return result
-const BACKDROP := Color(0.055, 0.062, 0.075)
+	var variation := FontVariation.new()
+	variation.base_font = load(path)
+	if weight > 0:
+		variation.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
+	variation.spacing_glyph = tracking
+	_fonts[key] = variation
+	return variation
 
 static func button(text: String, primary: bool = false, small: bool = false) -> Button:
 	var b := Button.new()
@@ -68,7 +73,7 @@ static func button(text: String, primary: bool = false, small: bool = false) -> 
 
 # The settings controls, as a column of rows. Used by the menu's Settings tab
 # and the pause screen. It only calls GameManager.set_setting (rule 6).
-static func settings_rows(include_quality: bool = true) -> VBoxContainer:
+static func settings_rows(include_quality: bool = true, ink: Color = INK, dim: Color = DIM, faint: Color = FAINT, accent: Color = ACID) -> VBoxContainer:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
 	var rows := [
@@ -84,7 +89,7 @@ static func settings_rows(include_quality: bool = true) -> VBoxContainer:
 		var limits: Array = GameManager.SETTING_RANGES[key]
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 16)
-		var name_label := text(row[1], 16)
+		var name_label := text(row[1], 16, ink)
 		name_label.custom_minimum_size.x = 210
 		line.add_child(name_label)
 		var slider := HSlider.new()
@@ -96,12 +101,13 @@ static func settings_rows(include_quality: bool = true) -> VBoxContainer:
 		slider.focus_mode = Control.FOCUS_NONE
 		for part: String in ["slider", "grabber_area", "grabber_area_highlight"]:
 			var bar := StyleBoxFlat.new()
-			bar.bg_color = FAINT if part == "slider" else ACID
+			bar.bg_color = faint if part == "slider" else accent
 			bar.content_margin_top = 2
 			bar.content_margin_bottom = 2
 			slider.add_theme_stylebox_override(part, bar)
 		line.add_child(slider)
-		var value_label := text(format.call(GameManager.settings[key]), 16, DIM)
+		var value_label := text(format.call(GameManager.settings[key]), 15, dim)
+		value_label.add_theme_font_override("font", mono())
 		value_label.custom_minimum_size.x = 80
 		line.add_child(value_label)
 		slider.value_changed.connect(func(v: float) -> void:
