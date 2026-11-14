@@ -124,6 +124,12 @@ func _ready() -> void:
 	bot.frame.interact = false
 	check("pickup into backpack", GameManager.backpack.size() == size_before + 1 and GameManager.backpack.has("fusion_cap"))
 
+	# Armour found with nothing worn goes straight on and raises the shield cap.
+	var shield_cap := player.max_shield
+	var vest := Pickup.drop(raid, "armor_light", player.global_position + Vector3(0, 0, -1.2))
+	vest.interact(player)
+	check("found armour is worn", GameManager.loadout["armor"] == "armor_light" and player.max_shield > shield_cap, "%.0f" % player.max_shield)
+
 	# Container opens and spills pickups.
 	var container: LootContainer = null
 	for node in raid.level.get_children():

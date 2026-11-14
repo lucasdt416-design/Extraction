@@ -54,13 +54,13 @@ func _ready() -> void:
 	_status = _label(Control.PRESET_BOTTOM_LEFT, Vector2(MARGIN, -MARGIN - 18), 15, DIM)
 	_ammo = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 300, -MARGIN - 96), 46, INK, HORIZONTAL_ALIGNMENT_RIGHT, 230)
 	_reserve = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 62, -MARGIN - 48), 18, DIM, HORIZONTAL_ALIGNMENT_LEFT, 70)
-	_weapon = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 300, -MARGIN - 18), 15, DIM, HORIZONTAL_ALIGNMENT_RIGHT, 300)
+	_weapon = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 400, -MARGIN - 24), 22, DIM, HORIZONTAL_ALIGNMENT_RIGHT, 400)
 	_abilities = _label(Control.PRESET_BOTTOM_RIGHT, Vector2(-MARGIN - 300, -MARGIN - 172), 15, DIM, HORIZONTAL_ALIGNMENT_RIGHT, 300)
-	_prompt = _label(Control.PRESET_CENTER, Vector2(-200, 62), 17, INK, HORIZONTAL_ALIGNMENT_CENTER, 400)
+	_prompt = _label(Control.PRESET_CENTER, Vector2(-250, 58), 26, INK, HORIZONTAL_ALIGNMENT_CENTER, 500)
 	_notice = _label(Control.PRESET_CENTER, Vector2(-250, 150), 17, INK, HORIZONTAL_ALIGNMENT_CENTER, 500)
 	_comms = _label(Control.PRESET_TOP_RIGHT, Vector2(-MARGIN - 420, MARGIN - 8), 15, DIM, HORIZONTAL_ALIGNMENT_RIGHT, 420)
 	# Figures in the display face; everything else in the text face.
-	for figure: Label in [_clock, _ammo]:
+	for figure: Label in [_clock, _ammo, _weapon, _prompt]:
 		figure.add_theme_font_override("font", UiKit.display(800, 1))
 	_ammo.add_theme_font_size_override("font_size", 64)
 	for small: Label in [_reserve, _comms, _pack]:
@@ -115,24 +115,22 @@ func _process(delta: float) -> void:
 	_ammo.text = str(gun.mag)
 	_ammo.add_theme_color_override("font_color", DANGER if gun.mag <= int(gun.def["mag"]) / 4 else INK)
 	_reserve.text = "/ ∞" if gun.infinite_reserve else "/ %d" % gun.reserve
-	_weapon.text = Catalog.item_name(gun.id) + ("   reloading" if gun.is_reloading() else "")
+	_weapon.text = Catalog.item_name(gun.id).to_upper() + ("   /   RELOADING" if gun.is_reloading() else "")
 	var frame := _player.frame_def
-	_abilities.text = "%s\n%s" % [
-		_ability_line("Q", frame["tactical"]["name"], _player.tactical_cooldown),
-		_ability_line("E", frame["prime"]["name"], _player.prime_cooldown)]
+	_abilities.text = ""
 	var meds := GameManager.backpack.count("medkit")
-	_status.text = "H  Medkit × %d" % meds if _player.heal_left <= 0.0 else "Healing…"
+	_status.text = ""
 	var seconds := int(maxf(_raid.time_left, 0.0))
 	_clock.text = "%02d:%02d" % [seconds / 60, seconds % 60]
 	_clock.add_theme_color_override("font_color", DANGER if seconds < 120 else INK)
-	_pack.text = "Backpack %d / %d   ·   %d cr" % [GameManager.backpack.size(), GameManager.capacity(), GameManager.backpack_value()]
+	_pack.text = ""
 
 	var prompt := ""
 	for point in _raid.extract_points:
 		if point.occupant != null:
-			prompt = "Extracting   %.1f" % maxf(point.hold_time - point.progress, 0.0)
+			prompt = "EXTRACTING   %.1f" % maxf(point.hold_time - point.progress, 0.0)
 	if prompt == "" and _player.interact_label != "":
-		prompt = "F   " + _player.interact_label
+		prompt = "[ F ]   " + _player.interact_label.to_upper()
 	_prompt.text = prompt
 	_canvas.queue_redraw()
 
@@ -155,14 +153,49 @@ func _draw_overlay() -> void:
 	if _player.fortify_left > 0.0 or _player.overcharge_left > 0.0 or _player.cloak_left > 0.0:
 		_edge_tint(size, Color(_player.frame_def["accent"], 0.16))
 
-	# Health and shield: two thin bars, shield on top.
-	var bar := Vector2(MARGIN, size.y - MARGIN - 52.0)
-	var width := 280.0
-	_canvas.draw_rect(Rect2(bar, Vector2(width, 3.0)), Color(1, 1, 1, 0.14))
-	_canvas.draw_rect(Rect2(bar, Vector2(width * _player.shield / maxf(_player.max_shield, 1.0), 3.0)), SHIELD)
-	_canvas.draw_rect(Rect2(bar + Vector2(0, 8), Vector2(width, 7.0)), Color(1, 1, 1, 0.14))
-	_canvas.draw_rect(Rect2(bar + Vector2(0, 8), Vector2(width * _player.health / _player.max_health, 7.0)), DANGER if _player.health < _player.max_health * 0.3 else INK)
-	_canvas.draw_string(_font, bar + Vector2(width + 12.0, 16.0), str(ceili(_player.health)), HORIZONTAL_ALIGNMENT_LEFT, -1, 18, INK)
+	var display := UiKit.display(800, 1)
+	var mono := UiKit.mono(true, 1)
+	var acid := UiKit.ACID
+	var hurt := _player.health < _player.max_health * 0.3
+
+	# Bottom left: health as a big numeral, with shield and health bars beside it.
+	var base := Vector2(MARGIN, size.y - MARGIN)
+	_canvas.draw_string(display, base + Vector2(0, -8), str(ceili(_player.health)), HORIZONTAL_ALIGNMENT_LEFT, -1, 64, DANGER if hurt else INK)
+	var bar := base + Vector2(118, -44)
+	var width := 240.0
+	_canvas.draw_rect(Rect2(bar, Vector2(width, 5)), Color(1, 1, 1, 0.16))
+	_canvas.draw_rect(Rect2(bar, Vector2(width * _player.shield / maxf(_player.max_shield, 1.0), 5)), acid)
+	_canvas.draw_rect(Rect2(bar + Vector2(0, 10), Vector2(width, 10)), Color(1, 1, 1, 0.16))
+	_canvas.draw_rect(Rect2(bar + Vector2(0, 10), Vector2(width * _player.health / _player.max_health, 10)), DANGER if hurt else INK)
+	# Medkits: the key, then a pip for each one carried.
+	var meds := GameManager.backpack.count("medkit")
+	_keycap(bar + Vector2(0, 30), "H", _player.heal_left > 0.0)
+	for i in GameManager.MAX_MEDKITS:
+		_canvas.draw_rect(Rect2(bar + Vector2(32 + i * 14, 36), Vector2(9, 9)), INK if i < meds else Color(1, 1, 1, 0.18))
+	_canvas.draw_string(mono, bar + Vector2(84, 45), "HEALING" if _player.heal_left > 0.0 else "MEDKIT", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+
+	# Top left, under the clock: one square per backpack slot, then what it's worth.
+	var slots := Vector2(MARGIN, MARGIN + 44)
+	_canvas.draw_string(mono, slots + Vector2(96, -22), "TO LOCKDOWN", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+	var carried := GameManager.backpack.size()
+	var capacity := GameManager.capacity()
+	for i in capacity:
+		_canvas.draw_rect(Rect2(slots + Vector2(i * 13, 0), Vector2(9, 9)), (acid if carried >= capacity else INK) if i < carried else Color(1, 1, 1, 0.18))
+	_canvas.draw_string(mono, slots + Vector2(capacity * 13 + 10, 9), "%d CR" % GameManager.backpack_value(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+
+	# Bottom right, above the ammo: the two abilities, each with its key and a
+	# bar that fills as it comes off cooldown.
+	var frame := _player.frame_def
+	var chips := [["Q", frame["tactical"], _player.tactical_cooldown], ["E", frame["prime"], _player.prime_cooldown]]
+	for i in 2:
+		var ability: Dictionary = chips[i][1]
+		var left: float = chips[i][2]
+		var at := Vector2(size.x - MARGIN - 210, size.y - MARGIN - 196 + i * 34)
+		var ready := left <= 0.0
+		_keycap(at, chips[i][0], ready)
+		_canvas.draw_string(display, at + Vector2(34, 19), (ability["name"] as String).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 22, INK if ready else DIM)
+		_canvas.draw_rect(Rect2(at + Vector2(150, 9), Vector2(60, 4)), Color(1, 1, 1, 0.16))
+		_canvas.draw_rect(Rect2(at + Vector2(150, 9), Vector2(60 * (1.0 - clampf(left / float(ability["cooldown"]), 0.0, 1.0)), 4)), acid if ready else INK)
 
 	if _player.is_dead or (_raid != null and _raid.over):
 		return
@@ -225,6 +258,11 @@ func _draw_overlay() -> void:
 			var distance := int(point.global_position.distance_to(_player.global_position))
 			_canvas.draw_arc(screen, 6.0, 0.0, TAU, 16, TEAL, 1.5, true)
 			_canvas.draw_string(_font, screen + Vector2(-100, 24), "%s  %dm" % [point.label, distance], HORIZONTAL_ALIGNMENT_CENTER, 200, 13, Color(TEAL, 0.9))
+
+# A small square with a key's letter on it. Lit when the thing is available.
+func _keycap(at: Vector2, letter: String, lit: bool) -> void:
+	_canvas.draw_rect(Rect2(at, Vector2(24, 24)), INK if lit else Color(1, 1, 1, 0.2))
+	_canvas.draw_string(UiKit.mono(true), at + Vector2(0, 17), letter, HORIZONTAL_ALIGNMENT_CENTER, 24, 13, Color(0.06, 0.07, 0.08) if lit else INK)
 
 func _edge_tint(size: Vector2, color: Color) -> void:
 	if color.a <= 0.005:
