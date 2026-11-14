@@ -527,6 +527,12 @@ func _die(killer: Node, direction: Vector3) -> void:
 	if _laser != null:
 		_laser.visible = false
 	rig.die(direction)
+	# It goes down in a spit of sparks and a flare of its own colour.
+	var chest := global_position + Vector3.UP * 1.25 * _scale
+	Fx.impact(self, chest, -direction if direction.length() > 0.1 else Vector3.UP, true)
+	Fx.impact(self, chest + Vector3.UP * 0.3, Vector3.UP, true)
+	Fx.flash(self, chest, arch["accent"], 4.0, 0.25, 6.0)
+	Sfx.play_at("shield_break", global_position, -2.0, 0.8)
 	squad.report_death(self, killer)
 	died.emit(self, killer)
 

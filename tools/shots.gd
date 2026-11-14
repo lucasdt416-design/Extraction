@@ -34,7 +34,9 @@ func _ready() -> void:
 	GameManager.loadout["secondary"] = "dmr" if args.has("--dmr") else ""
 	var raid: Raid = load("res://scenes/raid.tscn").instantiate()
 	add_child(raid)
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(1.3).timeout
+	get_viewport().get_texture().get_image().save_png("%s/intro.png" % out)
+	await get_tree().create_timer(2.6).timeout
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var player := raid.player
 	# Unkillable until the death shot, so earlier views can't end the raid.
@@ -77,6 +79,10 @@ func _ready() -> void:
 		player.set("_pitch", deg_to_rad(view[2]))
 		player.health = player.max_health
 		player.is_dead = false
+		if i == 1:
+			GameManager.add_to_backpack("fusion_cap")
+			GameManager.add_to_backpack("optic_lens")
+			player.hit_confirmed.emit(3)
 		await get_tree().create_timer(2.5 if i == 0 else 1.2).timeout
 		get_viewport().get_texture().get_image().save_png("%s/shot_%d.png" % [out, i])
 	# Looking down at Kestrel's own body, then at its shadow on the ground.
