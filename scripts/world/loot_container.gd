@@ -79,3 +79,4 @@ func interact(player: Player) -> void:
 		Sfx.play_at("alert", global_position, 8.0, 0.7, 80.0)
 		get_tree().call_group("enemy", "hear", global_position, 38.0, player)
 		player.notice.emit("Vault alarm tripped")
+		get_tree().call_group("raid", "alarm", global_position)

@@ -93,12 +93,15 @@ Individuals perceive and act; the `Squad` pools what they know and coordinates t
   out of cover), Overseer (commander, extra token).
 - **Barks.** Each coordinated decision is announced through the HUD comms feed, and
   nearby squads come to investigate a firefight.
+- **Escalation** (`Raid._escalate`). Heat builds while any squad is fighting; enough of
+  it, a vault alarm, or reaching the halfway mark brings a fresh squad in from an entry
+  point the player can't see. Three waves at most, each heavier than the last.
 
 ### Known gaps
 
 - Nothing has been play-tested by a person yet: balance numbers, recoil, movement feel
   and AI pacing are first guesses.
-- One map, no reinforcements or respawning enemies during a raid.
+- One map.
 - Enemies have no melee and don't use doors, ladders or jumps.
 - Crouching doesn't lower an enemy's hit capsule; only the player's.
 - No settings screen (sensitivity, volume, graphics quality). SDFGI and volumetric fog

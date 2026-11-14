@@ -91,6 +91,9 @@ tools/                       selftest, sim, shots: development helpers
 | Menu pages and their content | `ui/menu.gd` (`_play`, `_armoury`, `_loadout`, `_trader`, `_frames`, `_settings`) |
 | Adding a map to the Play page | a new entry in `Catalog.MAPS` (name, title, wall mark, scene, brief) |
 | In-raid HUD: numerals, key caps, ability bars, slot squares, loot toasts, intro card | `ui/hud.gd` (`_draw_overlay`, `_play_intro`, `_on_backpack_changed`) |
+| Reinforcement waves, heat, alarm response | `Raid._escalate`, `send_reinforcements`, `WAVES`; entry points in `Level.reinforce_points` |
+| Reverb, limiter, ambience bed | `Sfx._build_buses`, `start_ambience` |
+| Equipping a weapon found mid-raid | `GameManager.wield_found`, `Player.add_gun` |
 | Wearing armour found mid-raid | `GameManager.wear_found`, `Pickup.interact`, `Player.refresh_build` |
 | Death fall, slow motion, raid-over screen | `KestrelBody.collapse`, `Player._death_view`, `Raid._end`, `Hud.show_result` |
 | Each page's wall word, disc colour and camera angle | `PAGES` at the top of `ui/menu.gd` |
@@ -138,7 +141,7 @@ Give this to whoever or whatever makes models:
 ## Known gaps (the honest list)
 
 - Never played by a person. Balance, recoil, movement feel and AI pacing are guesses.
-- One map. No reinforcements or respawns during a raid.
+- One map.
 - Kestrel has no crouch, jump, aim or death clips; crouch squashes the model.
 - First-person arms are capsules, not Kestrel's real arms. No weapon inspect/equip
   animation, no melee.

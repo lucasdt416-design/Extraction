@@ -65,6 +65,8 @@ func can_interact() -> bool:
 func interact_label() -> String:
 	if item_id == AMMO:
 		return "Take ammo"
+	if Catalog.item(item_id)["kind"] == "weapon" and GameManager.loadout["primary"] == "":
+		return "Equip %s" % Catalog.item_name(item_id)
 	if Catalog.item(item_id)["kind"] == "armor" and GameManager.loadout["armor"] == "":
 		return "Wear %s" % Catalog.item_name(item_id)
 	return "Take %s" % Catalog.item_name(item_id)
@@ -76,6 +78,10 @@ func interact(player: Player) -> void:
 	if item_id == AMMO:
 		player.add_ammo(1)
 		Sfx.play("pickup", -6.0, 0.8)
+	elif GameManager.wield_found(item_id):
+		player.add_gun(item_id)
+		player.notice.emit("Equipped %s" % Catalog.item_name(item_id))
+		Sfx.play("rare", -6.0)
 	elif GameManager.wear_found(item_id):
 		player.refresh_build()
 		player.notice.emit("Wearing %s" % Catalog.item_name(item_id))

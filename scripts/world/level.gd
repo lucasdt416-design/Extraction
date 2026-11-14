@@ -29,6 +29,10 @@ var player_yaw: float = deg_to_rad(-50.0)
 var extracts: Array[Dictionary] = []     # {"position": Vector3, "name": String}
 var containers: Array[Dictionary] = []   # {"position": Vector3, "kind": String, "yaw": float}
 var squads: Array[Dictionary] = []       # {"members": Array[String], "points": Array[Vector3]}
+# Where reinforcements enter: the corners and gates, away from the middle.
+var reinforce_points: Array[Vector3] = [
+	Vector3(-40.0, 0.1, -30.0), Vector3(0.0, 0.1, 32.0), Vector3(-43.0, 0.1, 14.0), Vector3(30.0, 0.1, -31.0), Vector3(42.0, 0.1, 18.0),
+]
 
 func build() -> void:
 	_ground_and_perimeter()

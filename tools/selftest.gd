@@ -130,6 +130,23 @@ func _ready() -> void:
 	vest.interact(player)
 	check("found armour is worn", GameManager.loadout["armor"] == "armor_light" and player.max_shield > shield_cap, "%.0f" % player.max_shield)
 
+	# A weapon found with the primary slot empty is equipped and usable at once.
+	GameManager.loadout["primary"] = ""
+	player.guns.remove_at(0)
+	player.gun_index = 0
+	var smg := Pickup.drop(raid, "smg", player.global_position + Vector3(0, 0, -1.2))
+	smg.interact(player)
+	await wait(0.5)
+	check("found weapon is equipped", GameManager.loadout["primary"] == "smg" and player.guns.size() == 2 and player.gun().id == "smg")
+
+	# Reinforcements arrive out of sight and head for the trouble.
+	var count_before := get_tree().get_nodes_in_group("enemy").size()
+	raid.set("_wave_cooldown", 0.0)
+	var sent := raid.send_reinforcements(player.global_position)
+	await wait(0.3)
+	check("reinforcements arrive", sent and get_tree().get_nodes_in_group("enemy").size() > count_before and Squad.all[-1].mode == Squad.Mode.SEARCH,
+		"%d -> %d" % [count_before, get_tree().get_nodes_in_group("enemy").size()])
+
 	# Container opens and spills pickups.
 	var container: LootContainer = null
 	for node in raid.level.get_children():
@@ -173,7 +190,8 @@ func _ready() -> void:
 	check("extraction ends raid", raid.over and GameManager.last_result.get("outcome", "") == "extracted", str(GameManager.last_result.get("outcome", "none")))
 	check("result screen shown", raid.hud.get("_overlay") != null)
 	check("loot banked in stash", GameManager.stash.has("fusion_cap"))
-	check("loadout kept", GameManager.loadout["primary"] == "rifle")
+	# The SMG picked up mid-raid is the primary now, and extracting keeps it.
+	check("loadout kept", GameManager.loadout["primary"] == "smg")
 
 	# Settings clamp, persist through a reset, and reach the game.
 	GameManager.set_setting("sensitivity", 99.0)

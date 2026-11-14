@@ -41,6 +41,8 @@ var _toasts: Array[Dictionary] = []          # {"id": String, "left": float}
 var _pack_size: int = 0
 var _kill_time: float = 0.0
 var _kills: int = 0
+var _alert_text: String = ""
+var _alert_left: float = 0.0
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -139,6 +141,11 @@ func show_comm(speaker: String, line: String, _position: Vector3) -> void:
 	if _comm_lines.size() > 5:
 		_comm_lines.pop_front()
 
+# A warning that matters more than a notice: coral, large, top centre.
+func show_alert(text: String) -> void:
+	_alert_text = text
+	_alert_left = 4.0
+
 func show_notice(text: String) -> void:
 	_notice.text = text
 	_notice_left = 2.2
@@ -148,6 +155,7 @@ func _process(delta: float) -> void:
 		return
 	_hit_time = maxf(_hit_time - delta, 0.0)
 	_kill_time = maxf(_kill_time - delta, 0.0)
+	_alert_left = maxf(_alert_left - delta, 0.0)
 	for i in range(_toasts.size() - 1, -1, -1):
 		_toasts[i]["left"] -= delta
 		if _toasts[i]["left"] <= 0.0:
@@ -288,6 +296,11 @@ func _draw_overlay() -> void:
 			var done: float = clampf(point.progress / point.hold_time, 0.0, 1.0)
 			_canvas.draw_arc(center, 56.0, 0.0, TAU, 64, Color(1, 1, 1, 0.16), 5.0, true)
 			_canvas.draw_arc(center, 56.0, -PI * 0.5, -PI * 0.5 + TAU * done, 64, UiKit.ACID, 5.0, true)
+
+	if _alert_left > 0.0:
+		var show := clampf(_alert_left, 0.0, 1.0) * (0.65 + 0.35 * sin(Time.get_ticks_msec() * 0.012))
+		_canvas.draw_rect(Rect2(Vector2(center.x - 190.0, 118.0), Vector2(380.0, 3.0)), Color(UiKit.CORAL, show))
+		_canvas.draw_string(UiKit.display(800, 3), Vector2(center.x - 300.0, 108.0), _alert_text, HORIZONTAL_ALIGNMENT_CENTER, 600, 34, Color(UiKit.CORAL, show))
 
 	# A kill, confirmed in words for a moment.
 	if _kill_time > 0.0:
