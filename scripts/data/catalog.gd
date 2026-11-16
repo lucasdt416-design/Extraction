@@ -78,7 +78,9 @@ const MAPS: Dictionary = {
 	"relay_07": {"name": "Relay Station 07", "title": "RELAY\nSTATION 07", "mark": "07", "scene": "res://scenes/raid.tscn",
 		"minutes": 12, "exits": 2, "brief": "Twelve minutes before the station locks down. Two ways out. Squads hold every building."},
 	"aster_city": {"name": "Aster City", "title": "ASTER\nCITY", "mark": "AC", "scene": "res://scenes/raid.tscn", "level": "aster",
-		"minutes": 15, "exits": 2, "brief": "Four cordoned blocks of a colony town. A relay spire on the crossroads, glass bridges over the avenue, a vault in the depot. Fifteen minutes."},
+		"minutes": 15, "exits": 3, "brief": "Four cordoned blocks of a colony town. A relay spire on the crossroads, glass bridges over the avenue, a vault in the depot. Fifteen minutes."},
+	"cairn_divide": {"name": "Cairn Divide", "title": "CAIRN\nDIVIDE", "mark": "CD", "scene": "res://scenes/raid.tscn", "level": "cairn",
+		"minutes": 14, "exits": 2, "brief": "A mountain colony above a river gorge. Five two-storey houses joined by glass walkways, a locked archive upstairs in each. Fourteen minutes."},
 }
 
 # Player classes. Each has a passive, a tactical (short cooldown) and a prime
