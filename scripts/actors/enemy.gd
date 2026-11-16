@@ -99,10 +99,19 @@ func _ready() -> void:
 	gun.damage_override = arch["damage"]
 	gun.infinite_reserve = true
 
-	rig = Rig.new()
-	rig.scale = Vector3.ONE * _scale
-	add_child(rig)
-	rig.build(arch["color"], arch["accent"], gun.def["length"], 1.25 if arch.get("shield", false) or arch.get("commander", false) else 1.0)
+	# A modelled body when there is one for this type (assets/enemies), the
+	# code-built one otherwise.
+	if ModelRig.has_model(kind):
+		var body := ModelRig.new()
+		rig = body
+		rig.scale = Vector3.ONE * _scale
+		add_child(rig)
+		body.setup(kind, gun.def["length"])
+	else:
+		rig = Rig.new()
+		rig.scale = Vector3.ONE * _scale
+		add_child(rig)
+		rig.build(arch["color"], arch["accent"], gun.def["length"], 1.25 if arch.get("shield", false) or arch.get("commander", false) else 1.0)
 
 	_agent = NavigationAgent3D.new()
 	_agent.path_desired_distance = 0.7

@@ -1,0 +1,106 @@
+{
+  "patrol": {
+    "name": "Patrol",
+    "role_reference": "recruit",
+    "visual": "light carbine",
+    "height_m": 1.78,
+    "model": "models/patrol.glb",
+    "clips": [
+      "Idle",
+      "Walk",
+      "Stagger"
+    ],
+    "forward": "+Z"
+  },
+  "breacher": {
+    "name": "Breacher",
+    "role_reference": "assault",
+    "visual": "forearm shield and short barrel",
+    "height_m": 1.93,
+    "model": "models/breacher.glb",
+    "clips": [
+      "Idle",
+      "Walk",
+      "Stagger"
+    ],
+    "forward": "+Z"
+  },
+  "longshot": {
+    "name": "Longshot",
+    "role_reference": "sniper",
+    "visual": "rangefinder and elongated rifle",
+    "height_m": 2.04,
+    "model": "models/longshot.glb",
+    "clips": [
+      "Idle",
+      "Walk",
+      "Stagger"
+    ],
+    "forward": "+Z"
+  },
+  "shade": {
+    "name": "Shade",
+    "role_reference": "ghost",
+    "visual": "narrow sensor hood and folded antenna",
+    "height_m": 1.86,
+    "model": "models/shade.glb",
+    "clips": [
+      "Idle",
+      "Walk",
+      "Stagger"
+    ],
+    "forward": "+Z"
+  },
+  "sapper": {
+    "name": "Sapper",
+    "role_reference": "grenadier",
+    "visual": "shoulder drums and launcher",
+    "height_m": 1.95,
+    "model": "models/sapper.glb",
+    "clips": [
+      "Idle",
+      "Walk",
+      "Stagger"
+    ],
+    "forward": "+Z"
+  },
+  "marshal": {
+    "name": "Marshal",
+    "role_reference": "commander",
+    "visual": "twin antennas and heavy carbine",
+    "height_m": 2.18,
+    "model": "models/marshal.glb",
+    "clips": [
+      "Idle",
+      "Walk",
+      "Stagger"
+    ],
+    "forward": "+Z"
+  },
+  "bastion": {
+    "name": "Bastion",
+    "role_reference": "warden",
+    "visual": "deflector plates and twin rotary tubes",
+    "height_m": 2.52,
+    "model": "models/bastion.glb",
+    "clips": [
+      "Idle",
+      "Walk",
+      "Stagger"
+    ],
+    "forward": "+Z"
+  },
+  "crawler": {
+    "name": "Crawler",
+    "role_reference": "tick",
+    "visual": "six legs and recessed optics",
+    "height_m": 0.66,
+    "model": "models/crawler.glb",
+    "clips": [
+      "Idle",
+      "Walk",
+      "Stagger"
+    ],
+    "forward": "+Z"
+  }
+}

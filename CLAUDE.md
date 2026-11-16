@@ -47,8 +47,9 @@ The whole loop is playable end to end. Everything below was run through
 - **Kestrel** (`actors/kestrel_body.gd`, `assets/characters/kestrel/kestrel.glb`). The
   player character: a rigged android courier with Idle/Walk/Run clips. Used as the body
   you see looking down in first person (head and arms hidden), as a shadow-only copy so
-  your shadow is complete, and on a turntable in the menu. Enemy bodies (`actors/rig.gd`)
-  are still built in code, in the same design language.
+  your shadow is complete, and on a turntable in the menu. Enemy bodies are the Colony
+  Security models (`assets/enemies/`, `actors/model_rig.gd`); `actors/rig.gd` is the
+  code-built fallback.
 - **Frames** (classes): Striker (Dash / Overcharge), Wraith (Cloak / Pulse), Mender
   (Stim / Fortify). Armor and two implant slots adjust stats.
 - **Shooting** (`core/gun.gd`). Hitscan, shared by player and enemies: magazine, fire

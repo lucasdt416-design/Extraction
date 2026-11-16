@@ -138,6 +138,18 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
 ## Playtest log
 
+**2026-11-16, modelled enemies.** The guards are now ChatGPT's Colony Security robots
+(`assets/enemies/colony-security/`, see its README): Patrol for Trooper, Shade for the
+cloaked Stalker, Bastion for Bulwark, Longshot for Marksman, Sapper for Grenadier,
+Marshal for Overseer. `ModelRig` (`actors/model_rig.gd`) has the same interface as the
+code-built `Rig` and is used whenever a model exists (`ModelRig.MODELS`). It plays the
+Idle, Walk and Stagger clips by hand and then bends bones on top: when alert both arms
+come up and the gun points down the aim line (the gun sits in the hand about 40° off the
+forearm, measured per model), the legs fold when the unit ducks. On death the lenses go
+dark, Stagger plays and the body topples as before. Breacher and Crawler are copied in
+but no enemy type uses them yet. `tools/enemy_shots.tscn` photographs every body at
+rest, alert, aiming up, ducked, walking and hit. All checks pass; not played.
+
 **2026-11-16, playability pass (asked for by the user).** Reported: "when I shoot 1, 3
 others spawn"; some buildings on Aster's outskirts can be walked through; distant
 structures look blocky. Changed:
@@ -246,7 +258,8 @@ scripts/
   actors/kestrel_body.gd     wraps the Kestrel model: FULL / FIRST_PERSON / SHADOW modes
   actors/enemy.gd            perception, states, position scoring, fire control
   actors/squad.gd            shared knowledge, attack tokens, roles, search, barks
-  actors/rig.gd              enemy body, built and animated in code
+  actors/rig.gd              enemy body, built and animated in code (used when no model exists)
+  actors/model_rig.gd        enemy body from assets/enemies: clips plus aiming bends
   actors/grenade.gd
   world/raid.gd              assembles a raid: environment, level, player, squads, HUD, clock
   world/level.gd             Relay Station, hand-authored as code; bakes its navmesh
@@ -371,7 +384,9 @@ Give this to whoever or whatever makes models:
 - Kestrel has no crouch, jump, aim or death clips; crouch squashes the model.
 - First-person arms are capsules, not Kestrel's real arms. No weapon inspect/equip
   animation, no melee.
-- Enemy bodies are code-built; their crouch doesn't lower their hit capsule.
+- Enemy bodies are modelled, but have only Idle, Walk and Stagger clips: firing, ducking
+  and aiming are bone bends added in code, and death is a topple. Their crouch doesn't
+  lower their hit capsule.
 - All audio is synthesized placeholder. No music, no voices.
 - Level geometry is boxes with a shader. No modelled environment art.
 - Inventory is a flat list with a slot count: no grid, no weight, no item inspection.
