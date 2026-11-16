@@ -6,21 +6,21 @@ extends Node3D
 # as a manifest. A level asks for the part it wants:
 #
 #   kit.load_data()
-#   kit.build(centre, low, high, scenery radius)
+#   kit.ground(centre, core)
+#   kit.populate(zones)
 #   ... kit.height(x, z) while it places its own things ...
 #   kit.flush()
 #
 # Everything is made in the kit's own coordinates under this node, and the node
-# is offset so that `centre` lands on the level's origin. Colliders are only
-# made near the playable rectangle, and only those inside it feed the navmesh.
+# is offset so that `centre` lands on the level's origin. `zones` are the
+# settlements, as rectangles in level coordinates: only what stands inside one
+# feeds the navmesh. `core` is half the side of the square a player can reach.
 
 const ROOT: String = "res://cairn_divide/"
-# The only buildings this game ships; the other districts' models were left out.
-const BUILT: Array[String] = ["habitation", "glass_bridge"]
-# Real, scanned firs this close to the playable rectangle; a cheap stand-in beyond.
-const REAL_TREES: float = 60.0
-const FERNS: float = 70.0
-const SWAP: float = 75.0
+const BUILT: Array[String] = ["habitation", "laboratory", "utility", "glass_bridge", "relay_mast", "pump_station", "quarry_gantry", "survey_dish"]
+const SWAP: float = 60.0      # a scanned fir is drawn this close to the camera; a stand-in beyond
+const FERN_CELL: float = 96.0
+const WEAR: float = 0.5       # how run-down the painted walls look (0 new, 1 derelict)
 const GRID: float = 4.0   # spacing of the terrain's vertices
 
 var manifest: Dictionary = {}
@@ -31,8 +31,8 @@ var real_trees: int = 0
 var far_trees: int = 0
 
 var _centre := Vector3.ZERO
-var _low := Vector2.ZERO
-var _high := Vector2.ZERO
+var _zones: Array[Rect2] = []
+var _core: float = 768.0
 var _scenes: Dictionary = {}
 var _materials: Dictionary = {}
 var _batches: Dictionary = {}
@@ -44,21 +44,26 @@ func load_data() -> void:
 	manifest = JSON.parse_string(FileAccess.get_file_as_string(ROOT + "data/world_manifest.json"))
 	catalog = JSON.parse_string(FileAccess.get_file_as_string(ROOT + "data/asset_catalog.json"))
 
-func build(centre: Vector3, low: Vector2, high: Vector2, scenery_radius: float) -> void:
+# First the ground, so the level can ask for heights while it decides where
+# its own places go...
+func ground(centre: Vector3, core: float) -> void:
 	_centre = centre
-	_low = low
-	_high = high
+	_core = core
 	position = -centre
 	_terrain()
 	_paths()
 	_river()
+
+# ...then everything that stands on it.
+func populate(zones: Array[Rect2]) -> void:
+	_zones = zones
 	var fir: Mesh = null
 	var fir_offset := Transform3D.IDENTITY
 	for placement: Dictionary in manifest["placements"]:
 		var asset: String = placement["asset"]
 		var at := _v3(placement["position"])
 		var local := to_level(at)
-		var away := outside_by(local)
+		var reachable := absf(local.x) < _core and absf(local.z) < _core
 		var scale_by := _v3(placement["scale"])
 		if asset == "meadow":
 			continue   # the game grows its own grass
@@ -66,33 +71,34 @@ func build(centre: Vector3, low: Vector2, high: Vector2, scenery_radius: float) 
 			# One fir model is shipped; a young one is the same tree, smaller.
 			asset = "alpine_fir"
 			scale_by *= 0.3
-		if not catalog.has(asset) or Vector2(local.x, local.z).length() > scenery_radius:
+		if not catalog.has(asset):
 			continue
-		if asset.ends_with("fir"):
-			pass
-		elif asset == "fern":
-			if away > FERNS:
-				continue
-		elif not asset.begins_with("boulder") and not asset in BUILT:
+		if asset == "fern" and not reachable:
 			continue
 		if skip.is_valid() and skip.call(asset, local, placement):
 			continue
 		var xform := Transform3D(Basis(Vector3.UP, float(placement["rotation_y"])) * Basis.from_scale(scale_by), at)
-		if asset != "alpine_fir":
-			_queue(asset, xform, bool(placement["collision"]))
+		if asset == "fern":
+			# Ferns are batched by map square, so far squares are not drawn at all.
+			var key := "fern:%d:%d" % [floori(at.x / FERN_CELL), floori(at.z / FERN_CELL)]
+			if not _batches.has(key):
+				_batches[key] = []
+			(_batches[key] as Array).append(xform)
 			continue
-		if away > REAL_TREES:
+		if asset != "alpine_fir":
+			_queue(asset, xform, bool(placement["collision"]) and reachable)
+			continue
+		if not reachable:
 			_far_firs.append(xform)
 			continue
-		# Near firs are separate nodes, so each picks its own level of detail.
+		# The scanned fir is 220,000 triangles, so it is only drawn close to: past
+		# SWAP metres the stand-in takes over, and the stand-in casts its shadow.
 		if fir == null:
 			var template: Node3D = _scene(asset).instantiate()
 			var source: MeshInstance3D = _meshes(template)[0]
 			fir = source.mesh
 			fir_offset = source.transform
 			template.free()
-		# The scanned fir is 220,000 triangles, so it is only drawn close to: past
-		# SWAP metres the stand-in takes over, and the stand-in casts its shadow.
 		var tree := MeshInstance3D.new()
 		tree.mesh = fir
 		tree.transform = xform * fir_offset
@@ -108,6 +114,7 @@ func build(centre: Vector3, low: Vector2, high: Vector2, scenery_radius: float) 
 			stand_in.transform = xform
 			if shadow_only:
 				stand_in.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+				stand_in.visibility_range_end = 220.0
 			else:
 				stand_in.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				stand_in.visibility_range_begin = SWAP
@@ -115,25 +122,31 @@ func build(centre: Vector3, low: Vector2, high: Vector2, scenery_radius: float) 
 				stand_in.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 			add_child(stand_in)
 		real_trees += 1
-		if inside(local, 45.0):
-			_collide(asset, xform, inside(local, 4.0))
+		_collide(asset, xform, inside(local, 4.0))
 	far_trees = _far_firs.size()
 	_lights()
 	_rails()
 	_piers()
 
+# Adds one more kit model, placed in level coordinates. Call before flush().
+func add(asset: String, at: Vector3, yaw: float = 0.0, size: float = 1.0, solid: bool = true) -> void:
+	_queue(asset, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * size), at + _centre), solid)
+
 # Turns everything queued into MultiMeshes. Call once, after the level is done.
 func flush() -> void:
-	for asset: String in _batches:
-		var transforms: Array = _batches[asset]
+	for key: String in _batches:
+		var asset: String = key.split(":")[0]
+		var transforms: Array = _batches[key]
 		var template: Node3D = _scene(asset).instantiate()
 		for source in _meshes(template):
 			_convert_materials(source.mesh)
 			var batch := MultiMeshInstance3D.new()
-			batch.name = asset
+			batch.name = key.replace(":", "_")
 			batch.multimesh = _multi(source.mesh, transforms, source.transform)
 			if asset == "fern":
 				batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				batch.visibility_range_end = 150.0
+				batch.visibility_range_end_margin = 20.0
 			else:
 				batch.gi_mode = GeometryInstance3D.GI_MODE_STATIC
 			add_child(batch)
@@ -150,17 +163,15 @@ func flush() -> void:
 func to_level(kit_position: Vector3) -> Vector3:
 	return kit_position - _centre
 
+# Whether a point is in a settlement (or within `margin` of one).
 func inside(level_position: Vector3, margin: float = 0.0) -> bool:
-	return outside_by(level_position) <= margin
+	var at := Vector2(level_position.x, level_position.z)
+	for zone in _zones:
+		if zone.grow(margin).has_point(at):
+			return true
+	return false
 
-# How far a point is beyond the playable rectangle (0 inside it).
-func outside_by(level_position: Vector3) -> float:
-	var dx := maxf(maxf(_low.x - level_position.x, level_position.x - _high.x), 0.0)
-	var dz := maxf(maxf(_low.y - level_position.z, level_position.z - _high.y), 0.0)
-	return Vector2(dx, dz).length()
-
-# Height of the ground at a point, in level coordinates. Only known near the
-# playable rectangle; elsewhere it returns 0.
+# Height of the ground at a point, in level coordinates.
 func height(x: float, z: float) -> float:
 	var gx := (x + _centre.x) / GRID
 	var gz := (z + _centre.z) / GRID
@@ -180,9 +191,8 @@ func _queue(asset: String, xform: Transform3D, solid: bool) -> void:
 	if not _batches.has(asset):
 		_batches[asset] = []
 	(_batches[asset] as Array).append(xform)
-	var local := to_level(xform.origin)
-	if solid and inside(local, 45.0):
-		_collide(asset, xform, inside(local, 4.0))
+	if solid:
+		_collide(asset, xform, inside(to_level(xform.origin), 4.0))
 
 func _collide(asset: String, xform: Transform3D, walkable: bool) -> void:
 	var spec: Dictionary = catalog[asset]
@@ -227,23 +237,18 @@ func _terrain() -> void:
 		ground.set_shader_parameter(key, load(ROOT + "art/textures/" + key + ".jpg"))
 	# The shader paints moss and snow by height; it has to be told the level sits lower.
 	ground.set_shader_parameter("lift", _centre.y)
-	var reach := Rect2(_low + Vector2(_centre.x, _centre.z), _high - _low).grow(64.0)
 	for cell: Dictionary in manifest["terrain"]:
 		var node: Node3D = (load(ROOT + str(cell["path"])) as PackedScene).instantiate()
 		add_child(node)
 		for source in _meshes(node):
 			source.material_override = ground
 			source.gi_mode = GeometryInstance3D.GI_MODE_STATIC
-			var box := source.transform * source.get_aabb()
-			if not reach.intersects(Rect2(box.position.x, box.position.z, box.size.x, box.size.z)):
-				continue
 			# Marked so the grass knows bare ground from everything built on it.
 			_trimesh_body(source).set_meta("soil", true)
 			var vertices: PackedVector3Array = source.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 			for vertex in vertices:
 				var at := source.transform * vertex
-				if reach.has_point(Vector2(at.x, at.z)):
-					_heights[Vector2i(roundi(at.x / GRID), roundi(at.z / GRID))] = at.y
+				_heights[Vector2i(roundi(at.x / GRID), roundi(at.z / GRID))] = at.y
 
 func _paths() -> void:
 	var gravel := ShaderMaterial.new()
@@ -283,14 +288,16 @@ func _trimesh_body(source: MeshInstance3D) -> StaticBody3D:
 
 # The lamps the kit hangs in its rooms.
 func _lights() -> void:
+	var lamp := 0
 	for spec: Dictionary in manifest["lights"]:
 		var at := _v3(spec["position"])
-		if not inside(to_level(at), 30.0):
-			continue
+		lamp += 1
+		if lamp % 4 == 0:
+			continue   # a quarter of them have failed
 		var light := OmniLight3D.new()
 		light.position = at
 		light.light_color = Color(spec["color"][0], spec["color"][1], spec["color"][2])
-		light.light_energy = float(spec["energy"]) * 2.4
+		light.light_energy = float(spec["energy"]) * 1.8
 		light.omni_range = float(spec["radius"]) * 1.3
 		light.omni_attenuation = 1.0
 		light.shadow_enabled = false
@@ -307,8 +314,6 @@ func _rails() -> void:
 	steel.roughness = 0.43
 	for spec: Dictionary in manifest.get("guard_rails", []):
 		var at := _v3(spec["position"])
-		if not inside(to_level(at), 30.0):
-			continue
 		var width: float = spec["width"]
 		var body := StaticBody3D.new()
 		body.collision_layer = Layers.WORLD
@@ -369,6 +374,7 @@ func _convert_materials(mesh: Mesh) -> void:
 			paint.set_shader_parameter("paint", old.albedo_color)
 			paint.set_shader_parameter("metalness", old.metallic)
 			paint.set_shader_parameter("base_roughness", old.roughness)
+			paint.set_shader_parameter("wear", WEAR)
 			paint.set_shader_parameter("surface_albedo", load(ROOT + "art/textures/concrete_albedo.jpg"))
 			paint.set_shader_parameter("surface_normal", load(ROOT + "art/textures/concrete_normal.jpg"))
 			_materials[id] = paint
