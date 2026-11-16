@@ -17,6 +17,12 @@ const SIGHT_RANGE: float = 55.0
 const FOV_COS: float = 0.5          # ~120 degree cone while unalerted
 const EYE_HEIGHT: float = 1.62
 const GRAVITY: float = 19.0
+# A sound with a wall in the way only carries this fraction of its radius.
+const WALL_MUFFLE: float = 0.5
+# Inside this range a unit fires whether or not it holds an attack token.
+const POINT_BLANK: float = 5.0
+# Nobody but a Stalker willingly stands closer to the threat than this.
+const KEEP_OFF: float = 6.0
 
 var kind: String = "trooper"
 var arch: Dictionary = {}
@@ -52,6 +58,7 @@ var _stuck_time: float = 0.0
 var _patrol_index: int = 0
 var _in_low_cover: bool = false
 var _hide_left: float = 0.0
+var _cover_cooldown: float = 0.0
 var _scan: float = 0.0
 
 var _burst_left: int = 0
@@ -133,6 +140,7 @@ func _physics_process(delta: float) -> void:
 	gun.tick(delta)
 	_react_left = maxf(_react_left - delta, 0.0)
 	_hide_left = maxf(_hide_left - delta, 0.0)
+	_cover_cooldown = maxf(_cover_cooldown - delta, 0.0)
 	_grenade_cooldown = maxf(_grenade_cooldown - delta, 0.0)
 	_perceive(delta)
 	match state:
@@ -193,9 +201,15 @@ func _can_see_player() -> bool:
 
 # Called on the whole "enemy" group for every noise the player makes.
 func hear(position: Vector3, radius: float, _source: Node) -> void:
-	if is_dead or global_position.distance_to(position) > radius:
+	if is_dead:
 		return
-	squad.report_noise(self, position)
+	var distance := global_position.distance_to(position)
+	if distance > radius:
+		return
+	# Walls muffle. Without this a shot indoors wakes the whole map.
+	if distance > radius * WALL_MUFFLE and not _clear(_eye(), position + Vector3.UP * 1.2):
+		return
+	squad.report_noise(self, position, distance)
 
 # --- Squad orders ------------------------------------------------------------
 
@@ -222,6 +236,13 @@ func investigate(position: Vector3, go: bool) -> void:
 	_wait_left = 3.0
 	if go:
 		_set_goal(_snap(position))
+
+# Break off and get out of the line of fire for a moment.
+func take_cover(seconds: float) -> void:
+	_hide_left = maxf(_hide_left, seconds)
+	_decide_left = 0.0
+	_burst_left = 0
+	squad.release_token(self)
 
 func search(position: Vector3) -> void:
 	state = State.SEARCH
@@ -268,10 +289,12 @@ func _decide() -> void:
 	_stuck_time = 0.0
 	var threat := squad.last_known
 	var hide := gun.is_reloading() or _hide_left > 0.0
-	var pushing := role == &"push" or (squad.should_push(_player) and float(arch["aggression"]) > 0.35)
-	var want_range: float = arch["range"]
-	if pushing and not hide:
-		want_range *= 0.45
+	var aggression: float = arch["aggression"]
+	var pushing := not hide and (role == &"push" or (squad.should_push(_player) and aggression >= 0.45))
+	# A squad that has taken losses stands further off.
+	var want_range: float = float(arch["range"]) * (1.0 + 0.5 * squad.caution)
+	if pushing:
+		want_range *= 0.45 if kind == "rusher" else 0.7
 
 	var map := get_world_3d().navigation_map
 	var away := (squad.center() - threat)
@@ -310,10 +333,12 @@ func _decide() -> void:
 				score += 9.0 if squad.contact_age < 3.0 else 3.0
 			elif low_blocked:
 				score -= 7.0   # can shoot over it and duck behind it: the best spot there is
-			elif not pushing:
-				score += 5.0 * (1.0 - float(arch["aggression"]))
-		if distance < 3.0 and kind != "rusher":
-			score += 10.0
+			else:
+				# Standing in the open with the threat looking at you is how you
+				# get shot. Everyone avoids it; the cautious avoid it most.
+				score += (3.0 if pushing else 8.0) * (1.2 - aggression)
+		if distance < KEEP_OFF and kind != "rusher":
+			score += 10.0 + (KEEP_OFF - distance) * 2.0
 		if role == &"flank" and distance > 0.5:
 			# Reward spots off to our assigned side of the squad-to-threat line.
 			var bearing := -to_threat / distance
@@ -423,7 +448,7 @@ func _fire_control(delta: float) -> void:
 	# flankers move. Only the anchor does it, and only briefly.
 	var suppress := not _sees and role == &"anchor" and squad.contact_age < 2.5 and _clear(_eye(), _aim_at)
 	var has_target := _sees or suppress
-	var close := _sees and global_position.distance_to(_player.global_position) < 8.0
+	var close := _sees and global_position.distance_to(_player.global_position) < POINT_BLANK
 
 	if _burst_left <= 0:
 		_pause_left -= delta
@@ -452,9 +477,10 @@ func _fire_control(delta: float) -> void:
 	# Aim error starts wide and settles the longer it holds you in view, so the
 	# first burst after rounding a corner mostly misses. Moving makes it worse
 	# for both of us.
-	var error: float = arch["accuracy"] * (1.0 + 2.2 * exp(-_sight_time * 1.6))
-	error += Vector2(_player.velocity.x, _player.velocity.z).length() * 0.22
-	error += Vector2(velocity.x, velocity.z).length() * 0.3
+	var error: float = arch["accuracy"] * (1.0 + 3.0 * exp(-_sight_time * 1.0))
+	error += Vector2(_player.velocity.x, _player.velocity.z).length() * 0.4
+	# Firing on the run is wild: closing the distance costs it its aim.
+	error += Vector2(velocity.x, velocity.z).length() * 0.8
 	if suppress:
 		error = float(arch["accuracy"]) * 2.5 + 1.5
 	if arch.get("laser", false):
@@ -472,7 +498,7 @@ func _fire_control(delta: float) -> void:
 func _end_burst() -> void:
 	_burst_left = 0
 	_charge = 0.0
-	_pause_left = _rng.randf_range(0.7, 1.6) * (1.6 if arch.get("laser", false) else 1.0)
+	_pause_left = _rng.randf_range(1.0, 2.2) * (1.6 if arch.get("laser", false) else 1.0)
 	squad.release_token(self)
 	# Often move after shooting: a target that fires from the same spot twice
 	# is a target that has been pre-aimed.
@@ -510,10 +536,15 @@ func take_damage(amount: float, from: Node = null, position: Vector3 = Vector3.Z
 		return 3
 	if from is Node3D:
 		squad.report_hit(self, (from as Node3D).global_position)
-	# Hurt and not the pushing type: break off and get behind something.
-	if health < float(arch["health"]) * 0.5 and float(arch["aggression"]) < 0.7 and _hide_left <= 0.0:
-		_hide_left = 2.5
-		_decide_left = 0.0
+	# Being shot matters to it. Badly hurt: break off and get behind something.
+	# Otherwise, anyone but a Stalker ducks for a moment before carrying on.
+	if _cover_cooldown <= 0.0 and not arch.get("shield", false):
+		if health < float(arch["health"]) * 0.5:
+			_cover_cooldown = 6.0
+			take_cover(3.0)
+		elif kind != "rusher":
+			_cover_cooldown = 4.0
+			take_cover(1.3)
 	return result
 
 func _die(killer: Node, direction: Vector3) -> void:

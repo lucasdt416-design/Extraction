@@ -330,7 +330,7 @@ func _warehouse() -> void:
 		_box(Vector3(x, 3.25, -15.0), Vector3(1.3, 0.1, 9.2), Mats.surface(OCHRE, "plain", 0.5), false)
 	_crate(-23.0, -17.0, Vector3(1.6, 1.6, 1.6), RUST, 0.3)
 	_crate(-22.6, -14.6, Vector3(1.2, 1.2, 1.2), STEEL, -0.2)
-	_crate(-23.0, -3.0, Vector3(2.0, 1.4, 1.4), TEAL.darkened(0.3), 0.1)
+	_crate(-23.0, -3.0, Vector3(2.0, 1.4, 1.4), OCHRE.darkened(0.2), 0.1)
 	_crate(-21.5, -11.5, Vector3(1.2, 1.2, 1.2), OCHRE)
 	_crate(-21.5, -11.5, Vector3(1.0, 1.0, 1.0), STEEL, 0.5, 1.2)
 	_barrier(-25.0, -6.0, 3.0, PI * 0.5)
@@ -350,6 +350,9 @@ func _warehouse() -> void:
 	_mark(Vector3(-20.0, 0.0, 4.0), "crate", -PI * 0.5)
 	_mark(Vector3(-40.8, 3.15, -6.5), "locker", PI * 0.5)
 	_mark(Vector3(-29.5, 0.0, -20.6), "crate")
+	_mark(Vector3(-19.2, 0.0, -19.0), "crate", -PI * 0.5)
+	_mark(Vector3(-41.0, 0.0, 4.5), "crate", PI * 0.5)
+	_mark(Vector3(-18.8, 0.0, -1.5), "locker", -PI * 0.5)
 	squads.append({"members": ["trooper", "rusher", "bulwark", "trooper"], "points": [
 		Vector3(-24.0, 0.0, -8.0), Vector3(-34.5, 0.0, -9.0), Vector3(-29.5, 0.0, -19.5), Vector3(-22.0, 0.0, 0.0)]})
 	squads.append({"members": ["marksman"], "points": [Vector3(-38.0, 3.2, -4.0), Vector3(-38.0, 3.2, 3.0)]})
@@ -383,6 +386,8 @@ func _lab() -> void:
 	_mark(Vector3(-9.0, 0.0, -30.6), "locker", PI * 0.5)
 	_mark(Vector3(0.6, 0.0, -30.8), "crate")
 	_mark(Vector3(8.8, 0.0, -16.0), "locker", -PI * 0.5)
+	_mark(Vector3(-8.5, 0.0, -15.0), "crate", PI)
+	_mark(Vector3(3.2, 0.0, -15.0), "crate", PI)
 	_mark(Vector3(13.0, 0.0, -31.0), "vault")
 	_mark(Vector3(15.0, 0.0, -17.0), "vault", -PI * 0.5)
 	squads.append({"members": ["trooper", "trooper", "rusher"], "points": [
@@ -411,6 +416,9 @@ func _barracks() -> void:
 	_mark(Vector3(41.0, 0.0, -5.0), "locker", -PI * 0.5)
 	_mark(Vector3(40.6, 0.0, 12.6), "crate", -PI * 0.5)
 	_mark(Vector3(27.0, 0.0, 1.0), "crate")
+	_mark(Vector3(23.2, 0.0, -2.0), "crate", PI * 0.5)
+	_mark(Vector3(38.0, 0.0, 1.0), "crate")
+	_mark(Vector3(23.0, 0.0, 12.5), "locker", PI * 0.5)
 	squads.append({"members": ["trooper", "lobber", "rusher"], "points": [
 		Vector3(32.0, 0.0, 3.0), Vector3(36.0, 0.0, 10.5), Vector3(28.0, 0.0, -7.0), Vector3(18.0, 0.0, 7.0)]})
 
@@ -471,6 +479,10 @@ func _courtyard() -> void:
 		_lamp(Vector3(spot.x, 7.6, spot.y), LIGHT_WARM, 3.5, 20.0, false, false)
 	_mark(Vector3(-11.8, 0.0, 16.6), "crate", 0.25)
 	_mark(Vector3(14.6, 0.0, -11.6), "crate")
+	_mark(Vector3(16.5, 0.0, 11.6), "crate")
+	_mark(Vector3(2.0, 0.0, -6.9), "crate")
+	_mark(Vector3(-4.0, 0.0, -11.0), "crate", PI * 0.5)
+	_mark(Vector3(-13.0, 0.0, 7.2), "crate")
 	squads.append({"members": ["trooper", "trooper", "lobber"], "points": [
 		Vector3(2.0, 0.0, 4.0), Vector3(-9.0, 0.0, -2.0), Vector3(12.0, 0.0, 0.0), Vector3(8.0, 0.0, 14.0), Vector3(-4.0, 0.0, 14.0)]})
 
@@ -499,6 +511,9 @@ func _container_yard() -> void:
 	_mark(Vector3(-20.0, 0.0, 25.2), "crate", PI)
 	_mark(Vector3(7.0, 0.0, 32.6), "crate")
 	_mark(Vector3(24.6, 0.0, 22.0), "locker", PI * 0.5)
+	_mark(Vector3(-30.0, 0.0, 33.5), "crate")
+	_mark(Vector3(18.0, 0.0, 33.5), "crate")
+	_mark(Vector3(33.5, 0.0, 26.2), "crate", PI * 0.5)
 	squads.append({"members": ["trooper", "rusher"], "points": [
 		Vector3(8.0, 0.0, 26.0), Vector3(17.0, 0.0, 20.0), Vector3(-1.0, 0.0, 31.5), Vector3(24.0, 0.0, 31.0)]})
 	squads.append({"members": ["marksman", "trooper"], "points": [Vector3(36.0, 0.0, -26.0), Vector3(28.0, 0.0, -22.0), Vector3(38.0, 0.0, -17.0)]})

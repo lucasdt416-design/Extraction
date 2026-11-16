@@ -6,8 +6,8 @@ extends StaticBody3D
 # it is opened, so the same seed always hides the same loot (rule 4).
 
 const SPECS: Dictionary = {
-	"crate": {"size": Vector3(1.1, 0.75, 0.7), "time": 1.0, "items": [1, 3], "color": Color(0.36, 0.40, 0.42), "label": "Search crate"},
-	"locker": {"size": Vector3(0.75, 1.9, 0.55), "time": 1.4, "items": [1, 2], "color": Color(0.62, 0.63, 0.62), "label": "Search locker"},
+	"crate": {"size": Vector3(1.1, 0.75, 0.7), "time": 1.0, "items": [1, 3], "color": Color(0.90, 0.91, 0.89), "label": "Search crate"},
+	"locker": {"size": Vector3(0.75, 1.9, 0.55), "time": 1.4, "items": [1, 2], "color": Color(0.90, 0.91, 0.89), "label": "Search locker"},
 	"vault": {"size": Vector3(1.3, 1.15, 0.9), "time": 3.5, "items": [3, 4], "color": Color(0.12, 0.12, 0.14), "label": "Crack vault (loud)"},
 }
 
@@ -15,7 +15,8 @@ var kind: String = "crate"
 var opened: bool = false
 var _contents: Array[String] = []
 var _has_ammo: bool = false
-var _light: MeshInstance3D
+var _lit: Array[MeshInstance3D] = []
+var _glow: OmniLight3D
 
 func setup(container_kind: String, rng: RandomNumberGenerator) -> void:
 	kind = container_kind
@@ -38,9 +39,20 @@ func _ready() -> void:
 	add_child(collider)
 	_add(Vector3(0.0, size.y * 0.5, 0.0), size, Mats.surface(spec["color"], "metal", 0.45, 0.55))
 	_add(Vector3(0.0, size.y * 0.82, 0.0), size * Vector3(1.03, 0.06, 1.03), Mats.surface(Color(0.1, 0.1, 0.11), "plain", 0.4, 0.5))
-	# The status light: lit means unopened.
+	# Nothing else on the map is chalk white with a lit band round it: that is
+	# what says "this one opens". The band, the strip on the lid and the pool of
+	# light on the floor all go out once it has been searched.
 	var color := Level.RUST if kind == "vault" else Level.TEAL.lightened(0.2)
-	_light = _add(Vector3(0.0, size.y * 0.62, -size.z * 0.5 - 0.005), Vector3(size.x * 0.4, 0.035, 0.01), Mats.glow(color, 4.0))
+	var lit := Mats.glow(color, 3.5)
+	_lit.append(_add(Vector3(0.0, size.y * 0.6, 0.0), size * Vector3(1.02, 0.0, 1.02) + Vector3(0.0, 0.05, 0.0), lit))
+	_lit.append(_add(Vector3(0.0, size.y + 0.006, 0.0), Vector3(size.x * 0.5, 0.012, 0.05), lit))
+	_glow = OmniLight3D.new()
+	_glow.light_color = color
+	_glow.light_energy = 0.9
+	_glow.omni_range = 3.2
+	_glow.shadow_enabled = false
+	_glow.position = Vector3(0.0, size.y * 0.6, -size.z * 0.5 - 0.5)
+	add_child(_glow)
 
 func _add(at: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
@@ -61,7 +73,9 @@ func interact_time() -> float:
 
 func interact(player: Player) -> void:
 	opened = true
-	_light.material_override = Mats.surface(Color(0.05, 0.05, 0.05), "plain", 0.5)
+	for part in _lit:
+		part.material_override = Mats.surface(Color(0.05, 0.05, 0.05), "plain", 0.5)
+	_glow.queue_free()
 	Sfx.play("open")
 	# Spill the contents out in front, toward whoever opened it.
 	var toward := (player.global_position - global_position)

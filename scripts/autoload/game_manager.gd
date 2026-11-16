@@ -34,8 +34,13 @@ var stats: Dictionary = {"raids": 0, "extracted": 0, "kills": 0, "earned": 0}
 # quality: 0 = low, 1 = medium, 2 = high (see Raid.apply_quality).
 const SETTING_RANGES: Dictionary = {
 	"sensitivity": [0.2, 3.0, 0.1], "fov": [65.0, 110.0, 1.0], "volume": [0.0, 1.0, 0.05], "quality": [0.0, 2.0, 1.0],
+	"fullscreen": [0.0, 1.0, 1.0], "window": [0.0, 4.0, 1.0], "scale": [0.5, 1.0, 0.05],
 }
-var settings: Dictionary = {"sensitivity": 1.0, "fov": 82.0, "volume": 0.8, "quality": 2.0}
+# window: an index into WINDOW_SIZES, used when not fullscreen.
+# scale: the fraction of the window's pixels the 3D view is rendered at.
+const WINDOW_SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080), Vector2i(2560, 1440), Vector2i(3200, 1800)]
+const DISPLAY_SETTINGS: Array[String] = ["fullscreen", "window", "scale"]
+var settings: Dictionary = {"sensitivity": 1.0, "fov": 82.0, "volume": 0.8, "quality": 2.0, "fullscreen": 1.0, "window": 1.0, "scale": 1.0}
 
 # --- Raid in progress --------------------------------------------------------
 var in_raid: bool = false
@@ -69,8 +74,29 @@ func set_setting(key: String, value: float) -> void:
 	var limits: Array = SETTING_RANGES[key]
 	settings[key] = clampf(snappedf(value, limits[2]), limits[0], limits[1])
 	_apply_volume()
+	if key in DISPLAY_SETTINGS:
+		_apply_display()
 	save_profile()
 	settings_changed.emit()
+
+# Fullscreen or a window of the chosen size, and the 3D render scale. Tools and
+# headless runs keep whatever window they were launched with.
+func _apply_display() -> void:
+	if DisplayServer.get_name() == "headless" or OS.get_cmdline_user_args().has("--test-profile"):
+		return
+	var window := get_window()
+	var full: bool = settings["fullscreen"] >= 0.5
+	var mode := Window.MODE_FULLSCREEN if full else Window.MODE_WINDOWED
+	if window.mode != mode:
+		window.mode = mode
+	if not full:
+		var size := WINDOW_SIZES[int(settings["window"])]
+		var room := DisplayServer.screen_get_usable_rect(window.current_screen).size
+		size = Vector2i(mini(size.x, room.x), mini(size.y, room.y))
+		if window.size != size:
+			window.size = size
+			window.move_to_center()
+	get_tree().root.scaling_3d_scale = settings["scale"]
 
 func _apply_volume() -> void:
 	var volume: float = settings["volume"]
@@ -311,6 +337,7 @@ func load_profile() -> void:
 				var limits: Array = SETTING_RANGES[key]
 				settings[key] = clampf(float(saved), limits[0], limits[1])
 	_apply_volume()
+	_apply_display.call_deferred()
 	if not data is Dictionary:
 		# First launch: enough to buy one real decision, not a whole kit.
 		credits = 1200

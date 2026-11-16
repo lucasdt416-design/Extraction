@@ -10,21 +10,40 @@ A first-person 3D extraction shooter in Godot 4.7 (GDScript). The loop is comple
 deploy → loot and fight AI squads → hold an extraction pad → stash, with loss on death.
 One map. The player character is Kestrel, an imported rigged model; everything else is
 built in code from primitives, generated textures and synthesized sound. An automated
-play-through passes. **No person has played it yet**, so feel and balance are unverified.
+play-through passes. It has had **one outside playtest** (2026-11-15); the fixes from it
+are listed under "Playtest log" below and have not been re-played yet.
 
 ## Branches
 
-| Branch | What | Status |
-|---|---|---|
-| `main` | The original 2D top-down prototype | Will be replaced when PR #1 merges |
-| `three-d` | The 3D rebuild | PR #1, open |
-| `graphics` | Graphics pass, Kestrel, enemy rebuild, death view, these docs | Pushed, built on `three-d`, no PR until #1 merges |
-| `settings` | Settings screen (sensitivity, FOV, volume, quality), enemy stagger | Pushed, built on `graphics` |
-| `menu` | Title screen and poster-style main menu over a live 3D studio; bundled fonts | Pushed, built on `settings` |
-| `polish` | Death and extraction sequences, Armoury page, map list, animated controls | Pushed, built on `menu` |
+Everything is on `main`. Work happens on a short branch per job, merged by PR.
 
-Merging PR #1 deletes the 42 2D files from `main`'s working tree (they stay in git
-history) and adds the 3D game. Nothing else in the repo is touched.
+## Playtest log
+
+**2026-11-15, first outside playtest.** Reported: a freed-instance error in
+`Fx._bullet_hole`; enemies run you down; one shot brings the whole map; the window is
+tiny with no way to change it; a long loot list pushes the result button off screen; too
+few loot boxes and they look like ordinary crates. What changed in response:
+
+- Hearing: weapon noise radii roughly halved, walls halve them again
+  (`Enemy.WALL_MUFFLE`), and a squad only walks to a noise inside 14 m
+  (`Squad.WALK_TO_NOISE`); further off it turns to face it. Backup from neighbouring
+  squads needs the fight within 22 m (`BACKUP_RANGE`).
+- Pressure: at most two units fire at once across all squads (`Squad.MAX_SHOOTERS`), with
+  a gap after each burst (`FIRE_GAP`). Aim settles more slowly, firing on the move is
+  wild, and your own movement throws their aim more. Trooper and Stalker damage down,
+  Stalker slower than your walk.
+- Respect: only Stalkers rush. Everyone else avoids open ground, keeps 6 m off
+  (`Enemy.KEEP_OFF`), ducks when hit, and a squad that loses members gets cautious
+  (`Squad.caution`): it stands further back and stops pushing. The last survivor of a
+  squad falls back.
+- Reinforcements need about twice the sustained fighting, and the timed wave moved from
+  the halfway mark to the last 30% of the clock.
+- Display, window size and render resolution settings; fullscreen by default.
+- Loot containers are chalk white with a lit teal band and a pool of light; 34 on the
+  map, up from 19.
+
+Measured after: standing still in the open courtyard with two squads in view, death in
+about 11.5 s (was 7). That is the only number; whether it now *feels* fair needs playing.
 
 ## Run it
 
@@ -68,7 +87,7 @@ scripts/
   world/loot.gd, loot_container.gd, extract_point.gd
   fx/mats.gd, shapes.gd, fx.gd   materials, bevelled meshes, one-shot effects
   ui/hud.gd, menu.gd, ui_kit.gd
-tools/                       selftest, sim, shots: development helpers
+tools/                       selftest, sim, shots, ui_shots: development helpers
 ```
 
 ## "I want to change X" → go here
@@ -91,6 +110,11 @@ tools/                       selftest, sim, shots: development helpers
 | Menu pages and their content | `ui/menu.gd` (`_play`, `_armoury`, `_loadout`, `_trader`, `_frames`, `_settings`) |
 | Adding a map to the Play page | a new entry in `Catalog.MAPS` (name, title, wall mark, scene, brief) |
 | In-raid HUD: numerals, key caps, ability bars, slot squares, loot toasts, intro card | `ui/hud.gd` (`_draw_overlay`, `_play_intro`, `_on_backpack_changed`) |
+| How far enemies hear, and what they do about it | `Catalog.WEAPONS` `noise`, `Enemy.hear`, `Squad.report_noise` |
+| How many fire at once, and the gap between bursts | `Squad.MAX_SHOOTERS`, `FIRE_GAP`, `max_tokens` |
+| How shaken a squad gets by losses | `Squad.caution`, `report_death`, `Enemy.take_cover` |
+| Fullscreen, window sizes, render scale | `GameManager._apply_display`, `WINDOW_SIZES` |
+| Where loot containers are, and how they look | `_mark(...)` calls in `level.gd`; `LootContainer._ready` |
 | Reinforcement waves, heat, alarm response | `Raid._escalate`, `send_reinforcements`, `WAVES`; entry points in `Level.reinforce_points` |
 | Reverb, limiter, ambience bed | `Sfx._build_buses`, `start_ambience` |
 | Equipping a weapon found mid-raid | `GameManager.wield_found`, `Player.add_gun` |
@@ -140,13 +164,13 @@ Give this to whoever or whatever makes models:
 
 ## Known gaps (the honest list)
 
-- Never played by a person. Balance, recoil, movement feel and AI pacing are guesses.
+- Played once by an outside tester; the balance changes made in response are untested by a person.
 - One map.
 - Kestrel has no crouch, jump, aim or death clips; crouch squashes the model.
 - First-person arms are capsules, not Kestrel's real arms. No weapon inspect/equip
   animation, no melee.
 - Enemy bodies are code-built; their crouch doesn't lower their hit capsule.
-- All audio is synthesized placeholder. No music, no ambience, no voices.
+- All audio is synthesized placeholder. No music, no voices.
 - Level geometry is boxes with a shader. No modelled environment art.
 - Inventory is a flat list with a slot count: no grid, no weight, no item inspection.
 - The level is code, not a scene, so it can't be edited in the Godot editor.

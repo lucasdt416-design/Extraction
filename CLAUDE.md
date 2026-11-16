@@ -78,11 +78,16 @@ Individuals perceive and act; the `Squad` pools what they know and coordinates t
   group with a radius.
 - **Last known position.** A squad fights where it last saw or heard you, not where you
   are. Break line of sight and they lose you, announce it, then search, then stand down.
-- **Attack tokens.** Only two members (three with an Overseer) may fire at once; the rest
-  reposition. A unit with you inside 8 m fires regardless.
+- **Attack tokens.** Only two members of a squad (three with an Overseer) may fire at
+  once, and only two units across the whole map; the rest reposition. There is a short
+  gap after every burst. A unit with you inside 5 m fires regardless.
 - **Roles.** Anchors hold a firing spot and suppress your last position, flankers are
-  rewarded for spots off to one side, pushers close in. Everyone pushes when you reload,
-  heal or are badly hurt.
+  rewarded for spots off to one side. Only Stalkers rush. The rest close in a little when
+  you reload, heal or are badly hurt, unless the squad has been made cautious.
+- **Caution.** Being hit makes a unit duck; losing a member raises the squad's caution,
+  which pushes it further back and stops it advancing. The last survivor falls back.
+- **Hearing.** Walls halve how far a sound carries. A squad walks to a noise only if it is
+  within 14 m; further off it turns to face it and stays put.
 - **Position scoring** (`Enemy._decide`). Candidate spots on the navmesh are scored for
   range, cover (best is a spot it can fire over and duck behind), travel, crowding and
   flank angle.
@@ -99,13 +104,11 @@ Individuals perceive and act; the `Squad` pools what they know and coordinates t
 
 ### Known gaps
 
-- Nothing has been play-tested by a person yet: balance numbers, recoil, movement feel
-  and AI pacing are first guesses.
+- One outside playtest so far (see `BUILD.md`, "Playtest log"). The balance changes made
+  in response have not been re-played.
 - One map.
 - Enemies have no melee and don't use doors, ladders or jumps.
 - Crouching doesn't lower an enemy's hit capsule; only the player's.
-- No settings screen (sensitivity, volume, graphics quality). SDFGI and volumetric fog
-  are on unconditionally, tuned on an Apple M5 Pro.
 - First-person weapons are modelled per type with hands and a magazine-drop reload,
   but there is no melee and no inspect or equip animation.
 - Kestrel has only Idle, Walk and Run clips: no crouch, jump, aim or death animation,
