@@ -99,6 +99,7 @@ func build() -> void:
 	var pick := spawn_at if spawn_at >= 0 else int(GameManager.rng.randi() % _starts.size())
 	player_spawn = _starts[pick][0]
 	player_yaw = _starts[pick][1]
+	_wilds()
 	_placements()
 
 # The environment is the raid's; this map only wants a longer view.
@@ -725,3 +726,48 @@ func _colony_gear() -> void:
 					var panel := _box(Vector3(column + 3.4 + wing * 1.5, ROOF + 0.95, row + back * 3.8), Vector3(2.6, 0.06, 1.7), cell, false)
 					panel.rotation.x = -back * 0.45
 					_box(Vector3(column + 3.4 + wing * 1.5, ROOF + 0.45, row + back * 3.8), Vector3(0.1, 0.9, 0.1), steel, false)
+
+# The island between its places. Each part has its own ground: salt crust and
+# saltbush round Saltglass, basalt and copper grass round Cinder, willow and
+# reeds round the conservatory, driftwood and stonecrop by the port and the
+# ferry, heather and erratics on the high ground, scrub and fins elsewhere.
+const WILD: Dictionary = {
+	"Saltglass Terraces": ["sc_salt_shelves", "sc_saltbush", "sc_rushes", "sc_succulent", "sc_weathered_snag"],
+	"Cinder Excavation": ["sc_basalt_columns", "sc_rust_spires", "sc_tussock", "sc_weathered_snag", "sc_quartz_scree"],
+	"Viridian Conservatory": ["sc_river_willow", "sc_aspen_grove", "sc_broadleaf", "sc_cattail", "sc_oxeye", "sc_lupine", "sc_fungal_log"],
+	"Tideworks": ["sc_driftwood", "sc_stream_cobbles", "sc_rushes", "sc_succulent", "sc_tussock"],
+	"Southshore Ferry": ["sc_driftwood", "sc_succulent", "sc_rushes", "sc_tussock", "sc_saltbush"],
+	"The Heliograph": ["sc_heather", "sc_glacial_erratic", "sc_shale_ledge", "sc_weathered_snag", "sc_lupine"],
+	"Northwatch": ["sc_glacial_erratic", "sc_quartz_scree", "sc_heather", "sc_weathered_snag", "sc_moss_back"],
+	"": ["sc_berry_scrub", "sc_rust_spires", "sc_tussock", "sc_weathered_snag", "sc_broadleaf", "sc_saltbush", "sc_moss_back"],
+}
+
+func _wilds() -> void:
+	var wild := Scenery.new()
+	wild.name = "Wilds"
+	# The island, in level coordinates: the kit's 2 km square, less the sea.
+	wild.area = Rect2(-CENTRE.x - 980.0, -CENTRE.z - 980.0, 1960.0, 1960.0)
+	wild.lowest = -CENTRE.y + 1.5
+	wild.step = 9.0
+	wild.seed_value = 23
+	wild.avoid.append(Rect2(-HALF, HALF * 2.0).grow(12.0))
+	for zone in kit.zones:
+		wild.avoid.append(zone.grow(4.0))
+	for start: Array in _starts:
+		wild.keep_clear.append(start[0])
+	for spot: Dictionary in extracts:
+		wild.keep_clear.append(spot["position"])
+	var middles: Array[Array] = []
+	for site: Array in SITES:
+		middles.append([site[0], kit.to_level(site[1])])
+	wild.biome = func(x: float, z: float, _y: float) -> Array:
+		var nearest := ""
+		var best := 300.0
+		for entry: Array in middles:
+			var at: Vector3 = entry[1]
+			var away := Vector2(x - at.x, z - at.z).length()
+			if away < best:
+				best = away
+				nearest = entry[0]
+		return WILD.get(nearest, WILD[""])
+	add_child(wild)

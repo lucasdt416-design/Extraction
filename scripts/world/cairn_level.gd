@@ -92,6 +92,7 @@ func build() -> void:
 	_grass()
 	kit.flush()
 	_squads_and_exits()
+	_wilds()
 	_placements()
 
 # Thinner, clearer air than the plateau maps, and shadows that reach the trees.
@@ -492,3 +493,33 @@ func _squads_and_exits() -> void:
 			nearest = away
 			facing = district[1]
 	player_yaw = atan2(-(facing.x - start.x), -(facing.y - start.z))
+
+# The hills between the colonies: aspen and deadfall low down, heather, lupine
+# and broken shale on the slopes, bare snags and scree up high, cobbles and
+# willow by the river.
+func _wilds() -> void:
+	var wild := Scenery.new()
+	wild.name = "Wilds"
+	wild.area = Rect2(-CORE, -CORE, CORE * 2.0, CORE * 2.0)
+	wild.seed_value = 31
+	for zone in zones:
+		wild.avoid.append((zone["rect"] as Rect2).grow(4.0))
+	for site in _sites:
+		wild.avoid.append(Rect2(site - Vector2(12.0, 12.0), Vector2(24.0, 24.0)))
+	for shelter in SHELTERS:
+		wild.avoid.append(Rect2(shelter - Vector2(13.0, 13.0), Vector2(26.0, 26.0)))
+	wild.keep_clear.append(player_spawn)
+	for spot: Dictionary in extracts:
+		wild.keep_clear.append(spot["position"])
+	for spec: Dictionary in kit.manifest["spawns"]:
+		wild.keep_clear.append(kit.to_level(CairnKit._v3(spec["position"])))
+	wild.biome = func(x: float, z: float, y: float) -> Array:
+		# The river runs north-south through the gorge east of Hearth.
+		if y < -6.0:
+			return ["sc_river_willow", "sc_dwarf_willow", "sc_stream_cobbles", "sc_moss_back", "sc_cattail", "sc_rushes"]
+		if y < 30.0:
+			return ["sc_aspen_grove", "sc_fungal_log", "sc_moss_back", "sc_berry_scrub", "sc_broadleaf", "sc_oxeye", "sc_dwarf_willow"]
+		if y < 110.0:
+			return ["sc_aspen_grove", "sc_weathered_snag", "sc_heather", "sc_lupine", "sc_shale_ledge", "sc_glacial_erratic", "sc_tussock"]
+		return ["sc_weathered_snag", "sc_quartz_scree", "sc_glacial_erratic", "sc_shale_ledge", "sc_tussock"]
+	add_child(wild)

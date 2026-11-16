@@ -1,0 +1,746 @@
+{
+  "sc_aspen_grove": {
+    "path": "art/scenery/sc_aspen_grove.glb",
+    "label": "Alpine aspen cluster",
+    "scenery_class": "tree",
+    "geology": "",
+    "triangles": 41982,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          2.6320000000000006
+        ],
+        "size": [
+          0.61,
+          0.62,
+          5.264000000000001
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -2.475,
+        -3.193,
+        -0.147
+      ],
+      [
+        2.926,
+        2.516,
+        8.965
+      ]
+    ]
+  },
+  "sc_river_willow": {
+    "path": "art/scenery/sc_river_willow.glb",
+    "label": "River willow",
+    "scenery_class": "tree",
+    "geology": "",
+    "triangles": 26792,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          2.1
+        ],
+        "size": [
+          0.61,
+          0.62,
+          4.2
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -2.893,
+        -2.602,
+        -0.15
+      ],
+      [
+        2.993,
+        2.603,
+        6.981
+      ]
+    ]
+  },
+  "sc_weathered_snag": {
+    "path": "art/scenery/sc_weathered_snag.glb",
+    "label": "Weathered snag",
+    "scenery_class": "tree",
+    "geology": "",
+    "triangles": 644,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          1.988
+        ],
+        "size": [
+          0.61,
+          0.62,
+          3.976
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.532,
+        -1.849,
+        -0.185
+      ],
+      [
+        2.287,
+        1.406,
+        7.101
+      ]
+    ]
+  },
+  "sc_berry_scrub": {
+    "path": "art/scenery/sc_berry_scrub.glb",
+    "label": "Copperberry scrub",
+    "scenery_class": "understory",
+    "geology": "",
+    "triangles": 5560,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.519,
+        -0.451,
+        -0.009
+      ],
+      [
+        0.516,
+        0.556,
+        0.789
+      ]
+    ]
+  },
+  "sc_dwarf_willow": {
+    "path": "art/scenery/sc_dwarf_willow.glb",
+    "label": "Dwarf river willow",
+    "scenery_class": "understory",
+    "geology": "",
+    "triangles": 3796,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.552,
+        -0.66,
+        -0.01
+      ],
+      [
+        0.608,
+        0.581,
+        0.813
+      ]
+    ]
+  },
+  "sc_saltbush": {
+    "path": "art/scenery/sc_saltbush.glb",
+    "label": "Silver saltbush",
+    "scenery_class": "understory",
+    "geology": "",
+    "triangles": 3796,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.526,
+        -0.644,
+        -0.01
+      ],
+      [
+        0.659,
+        0.644,
+        0.797
+      ]
+    ]
+  },
+  "sc_heather": {
+    "path": "art/scenery/sc_heather.glb",
+    "label": "Flowering heather",
+    "scenery_class": "understory",
+    "geology": "",
+    "triangles": 4846,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.531,
+        -0.542,
+        -0.01
+      ],
+      [
+        0.535,
+        0.592,
+        0.564
+      ]
+    ]
+  },
+  "sc_cattail": {
+    "path": "art/scenery/sc_cattail.glb",
+    "label": "Cattail bed",
+    "scenery_class": "ground_cover",
+    "geology": "",
+    "triangles": 1504,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.795,
+        -0.939,
+        -0.001
+      ],
+      [
+        0.804,
+        0.682,
+        1.564
+      ]
+    ]
+  },
+  "sc_rushes": {
+    "path": "art/scenery/sc_rushes.glb",
+    "label": "Salt marsh rushes",
+    "scenery_class": "ground_cover",
+    "geology": "",
+    "triangles": 1744,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.942,
+        -0.738,
+        -0.002
+      ],
+      [
+        0.919,
+        0.575,
+        1.028
+      ]
+    ]
+  },
+  "sc_lupine": {
+    "path": "art/scenery/sc_lupine.glb",
+    "label": "Alpine lupine",
+    "scenery_class": "ground_cover",
+    "geology": "",
+    "triangles": 4896,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.4,
+        -0.341,
+        -0.003
+      ],
+      [
+        0.553,
+        0.515,
+        0.738
+      ]
+    ]
+  },
+  "sc_oxeye": {
+    "path": "art/scenery/sc_oxeye.glb",
+    "label": "Oxeye flower patch",
+    "scenery_class": "ground_cover",
+    "geology": "",
+    "triangles": 3096,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.405,
+        -0.513,
+        -0.002
+      ],
+      [
+        0.662,
+        0.575,
+        0.675
+      ]
+    ]
+  },
+  "sc_succulent": {
+    "path": "art/scenery/sc_succulent.glb",
+    "label": "Coastal stonecrop",
+    "scenery_class": "ground_cover",
+    "geology": "",
+    "triangles": 1040,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.208,
+        -0.537,
+        0.026
+      ],
+      [
+        0.672,
+        0.52,
+        0.285
+      ]
+    ]
+  },
+  "sc_tussock": {
+    "path": "art/scenery/sc_tussock.glb",
+    "label": "Copper dune grass",
+    "scenery_class": "ground_cover",
+    "geology": "",
+    "triangles": 848,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.076,
+        -0.786,
+        0.0
+      ],
+      [
+        0.692,
+        0.915,
+        0.72
+      ]
+    ]
+  },
+  "sc_broadleaf": {
+    "path": "art/scenery/sc_broadleaf.glb",
+    "label": "Broadleaf colony regrowth",
+    "scenery_class": "ground_cover",
+    "geology": "",
+    "triangles": 800,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -0.898,
+        -0.659,
+        0.026
+      ],
+      [
+        0.734,
+        0.757,
+        0.439
+      ]
+    ]
+  },
+  "sc_driftwood": {
+    "path": "art/scenery/sc_driftwood.glb",
+    "label": "Weathered driftwood",
+    "scenery_class": "debris",
+    "geology": "",
+    "triangles": 548,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.19
+        ],
+        "size": [
+          3.22,
+          0.48,
+          0.32
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.973,
+        -0.62,
+        -0.076
+      ],
+      [
+        1.691,
+        0.619,
+        0.566
+      ]
+    ]
+  },
+  "sc_fungal_log": {
+    "path": "art/scenery/sc_fungal_log.glb",
+    "label": "Shelf fungus on deadfall",
+    "scenery_class": "debris",
+    "geology": "",
+    "triangles": 938,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.2
+        ],
+        "size": [
+          1.84,
+          0.57,
+          0.37
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.079,
+        -0.43,
+        -0.1
+      ],
+      [
+        0.97,
+        0.486,
+        0.63
+      ]
+    ]
+  },
+  "sc_glacial_erratic": {
+    "path": "art/scenery/sc_glacial_erratic.glb",
+    "label": "Glacial erratic",
+    "scenery_class": "rock",
+    "geology": "granite",
+    "triangles": 480,
+    "colliders": [
+      {
+        "position": [
+          0.1,
+          0,
+          0.75
+        ],
+        "size": [
+          2.8,
+          1.9,
+          1.52
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.914,
+        -1.327,
+        -0.367
+      ],
+      [
+        2.422,
+        1.357,
+        1.977
+      ]
+    ]
+  },
+  "sc_stream_cobbles": {
+    "path": "art/scenery/sc_stream_cobbles.glb",
+    "label": "Stream-worn cobble cluster",
+    "scenery_class": "rock",
+    "geology": "granite",
+    "triangles": 720,
+    "colliders": [],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.624,
+        -0.821,
+        -0.124
+      ],
+      [
+        1.46,
+        0.96,
+        0.647
+      ]
+    ]
+  },
+  "sc_shale_ledge": {
+    "path": "art/scenery/sc_shale_ledge.glb",
+    "label": "Fractured shale ledge",
+    "scenery_class": "rock",
+    "geology": "shale",
+    "triangles": 720,
+    "colliders": [
+      {
+        "position": [
+          0.21,
+          0.1,
+          0.39
+        ],
+        "size": [
+          2.58,
+          1.72,
+          0.83
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -2.015,
+        -1.266,
+        -0.204
+      ],
+      [
+        2.48,
+        1.301,
+        1.066
+      ]
+    ]
+  },
+  "sc_rust_spires": {
+    "path": "art/scenery/sc_rust_spires.glb",
+    "label": "Eroded sandstone fins",
+    "scenery_class": "rock",
+    "geology": "sandstone",
+    "triangles": 720,
+    "colliders": [
+      {
+        "position": [
+          -0.72,
+          0,
+          1.03
+        ],
+        "size": [
+          0.99,
+          0.98,
+          2.1
+        ]
+      },
+      {
+        "position": [
+          0.27,
+          0.1,
+          0.84
+        ],
+        "size": [
+          0.83,
+          1.05,
+          1.79
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.376,
+        -1.008,
+        -0.444
+      ],
+      [
+        1.663,
+        1.153,
+        2.898
+      ]
+    ]
+  },
+  "sc_salt_shelves": {
+    "path": "art/scenery/sc_salt_shelves.glb",
+    "label": "Salt crust shelf cluster",
+    "scenery_class": "rock",
+    "geology": "salt",
+    "triangles": 720,
+    "colliders": [
+      {
+        "position": [
+          -0.24,
+          0,
+          0.14
+        ],
+        "size": [
+          2.05,
+          1.28,
+          0.35
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.679,
+        -0.995,
+        -0.161
+      ],
+      [
+        2.307,
+        1.079,
+        0.627
+      ]
+    ]
+  },
+  "sc_quartz_scree": {
+    "path": "art/scenery/sc_quartz_scree.glb",
+    "label": "Quartz seam scree",
+    "scenery_class": "rock",
+    "geology": "quartz",
+    "triangles": 720,
+    "colliders": [
+      {
+        "position": [
+          0.03,
+          0,
+          0.46
+        ],
+        "size": [
+          1.88,
+          1.31,
+          1.0
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.479,
+        -0.965,
+        -0.247
+      ],
+      [
+        1.699,
+        0.987,
+        1.369
+      ]
+    ]
+  },
+  "sc_moss_back": {
+    "path": "art/scenery/sc_moss_back.glb",
+    "label": "Moss-covered creek boulders",
+    "scenery_class": "rock",
+    "geology": "moss",
+    "triangles": 720,
+    "colliders": [
+      {
+        "position": [
+          0.12,
+          -0.02,
+          0.51
+        ],
+        "size": [
+          2.38,
+          1.74,
+          1.03
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.511,
+        -1.327,
+        -0.316
+      ],
+      [
+        2.226,
+        1.254,
+        1.477
+      ]
+    ]
+  },
+  "sc_basalt_columns": {
+    "path": "art/scenery/sc_basalt_columns.glb",
+    "label": "Columnar basalt cluster",
+    "scenery_class": "rock",
+    "geology": "basalt",
+    "triangles": 224,
+    "colliders": [
+      {
+        "position": [
+          -0.92,
+          0.0,
+          0.9023999999999999
+        ],
+        "size": [
+          0.68,
+          0.69,
+          1.8047999999999997
+        ]
+      },
+      {
+        "position": [
+          -0.35,
+          -0.51,
+          0.6528
+        ],
+        "size": [
+          0.68,
+          0.69,
+          1.3056
+        ]
+      },
+      {
+        "position": [
+          -0.06,
+          0.34,
+          1.0656
+        ],
+        "size": [
+          0.68,
+          0.69,
+          2.1312
+        ]
+      },
+      {
+        "position": [
+          0.61,
+          0.15,
+          0.8688
+        ],
+        "size": [
+          0.68,
+          0.69,
+          1.7376
+        ]
+      },
+      {
+        "position": [
+          0.39,
+          -0.56,
+          0.5136000000000001
+        ],
+        "size": [
+          0.68,
+          0.69,
+          1.0272000000000001
+        ]
+      },
+      {
+        "position": [
+          1.16,
+          -0.16,
+          0.42719999999999997
+        ],
+        "size": [
+          0.68,
+          0.69,
+          0.8543999999999999
+        ]
+      },
+      {
+        "position": [
+          -0.76,
+          0.61,
+          0.624
+        ],
+        "size": [
+          0.68,
+          0.69,
+          1.248
+        ]
+      }
+    ],
+    "trimesh": false,
+    "bounds_m": [
+      [
+        -1.316,
+        -0.953,
+        -0.16
+      ],
+      [
+        1.539,
+        1.007,
+        2.22
+      ]
+    ]
+  }
+}
