@@ -18,7 +18,7 @@ extends Node3D
 
 const ROOT: String = "res://cairn_divide/"
 const BUILT: Array[String] = ["habitation", "laboratory", "utility", "glass_bridge", "relay_mast", "pump_station", "quarry_gantry", "survey_dish"]
-const SWAP: float = 60.0      # a scanned fir is drawn this close to the camera; a stand-in beyond
+const SWAP: float = 90.0      # a scanned fir is drawn this close to the camera; a stand-in beyond
 const FERN_CELL: float = 96.0
 const WEAR: float = 0.5       # how run-down the painted walls look (0 new, 1 derelict)
 const GRID: float = 4.0   # spacing of the terrain's vertices
@@ -149,6 +149,7 @@ func flush() -> void:
 				batch.visibility_range_end_margin = 20.0
 			else:
 				batch.gi_mode = GeometryInstance3D.GI_MODE_STATIC
+				batch.lod_bias = 3.0   # automatic levels of detail made far houses blocky
 			add_child(batch)
 		template.free()
 	_batches.clear()
@@ -404,26 +405,36 @@ func _fir_stand_in() -> ArrayMesh:
 		return _stand_in
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_cone(tool, 0.0, 9.0, 0.3, 0.18, Color(0.1, 0.08, 0.06), Color(0.1, 0.08, 0.06))
-	for tier in 8:
-		var base := 5.0 + tier * 2.2
-		var spread := (3.0 if tier % 2 == 0 else 2.5) * (1.0 - tier / 8.8)
-		_cone(tool, base, base + 3.6, spread, spread * 0.1, Color(0.035, 0.055, 0.035), Color(0.075, 0.11, 0.065))
+	_cone(tool, 0.0, 9.0, 0.3, 0.18, Color(0.1, 0.08, 0.06), Color(0.1, 0.08, 0.06), 6, 0.0)
+	# Ten ragged skirts, narrowing to the top, each turned against the last so
+	# the outline reads as a fir and not a stack of cones.
+	for tier in 10:
+		var base := 4.5 + tier * 1.75
+		var spread := 3.2 * (1.0 - tier / 10.5) + 0.25
+		_cone(tool, base, base + 3.0, spread, spread * 0.08, Color(0.035, 0.055, 0.035), Color(0.08, 0.115, 0.07), 14, tier * 0.37)
 	tool.generate_normals()
 	var needles := StandardMaterial3D.new()
 	needles.vertex_color_use_as_albedo = true
 	needles.roughness = 1.0
+	needles.cull_mode = BaseMaterial3D.CULL_DISABLED
 	tool.set_material(needles)
 	_stand_in = tool.commit()
 	return _stand_in
 
-func _cone(tool: SurfaceTool, y0: float, y1: float, r0: float, r1: float, low: Color, high: Color) -> void:
-	var sides := 8
+# A ring of `sides` quads from radius r0 at y0 to r1 at y1. On a skirt every
+# other bottom corner is pulled in and the rest droop, which gives it a ragged,
+# branchy edge.
+func _cone(tool: SurfaceTool, y0: float, y1: float, r0: float, r1: float, low: Color, high: Color, sides: int, turn: float) -> void:
+	var ragged := sides > 6
 	for k in sides:
-		var a := k * TAU / sides
-		var b := (k + 1) * TAU / sides
+		var a := turn + k * TAU / sides
+		var b := turn + (k + 1) * TAU / sides
+		var ra := r0 * (0.62 if ragged and k % 2 == 1 else 1.0)
+		var rb := r0 * (0.62 if ragged and (k + 1) % 2 == 1 else 1.0)
+		var droop_a := 0.5 if ragged and k % 2 == 0 else 0.0
+		var droop_b := 0.5 if ragged and (k + 1) % 2 == 0 else 0.0
 		var corners: Array[Vector3] = [
-			Vector3(cos(a) * r0, y0, sin(a) * r0), Vector3(cos(b) * r0, y0, sin(b) * r0),
+			Vector3(cos(a) * ra, y0 - droop_a, sin(a) * ra), Vector3(cos(b) * rb, y0 - droop_b, sin(b) * rb),
 			Vector3(cos(b) * r1, y1, sin(b) * r1), Vector3(cos(a) * r1, y1, sin(a) * r1)]
 		for index: int in [0, 2, 1, 0, 3, 2]:
 			tool.set_color(low if index < 2 else high)

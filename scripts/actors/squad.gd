@@ -57,7 +57,7 @@ const MAX_SHOOTERS: int = 2
 # unit takes over: the gaps are when the player gets to move or shoot back.
 const FIRE_GAP: float = 0.6
 # How close a firefight has to be for a calm squad to come and help.
-const BACKUP_RANGE: float = 22.0
+const BACKUP_RANGE: float = 16.0
 
 var _tokens: Array[Enemy] = []
 var _claims: Dictionary = {}
@@ -192,11 +192,22 @@ func _enter_combat() -> void:
 	_set_mode(Mode.COMBAT)
 	_push_announced = false
 	assign_roles()
-	# Nearby squads hear the shooting and come to look a few seconds later.
+	# The nearest quiet squad hears the shooting and comes to look a while later.
+	_call_backup()
+
+# Only the one nearest quiet squad within BACKUP_RANGE comes: a fight should not
+# pull in the whole street.
+func _call_backup() -> void:
+	var nearest: Squad = null
 	for other in all:
-		if other != self and other.mode == Mode.CALM and other.center().distance_to(last_known) < BACKUP_RANGE:
-			other._backup_in = other.rng.randf_range(4.0, 8.0)
-			other._backup_at = last_known
+		if other == self or other.mode != Mode.CALM or other._backup_in >= 0.0 or other.living().is_empty():
+			continue
+		var away := other.center().distance_to(last_known)
+		if away < BACKUP_RANGE and (nearest == null or away < nearest.center().distance_to(last_known)):
+			nearest = other
+	if nearest != null:
+		nearest._backup_in = nearest.rng.randf_range(7.0, 12.0)
+		nearest._backup_at = last_known
 
 # Sent in from outside the fight: go to where the trouble was and sweep it.
 func respond_to(position: Vector3) -> void:
