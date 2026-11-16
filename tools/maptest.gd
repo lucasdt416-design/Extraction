@@ -167,6 +167,9 @@ func _ready() -> void:
 		for door: Door in doors:
 			door.open()
 		await get_tree().create_timer(4.0).timeout
+	var wild := raid.level.get_node_or_null("Wilds") as Scenery
+	if wild != null:
+		check("scenery grew between the places", wild.planted > 1500, "%d pieces, %d solid" % [wild.planted, wild.solid])
 	var grass := raid.level.get_node_or_null("Grass") as Grass
 	if grass != null:
 		check("grass found bare ground to grow on", grass.planted > 2000, "%d tufts" % grass.planted)

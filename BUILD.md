@@ -138,6 +138,19 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
 ## Playtest log
 
+**2026-11-16, the wild ground.** ChatGPT's Colony Biomes scenery kit
+(`assets/scenery/colony-biomes/`: 3 trees, 11 plants, 2 logs, 8 rock formations) now
+covers the open ground between the places on both big maps. `Scenery`
+(`world/scenery.gd`) plants itself like `Grass`: rays onto bare terrain on a jittered
+grid, clumped by noise, clear of every colony, post, shelter, spawn and exit. What grows
+where is the level's `biome` callable: on Cairn Divide by height (willow and cobbles by
+the river, aspen and deadfall low, heather and shale on the slopes, snags and scree high);
+on Aster by the nearest place (`AsterLevel.WILD`: salt round Saltglass, basalt round
+Cinder, willow and reeds round the conservatory, driftwood by the port and the ferry).
+Trees, rocks and logs are solid. About 8,000 pieces on Cairn Divide and 12,000 on Aster,
+3,000+ solid on each. Rocks use the kit's stone shader. Drawn by 128 m square: the
+leafy trees to 150 m, snags to 260 m, rocks to 320 m, plants to 75–110 m.
+
 **2026-11-16, modelled enemies.** The guards are now ChatGPT's Colony Security robots
 (`assets/enemies/colony-security/`, see its README): Patrol for Trooper, Shade for the
 cloaked Stalker, Bastion for Bulwark, Longshot for Marksman, Sapper for Grenadier,
@@ -270,6 +283,7 @@ scripts/
   core/steps.gd              step-up movement over kerbs and sills
   world/door.gd, door_switch.gd   sliding doors and gates, and the buttons that work them
   world/grass.gd             self-planting grass; movement is in shaders/grass.gdshader
+  world/scenery.gd           self-planting trees, plants and rocks between a big map's places
   world/loot.gd, loot_container.gd, extract_point.gd
   fx/mats.gd, shapes.gd, fx.gd   materials, bevelled meshes, one-shot effects
   ui/hud.gd, menu.gd, ui_kit.gd
