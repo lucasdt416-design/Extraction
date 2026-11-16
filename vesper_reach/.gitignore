@@ -1,0 +1,6 @@
+# Textures Godot extracts from the GLBs on import. Regenerated; never committed.
+art/**/*.jpg
+art/**/*.png
+art/**/*.jpg.import
+art/**/*.png.import
+!art/textures/*

@@ -77,6 +77,8 @@ const HEADSHOT_MULT: float = 1.75
 const MAPS: Dictionary = {
 	"relay_07": {"name": "Relay Station 07", "title": "RELAY\nSTATION 07", "mark": "07", "scene": "res://scenes/raid.tscn",
 		"minutes": 12, "exits": 2, "brief": "Twelve minutes before the station locks down. Two ways out. Squads hold every building."},
+	"aster_city": {"name": "Aster City", "title": "ASTER\nCITY", "mark": "AC", "scene": "res://scenes/raid.tscn", "level": "aster",
+		"minutes": 15, "exits": 2, "brief": "Four cordoned blocks of a colony town. A relay spire on the crossroads, glass bridges over the avenue, a vault in the depot. Fifteen minutes."},
 }
 
 # Player classes. Each has a passive, a tactical (short cooldown) and a prime

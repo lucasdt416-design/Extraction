@@ -6,12 +6,13 @@ extends Node3D
 # extracted" into calls on GameManager. It owns no gameplay state of its own
 # beyond the clock.
 
-const RAID_LENGTH: float = 12.0 * 60.0
+# Set from the map's entry in Catalog.MAPS when the raid starts.
+var raid_length: float = 12.0 * 60.0
 
 var level: Level
 var player: Player
 var hud: Hud
-var time_left: float = RAID_LENGTH
+var time_left: float = raid_length
 var elapsed: float = 0.0
 var over: bool = false
 var extract_points: Array[ExtractPoint] = []
@@ -32,10 +33,14 @@ func _ready() -> void:
 	Squad.all.clear()
 	_build_environment()
 
-	level = Level.new()
+	var map: Dictionary = Catalog.MAPS[GameManager.map_id]
+	raid_length = float(map["minutes"]) * 60.0
+	time_left = raid_length
+	level = AsterLevel.new() if map.get("level", "") == "aster" else Level.new()
 	level.name = "Level"
 	add_child(level)
 	level.build()
+	level.tune(_env, _sun)
 	for mark in level.containers:
 		var container := LootContainer.new()
 		container.setup(mark["kind"], GameManager.rng)
@@ -114,7 +119,7 @@ func _escalate(delta: float) -> void:
 		if squad.mode == Squad.Mode.COMBAT and not squad.living().is_empty():
 			fighting = true
 	heat = heat + delta if fighting else maxf(heat - delta * 0.35, 0.0)
-	if heat >= HEAT_FOR_WAVE or (waves_sent == 0 and time_left < RAID_LENGTH * LATE_WAVE_AT):
+	if heat >= HEAT_FOR_WAVE or (waves_sent == 0 and time_left < raid_length * LATE_WAVE_AT):
 		send_reinforcements(player.global_position)
 
 # Called through the "raid" group by anything that trips an alarm.
