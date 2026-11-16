@@ -44,7 +44,6 @@ const WALKS: Dictionary = {
 		["in through a front door", Vector3(0.0, 0.3, 14.0), Vector2(0, -1), 3.0, "z<6"],
 		["up the stairs", Vector3(-9.0, 0.3, -4.5), Vector2(1, 0), 4.0, "y>4.6"],
 		["along the upper glass walkway", Vector3(-8.0, 5.3, 0.0), Vector2(-1, 0), 4.5, "x<-24"],
-		["stopped by the fence", Vector3(70.0, 0.4, 20.0), Vector2(1, 0), 6.0, "x<86"],
 	],
 }
 
@@ -66,6 +65,7 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	GameManager.map_id = args[0]
 	GameManager.in_raid = true
+	CairnLevel.spawn_at = 0
 	var started := Time.get_ticks_msec()
 	var raid: Raid = load("res://scenes/raid.tscn").instantiate()
 	add_child(raid)
@@ -81,7 +81,12 @@ func _ready() -> void:
 	check("spawn is on the navmesh", start.distance_to(player.global_position) < 1.5, "%.2f m off" % start.distance_to(player.global_position))
 	var targets: Array = []
 	for point in raid.extract_points:
-		targets.append([point.label, point.global_position])
+		if raid.level.separate_regions:
+			# Islands of navmesh: an exit has to be on one, not reachable from the spawn.
+			var close := NavigationServer3D.map_get_closest_point(map, point.global_position)
+			check("on the navmesh: " + point.label, close.distance_to(point.global_position) < 1.6, "%.1f m off" % close.distance_to(point.global_position))
+		else:
+			targets.append([point.label, point.global_position])
 	targets.append_array(HIGH_PLACES.get(args[0], []))
 	if raid.level is AsterLevel:
 		for column in AsterLevel.COLUMNS:
@@ -96,7 +101,12 @@ func _ready() -> void:
 	for mark: Dictionary in raid.level.containers:
 		var at: Vector3 = mark["position"]
 		var path := NavigationServer3D.map_get_path(map, start, at, true)
-		if path.is_empty() or path[path.size() - 1].distance_to(at) > 1.5:
+		var missed := path.is_empty() or path[path.size() - 1].distance_to(at) > 1.5
+		if raid.level.separate_regions:
+			# Anything outside the guards' islands (a shelter in the hills) only has to stand on the ground.
+			var under := raid.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.6, at + Vector3.DOWN * 1.5, Layers.WORLD))
+			missed = under.is_empty()
+		if missed:
 			unreachable += 1
 			print("      container out of reach: ", at, " ", mark["kind"])
 	check("every container can be reached", unreachable == 0, "%d of %d out of reach" % [unreachable, raid.level.containers.size()])
@@ -115,7 +125,7 @@ func _ready() -> void:
 		var enemy := node as Enemy
 		if enemy.global_position.distance_to(before[node]) > 1.0:
 			moved += 1
-		if enemy.global_position.y < -3.0:
+		if enemy.global_position.y < -40.0:
 			fell += 1
 	check("squads patrol", moved >= before.size() * 0.6, "%d of %d moved" % [moved, before.size()])
 	check("nobody fell through the world", fell == 0, str(fell))

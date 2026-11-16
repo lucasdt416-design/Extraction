@@ -12,6 +12,8 @@ const TEAL := Color(0.40, 0.86, 0.82)
 const SHIELD := Color(0.62, 0.82, 1.0)
 const DANGER := Color(1.0, 0.36, 0.30)
 const MARGIN: float = 44.0
+const MAP_SIZE: float = 190.0     # the corner map, in pixels
+const MAP_SHOWS: float = 380.0    # how many metres across it shows
 
 var _raid: Raid
 var _player: Player
@@ -90,6 +92,8 @@ func bind(raid: Raid) -> void:
 	_player.notice.connect(show_notice)
 	_pack_size = GameManager.backpack.size()
 	GameManager.backpack_changed.connect(_on_backpack_changed)
+	if raid.level.minimap != null:
+		_comms.position.y += MAP_SIZE + 26.0   # the comms feed moves down to make room
 	_play_intro()
 
 # Something new in the backpack: announce it on the right of the screen.
@@ -290,6 +294,8 @@ func _draw_overlay() -> void:
 		_canvas.draw_rect(Rect2(center + Vector2(-40, 44), Vector2(80, 2)), Color(1, 1, 1, 0.2))
 		_canvas.draw_rect(Rect2(center + Vector2(-40, 44), Vector2(80 * clampf(progress, 0.0, 1.0), 2)), TEAL)
 
+	_draw_map(size)
+
 	# Standing in an extraction zone: a ring round the crosshair fills as the hold completes.
 	for point in _raid.extract_points:
 		if point.occupant != null:
@@ -353,6 +359,44 @@ func _draw_overlay() -> void:
 			_canvas.draw_string(_font, screen + Vector2(-100, 24), "%s  %dm" % [point.label, distance], HORIZONTAL_ALIGNMENT_CENTER, 200, 13, Color(TEAL, 0.9))
 
 # A small square with a key's letter on it. Lit when the thing is available.
+# The corner map: a north-up window on the level's picture, centred on the
+# player, with the exits and the named places marked.
+func _draw_map(size: Vector2) -> void:
+	var level := _raid.level
+	if level.minimap == null:
+		return
+	var corner := Vector2(size.x - MARGIN - MAP_SIZE, MARGIN)
+	var frame := Rect2(corner, Vector2(MAP_SIZE, MAP_SIZE))
+	var here := Vector2(_player.global_position.x, _player.global_position.z)
+	var per_metre := level.minimap.get_width() / level.minimap_span
+	var window := MAP_SHOWS * per_metre
+	var source := Rect2((here + Vector2.ONE * level.minimap_span * 0.5) * per_metre - Vector2.ONE * window * 0.5, Vector2(window, window))
+	_canvas.draw_rect(frame, Color(0.03, 0.05, 0.05, 0.75))
+	_canvas.draw_texture_rect_region(level.minimap, frame, source, Color(1, 1, 1, 0.92))
+	var scale := MAP_SIZE / MAP_SHOWS
+	var middle := corner + Vector2.ONE * MAP_SIZE * 0.5
+	var mono := UiKit.mono(true, 1)
+	for place: Dictionary in level.places:
+		var at: Vector3 = place["position"]
+		var spot := middle + (Vector2(at.x, at.z) - here) * scale
+		if frame.grow(-8.0).has_point(spot):
+			_canvas.draw_string(mono, spot + Vector2(-60, -9), (place["name"] as String).to_upper(), HORIZONTAL_ALIGNMENT_CENTER, 120, 9, Color(1, 1, 1, 0.8))
+	for point in _raid.extract_points:
+		var offset := (Vector2(point.global_position.x, point.global_position.z) - here) * scale
+		var limit := MAP_SIZE * 0.5 - 7.0
+		var edge := absf(offset.x) > limit or absf(offset.y) > limit
+		if edge:
+			offset *= limit / maxf(absf(offset.x), absf(offset.y))
+		var spot := middle + offset
+		var diamond := PackedVector2Array([spot + Vector2(0, -5), spot + Vector2(5, 0), spot + Vector2(0, 5), spot + Vector2(-5, 0)])
+		_canvas.draw_colored_polygon(diamond, Color(TEAL, 0.55 if edge else 1.0))
+	var yaw := _player.rotation.y
+	var ahead := Vector2(-sin(yaw), -cos(yaw))
+	var side := Vector2(-ahead.y, ahead.x)
+	_canvas.draw_colored_polygon(PackedVector2Array([middle + ahead * 8.0, middle - ahead * 5.0 + side * 5.0, middle - ahead * 2.0, middle - ahead * 5.0 - side * 5.0]), UiKit.ACID)
+	_canvas.draw_rect(frame, Color(1, 1, 1, 0.5), false, 1.0)
+	_canvas.draw_string(mono, corner + Vector2(6, 13), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.7))
+
 func _keycap(at: Vector2, letter: String, lit: bool) -> void:
 	_canvas.draw_rect(Rect2(at, Vector2(24, 24)), INK if lit else Color(1, 1, 1, 0.2))
 	_canvas.draw_string(UiKit.mono(true), at + Vector2(0, 17), letter, HORIZONTAL_ALIGNMENT_CENTER, 24, 13, Color(0.06, 0.07, 0.08) if lit else INK)

@@ -24,7 +24,7 @@ Everything is on `main`. Work happens on a short branch per job, merged by PR.
 |---|---|---|
 | Relay Station 07 | `Level` (`world/level.gd`) | 90 × 70 m compound, every piece built in code. The default. |
 | Aster City | `AsterLevel` (`world/aster_level.gd`) | 168 × 224 m: four cordoned blocks of a colony town, plus a quarter past each of the north and south gates. 15 minutes. |
-| Cairn Divide | `CairnLevel` (`world/cairn_level.gd`) | 172 × 156 m fenced mountain shelf: five two-storey houses joined by glass walkways. 14 minutes. |
+| Cairn Divide | `CairnLevel` (`world/cairn_level.gd`) | 1.5 km square valley: five abandoned colonies, guard posts on the trails, rock shelters. 25 minutes, five exits. |
 
 A map is an entry in `Catalog.MAPS`; its `"level"` (`"aster"`, `"cairn"`) picks the class in `Raid._ready`.
 A level subclass overrides `build()`, `bake()` and optionally `tune(env, sun)`, and fills
@@ -79,37 +79,50 @@ Not used yet from the kit: the three weapon models in three skins
 (`vesper_reach/art/weapons`, stats in `data/equipment.json`), the minimap image, and the
 other districts.
 
-**Cairn Divide** (added 2026-11-16) is Hearth Colony, the middle one of the five
-settlements in ChatGPT's second kit (`cairn_divide/`; its notes are `cairn_divide/HANDOFF.md`,
-licences in `LICENSES.md`). The kit is a 2 km valley; `CairnKit` (`world/cairn_kit.gd`)
-loads the terrain for all of it and everything else near the shelf.
+**Cairn Divide** (added 2026-11-16, widened to the whole valley the same day) is all of
+ChatGPT's second kit (`cairn_divide/`; its notes are `cairn_divide/HANDOFF.md`, licences
+in `LICENSES.md`): a 1.5 km square of mountain valley with five abandoned colonies either
+side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
-- From the kit: the houses (two real floors, stairs, a locked archive upstairs), the
-  glass walkways, the door model, terrain, paths, river, ferns, boulders, one fir.
+- From the kit: 17 houses (two real floors, stairs, most with a locked archive upstairs),
+  glass walkways, the two long glass crossings over the gorge, masts, pump house, gantry,
+  dishes, the door model, terrain, trails, river, ferns, boulders, one fir, the map picture.
 - The kit's manifest lists its doorways and loot cases. `CairnLevel._doors` turns each
   doorway into two `Door` leaves wearing the kit's model with a `DoorSwitch` either side
-  (42 doorways). `_loot` turns the loot cases into containers. Archive doors are
+  (138 doorways). `_loot` turns the loot cases into containers. Archive doors are
   `locked`: the button is red, takes 3 s to force and is loud; guards do not open them.
-  Two archives hold a vault (`VAULTS`), the other three a locker.
-- Authored in code: the wire fence round the shelf (`shaders/fence.gdshader`), cover in
-  the yards, mast lamps, squads (11, 23 guards), two exits, the meadow (`Grass`).
-- `CairnKit.height(x, z)` gives the ground height; the shelf is flat (y = 0) between about
-  x ±80 and z -56..60 and rises or falls toward the fence. Code-built cover assumes y = 0,
-  so keep it on the flat part.
-- Left out of the repo to keep it small: the other four districts' buildings, the kit's
-  own grass, cliff, sky image, loot-case and button models, and the young-fir model (a
-  young fir is the big one at 0.3 scale). Copy them from
-  `~/Documents/ChatGPT/extraction/assets/maps/cairn-divide/godot` to use them.
-- The scanned fir is 220,000 triangles. Each of the 58 near the shelf is drawn as the
-  scan only within 75 m of the camera; beyond that, and for its shadow, and for the
-  1,300 on the far hillsides, a 130-triangle stand-in built in `CairnKit._fir_stand_in`.
+  Every other archive holds a vault, the rest a locker.
+- Authored in code: cover and wreckage in each colony (`_yards` for Hearth, `_camp` for
+  the other four, mirrored and recoloured), six guard posts on the trails (`_post`, four
+  manned; each looks for the most level ground near its listed spot), four rock shelters
+  in the hills made of the kit's boulders (`_shelter`), squads (29, 55 guards), an exit
+  in every colony, meadow on each colony's shelf.
+- **Guards stay home.** The navmesh is one island per colony and manned post
+  (`CairnLevel.zones`, baked in `bake()` from one parse of the colliders). The ground
+  between is the player's alone. `Level.separate_regions` tells the tools; reinforcements
+  only arrive within `Level.reinforce_range` (150 m) of the player.
+- You start at one of the kit's ten insertion points, chosen from the raid's seed
+  (`CairnLevel.spawn_at` pins it for the tools).
+- `Level.origin` is added to everything the box helpers build, so one layout function
+  can build at any height: set it, build, set it back.
+- `CairnKit.height(x, z)` gives the ground height anywhere.
+- The corner map (`Hud._draw_map`) shows for any level that sets `Level.minimap`,
+  `minimap_span` and `places`. Only Cairn Divide does.
+- "Run-down": `WEAR` in `CairnKit` drives stains and flaked paint in
+  `cairn_divide/shaders/painted_surface.gdshader`; a third of the lamps are dead.
+- Left out of the repo: the kit's own grass, cliff, sky image, loot-case and button
+  models, and the young-fir model (a young fir is the big one at 0.3 scale).
+- The scanned fir is 220,000 triangles. Each of the 1,500 is drawn as the scan only
+  within 60 m of the camera; beyond that, and for its shadow, a 130-triangle stand-in
+  built in `CairnKit._fir_stand_in`.
 
 ## Playtest log
 
-**2026-11-16, Cairn Divide added.** Not played by a person. `maptest cairn_divide` passes
-(both floors, the walkways, an archive, every container, a shut door, the fence); 18 of
-23 guards moved in ten seconds of patrol, and which five stood still was not looked into.
-About 2.8 M triangles a frame from the spawn, against Aster City's 5 M.
+**2026-11-16, Cairn Divide added, then widened to the whole valley.** Not played by a
+person. `maptest cairn_divide` passes (Hearth on both floors, the walkways, an archive, a
+shut door, every exit on navmesh, every container standing on ground); 46 of 55 guards
+moved in ten seconds of patrol. About 3.5 M triangles a frame from the Hearth spawn. Builds
+and bakes in about 3 s.
 
 **2026-11-15, first outside playtest.** Reported: a freed-instance error in
 `Fx._bullet_hole`; enemies run you down; one shot brings the whole map; the window is
@@ -285,9 +298,15 @@ Give this to whoever or whatever makes models:
 - Aster City has not been played by a person. Its buildings have one door each, so the
   rooms are dead ends; upper floors of the towers are skyline only.
 - Cairn Divide has not been played by a person. Unknown: whether fights across the open
-  shelf are fair with this little cover, whether guards cope with stairs and the upper
-  walkways in a real fight, and how the houses' glass walls play (glass stops shots).
-  The other four districts of the kit are not in the game.
+  shelves are fair with this little cover, whether guards cope with stairs and the upper
+  walkways in a real fight, how the houses' glass walls play (glass stops shots), whether
+  55 guards and 1,500 trees hold the frame rate, and whether you can get stuck in the
+  river gorge (its sides are steep and nothing lifts you out).
+- Cairn Divide's guard posts and rock shelters were placed by rule and only two were looked
+  at. A post on a slope stands on a tall concrete block; a shelter's way in may be tight.
+- Guards never leave their colony or post, so nothing hunts you on the trails yet. Drone
+  drops and roaming patrols are the planned next step.
+- Only Cairn Divide has the corner map.
 - Doors, gates and grass (2026-11-16) are checked by `maptest` only. Unknown until played:
   whether guards opening doors reads as a warning or as noise, whether 33 guards on the
   bigger map is too many, and the frame rate with grass on a slower machine.

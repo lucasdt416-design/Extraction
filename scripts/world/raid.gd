@@ -140,7 +140,7 @@ func send_reinforcements(toward: Vector3) -> bool:
 	var best_distance := -1.0
 	for point: Vector3 in level.reinforce_points:
 		var distance := point.distance_to(player.global_position)
-		if distance < 30.0:
+		if distance < 30.0 or distance > level.reinforce_range:
 			continue
 		var query := PhysicsRayQueryParameters3D.create(eye, point + Vector3.UP * 1.2, Layers.WORLD)
 		# Seen from where the player stands: not an option, however far away.

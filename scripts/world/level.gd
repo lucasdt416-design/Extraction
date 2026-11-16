@@ -34,6 +34,19 @@ var reinforce_points: Array[Vector3] = [
 	Vector3(-40.0, 0.1, -30.0), Vector3(0.0, 0.1, 32.0), Vector3(-43.0, 0.1, 14.0), Vector3(30.0, 0.1, -31.0), Vector3(42.0, 0.1, 18.0),
 ]
 
+# Added to every position the building helpers below are given. A map made of
+# several places at different heights sets it while it builds each one.
+var origin := Vector3.ZERO
+# True when the navmesh is several islands (one per settlement) and not one piece.
+var separate_regions: bool = false
+# Reinforcements only come in at an entry point this close to the player.
+var reinforce_range: float = INF
+# A north-up picture of the whole map, centred on the level's origin, for the
+# HUD's corner map; `minimap_span` is how many metres it covers.
+var minimap: Texture2D
+var minimap_span: float = 0.0
+var places: Array[Dictionary] = []      # {"name": String, "position": Vector3}, labelled on the corner map
+
 func build() -> void:
 	_ground_and_perimeter()
 	_warehouse()
@@ -53,6 +66,7 @@ func tune(_env: Environment, _sun: DirectionalLight3D) -> void:
 # --- Primitives --------------------------------------------------------------
 
 func _box(center: Vector3, size: Vector3, mat: Material, solid: bool = true, nav: bool = true, yaw: float = 0.0, bevel: float = 0.0) -> MeshInstance3D:
+	center += origin
 	var visual := MeshInstance3D.new()
 	if bevel > 0.0:
 		# Decorative pieces get a cheaper bevel and no shadow of their own.
@@ -133,7 +147,7 @@ func _shell(x0: float, z0: float, x1: float, z1: float, height: float, doors: Di
 
 func _lamp(position: Vector3, color: Color, energy: float = 2.2, reach: float = 11.0, shadows: bool = false, fixture: bool = true) -> void:
 	var light := OmniLight3D.new()
-	light.position = position
+	light.position = position + origin
 	light.light_color = color
 	light.light_energy = energy * 2.6
 	light.omni_range = reach * 1.35
@@ -229,7 +243,7 @@ func _sign(text: String, at: Vector3, yaw: float, letter_height: float, color: C
 	label.double_sided = false
 	label.alpha_cut = Label3D.ALPHA_CUT_DISCARD
 	label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	label.position = at
+	label.position = at + origin
 	label.rotation.y = yaw
 	add_child(label)
 
@@ -328,7 +342,7 @@ func _switch(at: Vector3, yaw: float, doors: Array[Door]) -> void:
 	add_child(button)
 
 func _mark(position: Vector3, kind: String, yaw: float = 0.0) -> void:
-	containers.append({"position": position, "kind": kind, "yaw": yaw})
+	containers.append({"position": position + origin, "kind": kind, "yaw": yaw})
 
 # --- Areas -------------------------------------------------------------------
 

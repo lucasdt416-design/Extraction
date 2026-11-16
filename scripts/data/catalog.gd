@@ -80,7 +80,7 @@ const MAPS: Dictionary = {
 	"aster_city": {"name": "Aster City", "title": "ASTER\nCITY", "mark": "AC", "scene": "res://scenes/raid.tscn", "level": "aster",
 		"minutes": 15, "exits": 3, "brief": "Four cordoned blocks of a colony town. A relay spire on the crossroads, glass bridges over the avenue, a vault in the depot. Fifteen minutes."},
 	"cairn_divide": {"name": "Cairn Divide", "title": "CAIRN\nDIVIDE", "mark": "CD", "scene": "res://scenes/raid.tscn", "level": "cairn",
-		"minutes": 14, "exits": 2, "brief": "A mountain colony above a river gorge. Five two-storey houses joined by glass walkways, a locked archive upstairs in each. Fourteen minutes."},
+		"minutes": 25, "exits": 5, "brief": "A valley of five abandoned colonies either side of a river gorge. Guard posts on the trails, shelters in the hills, a locked archive in most houses, and a way out of every colony. Twenty-five minutes."},
 }
 
 # Player classes. Each has a passive, a tactical (short cooldown) and a prime
