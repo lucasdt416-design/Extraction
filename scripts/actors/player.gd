@@ -218,6 +218,7 @@ func _move(frame: InputFrame, delta: float) -> void:
 			Sfx.play("step", -8.0, 0.8)
 	else:
 		velocity.y -= GRAVITY * delta
+	Steps.climb(self)
 	move_and_slide()
 
 	if is_on_floor() and not _was_on_floor:

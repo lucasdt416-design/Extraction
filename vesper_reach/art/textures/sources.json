@@ -1,0 +1,65 @@
+[
+  {
+    "file": "rock_albedo.jpg",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rocky_trail/rocky_trail_diff_1k.jpg",
+    "asset_page": "https://polyhaven.com/a/rocky_trail",
+    "license": "CC0-1.0",
+    "md5": "f515d1f026fe4a022d5c182f191d60dc"
+  },
+  {
+    "file": "rock_normal.jpg",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rocky_trail/rocky_trail_nor_gl_1k.jpg",
+    "asset_page": "https://polyhaven.com/a/rocky_trail",
+    "license": "CC0-1.0",
+    "md5": "72db2dba30e2c1685c2c203508528a29"
+  },
+  {
+    "file": "rock_roughness.jpg",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rocky_trail/rocky_trail_rough_1k.jpg",
+    "asset_page": "https://polyhaven.com/a/rocky_trail",
+    "license": "CC0-1.0",
+    "md5": "72de4f16dd3941cf74862f230cc9b2a3"
+  },
+  {
+    "file": "forest_albedo.jpg",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forrest_ground_01/forrest_ground_01_diff_1k.jpg",
+    "asset_page": "https://polyhaven.com/a/forrest_ground_01",
+    "license": "CC0-1.0",
+    "md5": "236e7d928f5e357a194fd92de189cbe4"
+  },
+  {
+    "file": "forest_normal.jpg",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forrest_ground_01/forrest_ground_01_nor_gl_1k.jpg",
+    "asset_page": "https://polyhaven.com/a/forrest_ground_01",
+    "license": "CC0-1.0",
+    "md5": "ba4265df25aea293913d004b69ef9ab0"
+  },
+  {
+    "file": "forest_roughness.jpg",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forrest_ground_01/forrest_ground_01_rough_1k.jpg",
+    "asset_page": "https://polyhaven.com/a/forrest_ground_01",
+    "license": "CC0-1.0",
+    "md5": "72dacf5b829cafc025f08ca64e92e5eb"
+  },
+  {
+    "file": "concrete_albedo.jpg",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_floor_01/concrete_floor_01_diff_1k.jpg",
+    "asset_page": "https://polyhaven.com/a/concrete_floor_01",
+    "license": "CC0-1.0",
+    "md5": "187065cfc20a35eb421eac6d4f38c58f"
+  },
+  {
+    "file": "concrete_normal.jpg",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_floor_01/concrete_floor_01_nor_gl_1k.jpg",
+    "asset_page": "https://polyhaven.com/a/concrete_floor_01",
+    "license": "CC0-1.0",
+    "md5": "3862d48eb9495b302652cac825738876"
+  },
+  {
+    "file": "concrete_roughness.jpg",
+    "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_floor_01/concrete_floor_01_rough_1k.jpg",
+    "asset_page": "https://polyhaven.com/a/concrete_floor_01",
+    "license": "CC0-1.0",
+    "md5": "3d374d86d7a43b93eed95d0d8957759c"
+  }
+]

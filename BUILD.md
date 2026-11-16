@@ -8,7 +8,8 @@ Last updated 2026-11-13.
 
 A first-person 3D extraction shooter in Godot 4.7 (GDScript). The loop is complete: menu →
 deploy → loot and fight AI squads → hold an extraction pad → stash, with loss on death.
-One map. The player character is Kestrel, an imported rigged model; everything else is
+Two maps: Relay Station 07 (all code-built) and Aster City (the Vesper Reach art kit plus
+code-built set pieces). The player character is Kestrel, an imported rigged model; everything else is
 built in code from primitives, generated textures and synthesized sound. An automated
 play-through passes. It has had **one outside playtest** (2026-11-15); the fixes from it
 are listed under "Playtest log" below and have not been re-played yet.
@@ -16,6 +17,41 @@ are listed under "Playtest log" below and have not been re-played yet.
 ## Branches
 
 Everything is on `main`. Work happens on a short branch per job, merged by PR.
+
+## Maps
+
+| Map | Level class | What it is |
+|---|---|---|
+| Relay Station 07 | `Level` (`world/level.gd`) | 90 × 70 m compound, every piece built in code. The default. |
+| Aster City | `AsterLevel` (`world/aster_level.gd`) | 168 × 160 m: four cordoned blocks of a colony town. 15 minutes. |
+
+A map is an entry in `Catalog.MAPS`; `"level": "aster"` picks the class in `Raid._ready`.
+A level subclass overrides `build()`, `bake()` and optionally `tune(env, sun)`, and fills
+`containers`, `extracts`, `squads`, `reinforce_points`, `player_spawn`.
+
+**Aster City** is made of two layers:
+
+- **The Vesper Reach kit** (`vesper_reach/`, made by ChatGPT; its notes are in
+  `vesper_reach/HANDOFF.md`, licences in `LICENSES.md`). A 2 km island described by
+  `data/world_manifest.json`: terrain cells, roads, 4,581 placements, signage, lights.
+  `VesperKit` (`world/vesper_kit.gd`) loads the part within 440 m of the city centre, moves
+  it so the crossroads is the origin, draws repeated meshes as MultiMeshes and only makes
+  colliders near the playable area. The other seven districts are not loaded.
+- **What is authored here** in `AsterLevel`, in the same code-built language as Relay
+  Station: the relay spire on the crossroads (deck, two ramps, mast), two glass bridges
+  over the avenue between roofs, the depot hangar (bay door, raised deck, vault), roof
+  landings, the cordon wall and gates, street cover, interior lighting and shelving, loot,
+  squads and exits.
+
+Things in the kit that had to be corrected (all in `AsterLevel._leave_out` and
+`_roof_access`): its roof stairs stop a metre short of the roofs; its arcades put a post
+in front of the doors they shelter; a few barriers stand across doorways; its skywalks sit
+40 cm above the roofs; its kerbs and door sills are too high to walk over, which is why
+`core/steps.gd` now gives the player and enemies step-up movement.
+
+Not used yet from the kit: the three weapon models in three skins
+(`vesper_reach/art/weapons`, stats in `data/equipment.json`), the minimap image, and the
+other districts.
 
 ## Playtest log
 
@@ -60,6 +96,8 @@ $GODOT --headless --path . res://tools/selftest.tscn -- --test-profile   # core 
 $GODOT --headless --path . res://tools/sim.tscn -- --test-profile        # menu↔raid flow + survival time
 $GODOT --path . res://tools/shots.tscn --resolution 1600x900 -- <dir> --test-profile   # screenshots
 $GODOT --path . res://tools/shots.tscn -- <dir> --test-profile --fps     # draw calls, triangles, frame time
+$GODOT --headless --path . res://tools/maptest.tscn -- aster_city --test-profile     # a map is walkable: exits, roofs, doors, loot, kerbs
+$GODOT --path . res://tools/map_shots.tscn -- <dir> aster_city --test-profile       # plan view and eye-level views of a map
 ```
 
 `--test-profile` makes saves go to `user://profile_test.json`. Always pass it from tools,
@@ -84,10 +122,14 @@ scripts/
   actors/grenade.gd
   world/raid.gd              assembles a raid: environment, level, player, squads, HUD, clock
   world/level.gd             Relay Station, hand-authored as code; bakes its navmesh
+  world/aster_level.gd       Aster City: the kit's streets plus code-built set pieces
+  world/vesper_kit.gd        loads part of the Vesper Reach kit as a level's scenery
+  core/steps.gd              step-up movement over kerbs and sills
   world/loot.gd, loot_container.gd, extract_point.gd
   fx/mats.gd, shapes.gd, fx.gd   materials, bevelled meshes, one-shot effects
   ui/hud.gd, menu.gd, ui_kit.gd
-tools/                       selftest, sim, shots, ui_shots: development helpers
+vesper_reach/                the Vesper Reach art kit: models, textures, shaders, manifest
+tools/                       selftest, sim, maptest, shots, ui_shots, map_shots: development helpers
 ```
 
 ## "I want to change X" → go here
@@ -102,7 +144,7 @@ tools/                       selftest, sim, shots, ui_shots: development helpers
 | How enemies pick where to stand | `Enemy._decide` (the scoring block) |
 | How many enemies may shoot at once | `Squad.max_tokens` |
 | What enemies say | `Squad.BARKS` |
-| Map geometry, squads, loot spots, extracts | `level.gd` (`_warehouse`, `_lab`, …) |
+| Map geometry, squads, loot spots, extracts | `level.gd` (`_warehouse`, `_lab`, …); `aster_level.gd` (`_spire`, `_glass_bridge`, `_depot`, …) |
 | Raid length | `Raid.RAID_LENGTH` |
 | Sky, fog, exposure, reflections | `Raid._build_environment` |
 | Wall/floor look | `shaders/surface.gdshader`, `Mats.wall` |
@@ -165,7 +207,8 @@ Give this to whoever or whatever makes models:
 ## Known gaps (the honest list)
 
 - Played once by an outside tester; the balance changes made in response are untested by a person.
-- One map.
+- Aster City has not been played by a person. Its buildings have one door each, so the
+  rooms are dead ends; upper floors of the towers are skyline only.
 - Kestrel has no crouch, jump, aim or death clips; crouch squashes the model.
 - First-person arms are capsules, not Kestrel's real arms. No weapon inspect/equip
   animation, no melee.

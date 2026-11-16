@@ -387,6 +387,7 @@ func _steer(delta: float) -> void:
 	velocity.x = flat.x
 	velocity.z = flat.z
 	velocity.y = 0.0 if is_on_floor() else velocity.y - GRAVITY * delta
+	Steps.climb(self)
 	move_and_slide()
 
 	if _has_goal and wish != Vector3.ZERO and flat.length() < 0.3:

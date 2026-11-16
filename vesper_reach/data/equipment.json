@@ -1,0 +1,19 @@
+{
+ "schema_version":1,
+ "note":"Fictional game equipment. Numeric gameplay values are proposed defaults, not playtested balance.",
+ "skins":{
+  "standard":{"name":"Porcelain / Coral","description":"Chalk ceramic panels, coral magazine stripe, graphite hardware"},
+  "hazard":{"name":"Hazard Division","description":"Acid-yellow receiver and safety panels"},
+  "abyss":{"name":"Abyssal Survey","description":"Deep teal receiver with pale identification graphics"}
+ },
+ "weapons":{
+  "k27_carbine":{"name":"K-27 Carbine","ammo":"medium","magazine_capacity":30,"fire_mode":"auto","rpm":600,"damage":27,"reload_seconds":2.3,"muzzle_position":[0,0.12,0.525],"grip_position":[0,-0.11,-0.09],"mass_kg":3.1},
+  "sable_smg":{"name":"Sable SMG","ammo":"light","magazine_capacity":32,"fire_mode":"auto","rpm":850,"damage":18,"reload_seconds":1.8,"muzzle_position":[0,0.12,0.348],"grip_position":[0,-0.11,-0.09],"mass_kg":2.2},
+  "longwatch_dmr":{"name":"Longwatch DMR","ammo":"heavy","magazine_capacity":16,"fire_mode":"semi","rpm":220,"damage":52,"reload_seconds":2.8,"muzzle_position":[0,0.12,0.682],"grip_position":[0,-0.11,-0.09],"mass_kg":4.2}
+ },
+ "ammo":{
+  "light":{"name":"L-class cartridges","pickup_count":32,"asset":"art/weapons/ammo_light.glb"},
+  "medium":{"name":"M-class cartridges","pickup_count":30,"asset":"art/weapons/ammo_medium.glb"},
+  "heavy":{"name":"H-class cartridges","pickup_count":16,"asset":"art/weapons/ammo_heavy.glb"}
+ }
+}

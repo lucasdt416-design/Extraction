@@ -45,6 +45,11 @@ func build() -> void:
 	_dress_site()
 	_placements()
 
+# A map's own adjustments to the raid's lighting. Relay Station is what the
+# defaults were tuned on, so it changes nothing.
+func tune(_env: Environment, _sun: DirectionalLight3D) -> void:
+	pass
+
 # --- Primitives --------------------------------------------------------------
 
 func _box(center: Vector3, size: Vector3, mat: Material, solid: bool = true, nav: bool = true, yaw: float = 0.0, bevel: float = 0.0) -> MeshInstance3D:

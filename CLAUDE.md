@@ -46,6 +46,9 @@ The whole loop is playable end to end. Everything below was run through
 - **Shooting** (`core/gun.gd`). Hitscan, shared by player and enemies: magazine, fire
   rate, reload, spread cone, pellets, damage falloff, headshots.
 - **Enemy AI** (`actors/enemy.gd`, `actors/squad.gd`). See "How the AI works" below.
+- **Second map** (`world/aster_level.gd`, `world/vesper_kit.gd`). "Aster City": four
+  blocks of a colony town from the imported Vesper Reach kit, with a relay spire, two
+  glass bridges, a depot hangar and roof routes authored in code. See `BUILD.md`, "Maps".
 - **Map** (`world/level.gd`). "Relay Station": warehouse with mezzanine, lab with a
   vault, barracks, courtyard, container yard, two extract points. Hand-authored in code
   from boxes; bakes its own navmesh from its colliders.
@@ -99,14 +102,15 @@ Individuals perceive and act; the `Squad` pools what they know and coordinates t
 - **Barks.** Each coordinated decision is announced through the HUD comms feed, and
   nearby squads come to investigate a firefight.
 - **Escalation** (`Raid._escalate`). Heat builds while any squad is fighting; enough of
-  it, a vault alarm, or reaching the halfway mark brings a fresh squad in from an entry
+  it, a vault alarm, or the last 30% of the clock brings a fresh squad in from an entry
   point the player can't see. Three waves at most, each heavier than the last.
 
 ### Known gaps
 
 - One outside playtest so far (see `BUILD.md`, "Playtest log"). The balance changes made
   in response have not been re-played.
-- One map.
+- Two maps. Aster City (the second) has passed the automated map check but has not
+  been played by a person.
 - Enemies have no melee and don't use doors, ladders or jumps.
 - Crouching doesn't lower an enemy's hit capsule; only the player's.
 - First-person weapons are modelled per type with hands and a magazine-drop reload,
@@ -125,7 +129,7 @@ Don't quietly reverse these; raise it with the user first.
 | Eventual MP target | **Co-op vs AI**, host-authoritative | Achievable for two people. |
 | PvP | **Explicitly not a goal** | Needs a real backend, server-side stash and anti-cheat. |
 | Physics | Jolt (Godot 3D), 120 ticks/s | Mouse look is applied on the tick, so it needs to be fine-grained. |
-| Assets | **Imported only for the player character and fonts** | Kestrel is a rigged GLB in `assets/characters/kestrel/` (user's call, 2026-11-13). Everything else is primitives, generated textures and synthesized audio. |
+| Assets | **Imported for the player character, fonts and the Vesper Reach map kit** | Kestrel is a rigged GLB in `assets/characters/kestrel/` (user's call, 2026-11-13). `vesper_reach/` is a map kit made by ChatGPT (user's call, 2026-11-15); see `BUILD.md`, "Maps". Set pieces, enemies, weapons, effects and audio are still built in code. |
 
 ## Network-readiness rules
 

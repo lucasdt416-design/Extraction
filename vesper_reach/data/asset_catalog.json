@@ -1,0 +1,2175 @@
+{
+  "habitat": {
+    "path": "art/detail/habitat.glb",
+    "triangles": 18472,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          -0.18
+        ],
+        "size": [
+          14.5,
+          12.5,
+          0.36
+        ]
+      },
+      {
+        "position": [
+          -6.78,
+          0,
+          2.5
+        ],
+        "size": [
+          0.44,
+          12,
+          5
+        ]
+      },
+      {
+        "position": [
+          -4.1,
+          -5.88,
+          2.5
+        ],
+        "size": [
+          5.8,
+          0.3,
+          5
+        ]
+      },
+      {
+        "position": [
+          6.78,
+          0,
+          2.5
+        ],
+        "size": [
+          0.44,
+          12,
+          5
+        ]
+      },
+      {
+        "position": [
+          4.1,
+          -5.88,
+          2.5
+        ],
+        "size": [
+          5.8,
+          0.3,
+          5
+        ]
+      },
+      {
+        "position": [
+          0,
+          5.84,
+          2.5
+        ],
+        "size": [
+          14,
+          0.32,
+          5
+        ]
+      },
+      {
+        "position": [
+          0,
+          -5.9,
+          4.15
+        ],
+        "size": [
+          2.4,
+          0.3,
+          1.7000000000000002
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          5.12
+        ],
+        "size": [
+          14.7,
+          12.7,
+          0.24
+        ]
+      },
+      {
+        "position": [
+          -3.6,
+          1,
+          0.5
+        ],
+        "size": [
+          2.8,
+          1,
+          1
+        ]
+      },
+      {
+        "position": [
+          3.6,
+          1,
+          0.5
+        ],
+        "size": [
+          2.8,
+          1,
+          1
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "clinic": {
+    "path": "art/detail/clinic.glb",
+    "triangles": 18580,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          -0.18
+        ],
+        "size": [
+          14.5,
+          12.5,
+          0.36
+        ]
+      },
+      {
+        "position": [
+          -6.78,
+          0,
+          2.5
+        ],
+        "size": [
+          0.44,
+          12,
+          5
+        ]
+      },
+      {
+        "position": [
+          -4.1,
+          -5.88,
+          2.5
+        ],
+        "size": [
+          5.8,
+          0.3,
+          5
+        ]
+      },
+      {
+        "position": [
+          6.78,
+          0,
+          2.5
+        ],
+        "size": [
+          0.44,
+          12,
+          5
+        ]
+      },
+      {
+        "position": [
+          4.1,
+          -5.88,
+          2.5
+        ],
+        "size": [
+          5.8,
+          0.3,
+          5
+        ]
+      },
+      {
+        "position": [
+          0,
+          5.84,
+          2.5
+        ],
+        "size": [
+          14,
+          0.32,
+          5
+        ]
+      },
+      {
+        "position": [
+          0,
+          -5.9,
+          4.15
+        ],
+        "size": [
+          2.4,
+          0.3,
+          1.7000000000000002
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          5.12
+        ],
+        "size": [
+          14.7,
+          12.7,
+          0.24
+        ]
+      },
+      {
+        "position": [
+          -3.6,
+          1,
+          0.5
+        ],
+        "size": [
+          2.8,
+          1,
+          1
+        ]
+      },
+      {
+        "position": [
+          3.6,
+          1,
+          0.5
+        ],
+        "size": [
+          2.8,
+          1,
+          1
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "workshop": {
+    "path": "art/detail/workshop.glb",
+    "triangles": 18544,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          -0.18
+        ],
+        "size": [
+          14.5,
+          12.5,
+          0.36
+        ]
+      },
+      {
+        "position": [
+          -6.78,
+          0,
+          2.5
+        ],
+        "size": [
+          0.44,
+          12,
+          5
+        ]
+      },
+      {
+        "position": [
+          -4.1,
+          -5.88,
+          2.5
+        ],
+        "size": [
+          5.8,
+          0.3,
+          5
+        ]
+      },
+      {
+        "position": [
+          6.78,
+          0,
+          2.5
+        ],
+        "size": [
+          0.44,
+          12,
+          5
+        ]
+      },
+      {
+        "position": [
+          4.1,
+          -5.88,
+          2.5
+        ],
+        "size": [
+          5.8,
+          0.3,
+          5
+        ]
+      },
+      {
+        "position": [
+          0,
+          5.84,
+          2.5
+        ],
+        "size": [
+          14,
+          0.32,
+          5
+        ]
+      },
+      {
+        "position": [
+          0,
+          -5.9,
+          4.15
+        ],
+        "size": [
+          2.4,
+          0.3,
+          1.7000000000000002
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          5.12
+        ],
+        "size": [
+          14.7,
+          12.7,
+          0.24
+        ]
+      },
+      {
+        "position": [
+          -3.6,
+          1,
+          0.5
+        ],
+        "size": [
+          2.8,
+          1,
+          1
+        ]
+      },
+      {
+        "position": [
+          3.6,
+          1,
+          0.5
+        ],
+        "size": [
+          2.8,
+          1,
+          1
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "residential_tower": {
+    "path": "art/detail/residential_tower.glb",
+    "triangles": 83800,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          -0.18
+        ],
+        "size": [
+          18.5,
+          16.5,
+          0.36
+        ]
+      },
+      {
+        "position": [
+          -8.78,
+          0,
+          2.75
+        ],
+        "size": [
+          0.44,
+          16,
+          5.5
+        ]
+      },
+      {
+        "position": [
+          -5.1,
+          -7.88,
+          2.75
+        ],
+        "size": [
+          7.8,
+          0.3,
+          5.5
+        ]
+      },
+      {
+        "position": [
+          8.78,
+          0,
+          2.75
+        ],
+        "size": [
+          0.44,
+          16,
+          5.5
+        ]
+      },
+      {
+        "position": [
+          5.1,
+          -7.88,
+          2.75
+        ],
+        "size": [
+          7.8,
+          0.3,
+          5.5
+        ]
+      },
+      {
+        "position": [
+          0,
+          7.84,
+          2.75
+        ],
+        "size": [
+          18,
+          0.32,
+          5.5
+        ]
+      },
+      {
+        "position": [
+          0,
+          -7.9,
+          4.4
+        ],
+        "size": [
+          2.4,
+          0.3,
+          2.2
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          5.62
+        ],
+        "size": [
+          18.7,
+          16.7,
+          0.24
+        ]
+      },
+      {
+        "position": [
+          -3.6,
+          1,
+          0.5
+        ],
+        "size": [
+          2.8,
+          1,
+          1
+        ]
+      },
+      {
+        "position": [
+          3.6,
+          1,
+          0.5
+        ],
+        "size": [
+          2.8,
+          1,
+          1
+        ]
+      },
+      {
+        "position": [
+          0,
+          1,
+          20.7
+        ],
+        "size": [
+          14.5,
+          12,
+          29.6
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "hangar": {
+    "path": "art/architecture/hangar.glb",
+    "triangles": 7812,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          -0.25
+        ],
+        "size": [
+          22.7,
+          18.7,
+          0.5
+        ]
+      },
+      {
+        "position": [
+          -10.83,
+          0,
+          3.5
+        ],
+        "size": [
+          0.34,
+          18,
+          7
+        ]
+      },
+      {
+        "position": [
+          10.83,
+          0,
+          3.5
+        ],
+        "size": [
+          0.34,
+          18,
+          7
+        ]
+      },
+      {
+        "position": [
+          0,
+          8.83,
+          3.5
+        ],
+        "size": [
+          22,
+          0.34,
+          7
+        ]
+      },
+      {
+        "position": [
+          -6.1,
+          -8.83,
+          3.5
+        ],
+        "size": [
+          9.8,
+          0.34,
+          7
+        ]
+      },
+      {
+        "position": [
+          6.1,
+          -8.83,
+          3.5
+        ],
+        "size": [
+          9.8,
+          0.34,
+          7
+        ]
+      },
+      {
+        "position": [
+          0,
+          -8.83,
+          5.0
+        ],
+        "size": [
+          2.4,
+          0.34,
+          4
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          7.12
+        ],
+        "size": [
+          22.6,
+          18.6,
+          0.24
+        ]
+      },
+      {
+        "position": [
+          5.720000000000001,
+          0,
+          0.55
+        ],
+        "size": [
+          6.16,
+          1.3,
+          1.1
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "Enterable industrial workshop with side cover."
+  },
+  "service_stairs": {
+    "path": "art/architecture/service_stairs.glb",
+    "triangles": 3316,
+    "colliders": [],
+    "trimesh": true,
+    "notes": "5 m rise, 12 m run, 3 m wide; use the supplied trimesh collision."
+  },
+  "skywalk": {
+    "path": "art/architecture/skywalk.glb",
+    "triangles": 2068,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "size": [
+          6,
+          24,
+          0.5
+        ]
+      },
+      {
+        "position": [
+          -2.9,
+          0,
+          0.25
+        ],
+        "size": [
+          0.18,
+          24,
+          0.5
+        ]
+      },
+      {
+        "position": [
+          2.9,
+          0,
+          0.25
+        ],
+        "size": [
+          0.18,
+          24,
+          0.5
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "24 m long by 6 m wide elevated pedestrian deck."
+  },
+  "conservatory_frame": {
+    "path": "art/detail/conservatory_frame.glb",
+    "triangles": 7148,
+    "colliders": [
+      {
+        "position": [
+          -13,
+          0,
+          0.5
+        ],
+        "size": [
+          1.0,
+          38,
+          1.0
+        ]
+      },
+      {
+        "position": [
+          13,
+          0,
+          0.5
+        ],
+        "size": [
+          1.0,
+          38,
+          1.0
+        ]
+      },
+      {
+        "position": [
+          -5,
+          -18,
+          0.65
+        ],
+        "size": [
+          6,
+          2,
+          1.3
+        ]
+      },
+      {
+        "position": [
+          5,
+          -18,
+          0.65
+        ],
+        "size": [
+          6,
+          2,
+          1.3
+        ]
+      },
+      {
+        "position": [
+          -5,
+          -6,
+          0.65
+        ],
+        "size": [
+          6,
+          2,
+          1.3
+        ]
+      },
+      {
+        "position": [
+          5,
+          -6,
+          0.65
+        ],
+        "size": [
+          6,
+          2,
+          1.3
+        ]
+      },
+      {
+        "position": [
+          -5,
+          6,
+          0.65
+        ],
+        "size": [
+          6,
+          2,
+          1.3
+        ]
+      },
+      {
+        "position": [
+          5,
+          6,
+          0.65
+        ],
+        "size": [
+          6,
+          2,
+          1.3
+        ]
+      },
+      {
+        "position": [
+          -5,
+          18,
+          0.65
+        ],
+        "size": [
+          6,
+          2,
+          1.3
+        ]
+      },
+      {
+        "position": [
+          5,
+          18,
+          0.65
+        ],
+        "size": [
+          6,
+          2,
+          1.3
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "heliograph": {
+    "path": "art/architecture/heliograph.glb",
+    "triangles": 7964,
+    "colliders": [
+      {
+        "position": [
+          -29,
+          0,
+          43
+        ],
+        "size": [
+          10,
+          16,
+          86
+        ]
+      },
+      {
+        "position": [
+          -29,
+          0,
+          3
+        ],
+        "size": [
+          18,
+          24,
+          6
+        ]
+      },
+      {
+        "position": [
+          29,
+          0,
+          43
+        ],
+        "size": [
+          10,
+          16,
+          86
+        ]
+      },
+      {
+        "position": [
+          29,
+          0,
+          3
+        ],
+        "size": [
+          18,
+          24,
+          6
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          1
+        ],
+        "size": [
+          76,
+          56,
+          2
+        ]
+      },
+      {
+        "position": [
+          0,
+          10,
+          7
+        ],
+        "size": [
+          22,
+          16,
+          12
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "146 m tall landmark; collision proxies on supports and bunker."
+  },
+  "observatory": {
+    "path": "art/architecture/observatory.glb",
+    "triangles": 1808,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          1
+        ],
+        "size": [
+          9,
+          9,
+          2
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "48 m tall radio landmark."
+  },
+  "container_teal": {
+    "path": "art/props/container_teal.glb",
+    "triangles": 4008,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          1.3
+        ],
+        "size": [
+          2.6,
+          6.1,
+          2.6
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": ""
+  },
+  "container_coral": {
+    "path": "art/props/container_coral.glb",
+    "triangles": 4008,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          1.3
+        ],
+        "size": [
+          2.6,
+          6.1,
+          2.6
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": ""
+  },
+  "container_white": {
+    "path": "art/props/container_white.glb",
+    "triangles": 4008,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          1.3
+        ],
+        "size": [
+          2.6,
+          6.1,
+          2.6
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": ""
+  },
+  "barrier": {
+    "path": "art/props/barrier.glb",
+    "triangles": 264,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.45
+        ],
+        "size": [
+          3.2,
+          1,
+          0.9
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": ""
+  },
+  "loot_crate": {
+    "path": "art/props/loot_crate.glb",
+    "triangles": 540,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.45
+        ],
+        "size": [
+          1.25,
+          0.85,
+          0.9
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": ""
+  },
+  "streetlamp": {
+    "path": "art/props/streetlamp.glb",
+    "triangles": 336,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "pipeline": {
+    "path": "art/props/pipeline.glb",
+    "triangles": 2044,
+    "colliders": [
+      {
+        "position": [
+          0,
+          -5,
+          0.22
+        ],
+        "size": [
+          1.5,
+          0.4,
+          0.44
+        ]
+      },
+      {
+        "position": [
+          0,
+          -2,
+          0.22
+        ],
+        "size": [
+          1.5,
+          0.4,
+          0.44
+        ]
+      },
+      {
+        "position": [
+          0,
+          2,
+          0.22
+        ],
+        "size": [
+          1.5,
+          0.4,
+          0.44
+        ]
+      },
+      {
+        "position": [
+          0,
+          5,
+          0.22
+        ],
+        "size": [
+          1.5,
+          0.4,
+          0.44
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": ""
+  },
+  "market_kiosk": {
+    "path": "art/props/market_kiosk.glb",
+    "triangles": 1736,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          1.25
+        ],
+        "size": [
+          4,
+          2.8,
+          2.5
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": ""
+  },
+  "extraction_pad": {
+    "path": "art/props/extraction_pad.glb",
+    "triangles": 3052,
+    "colliders": [
+      {
+        "position": [
+          -7,
+          0,
+          1.2
+        ],
+        "size": [
+          1.6,
+          1.4,
+          2.4
+        ]
+      },
+      {
+        "position": [
+          7,
+          0,
+          1.2
+        ],
+        "size": [
+          1.6,
+          1.4,
+          2.4
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "Gameplay volume is supplied separately in the map manifest."
+  },
+  "power_cabinet": {
+    "path": "art/props/power_cabinet.glb",
+    "triangles": 648,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          1.4
+        ],
+        "size": [
+          1.6,
+          1.1,
+          2.8
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": ""
+  },
+  "basalt0": {
+    "path": "art/detail/scanned_boulder0.glb",
+    "triangles": 2400,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Poly Haven CC0 scan, normalized and simplified. See v2-sources.json."
+  },
+  "basalt1": {
+    "path": "art/detail/scanned_boulder1.glb",
+    "triangles": 2399,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Poly Haven CC0 scan, normalized and simplified. See v2-sources.json."
+  },
+  "basalt2": {
+    "path": "art/detail/scanned_boulder2.glb",
+    "triangles": 2399,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Poly Haven CC0 scan, normalized and simplified. See v2-sources.json."
+  },
+  "salt0": {
+    "path": "art/nature/salt0.glb",
+    "triangles": 80,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "salt1": {
+    "path": "art/nature/salt1.glb",
+    "triangles": 80,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "salt2": {
+    "path": "art/nature/salt2.glb",
+    "triangles": 80,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "cinder0": {
+    "path": "art/nature/cinder0.glb",
+    "triangles": 80,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "cinder1": {
+    "path": "art/nature/cinder1.glb",
+    "triangles": 80,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "cinder2": {
+    "path": "art/nature/cinder2.glb",
+    "triangles": 80,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "crystal_cluster": {
+    "path": "art/nature/crystal_cluster.glb",
+    "triangles": 100,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "canopy_tree0": {
+    "path": "art/detail/scanned_canopy.glb",
+    "triangles": 32000,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Poly Haven CC0 scan, normalized and simplified. See v2-sources.json."
+  },
+  "canopy_tree1": {
+    "path": "art/detail/scanned_canopy.glb",
+    "triangles": 32000,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Poly Haven CC0 scan, normalized and simplified. See v2-sources.json."
+  },
+  "canopy_tree2": {
+    "path": "art/detail/scanned_canopy.glb",
+    "triangles": 32000,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Poly Haven CC0 scan, normalized and simplified. See v2-sources.json."
+  },
+  "fern": {
+    "path": "art/nature/fern.glb",
+    "triangles": 700,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "red_scrub": {
+    "path": "art/nature/red_scrub.glb",
+    "triangles": 120,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "basalt_columns": {
+    "path": "art/nature/basalt_columns.glb",
+    "triangles": 440,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "meadow_patch": {
+    "path": "art/detail/meadow_patch.glb",
+    "triangles": 3200,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "street_arcade": {
+    "path": "art/architecture/street_arcade.glb",
+    "triangles": 864,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          3.8
+        ],
+        "size": [
+          14,
+          5,
+          0.35
+        ]
+      },
+      {
+        "position": [
+          -6.5,
+          1.8,
+          1.9
+        ],
+        "size": [
+          0.45,
+          0.45,
+          3.8
+        ]
+      },
+      {
+        "position": [
+          0,
+          1.8,
+          1.9
+        ],
+        "size": [
+          0.45,
+          0.45,
+          3.8
+        ]
+      },
+      {
+        "position": [
+          6.5,
+          1.8,
+          1.9
+        ],
+        "size": [
+          0.45,
+          0.45,
+          3.8
+        ]
+      },
+      {
+        "position": [
+          -4,
+          1,
+          0.55
+        ],
+        "size": [
+          3,
+          0.65,
+          0.15
+        ]
+      },
+      {
+        "position": [
+          4,
+          1,
+          0.55
+        ],
+        "size": [
+          3,
+          0.65,
+          0.15
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": ""
+  },
+  "k27_carbine_standard": {
+    "path": "art/weapons/k27_carbine_standard.glb",
+    "triangles": 4168,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Static fictional weapon mesh. +Z forward after glTF import. Attach via supplied equipment metadata."
+  },
+  "k27_carbine_hazard": {
+    "path": "art/weapons/k27_carbine_hazard.glb",
+    "triangles": 4168,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Static fictional weapon mesh. +Z forward after glTF import. Attach via supplied equipment metadata."
+  },
+  "k27_carbine_abyss": {
+    "path": "art/weapons/k27_carbine_abyss.glb",
+    "triangles": 4168,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Static fictional weapon mesh. +Z forward after glTF import. Attach via supplied equipment metadata."
+  },
+  "sable_smg_standard": {
+    "path": "art/weapons/sable_smg_standard.glb",
+    "triangles": 4548,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Static fictional weapon mesh. +Z forward after glTF import. Attach via supplied equipment metadata."
+  },
+  "sable_smg_hazard": {
+    "path": "art/weapons/sable_smg_hazard.glb",
+    "triangles": 4548,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Static fictional weapon mesh. +Z forward after glTF import. Attach via supplied equipment metadata."
+  },
+  "sable_smg_abyss": {
+    "path": "art/weapons/sable_smg_abyss.glb",
+    "triangles": 4548,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Static fictional weapon mesh. +Z forward after glTF import. Attach via supplied equipment metadata."
+  },
+  "longwatch_dmr_standard": {
+    "path": "art/weapons/longwatch_dmr_standard.glb",
+    "triangles": 4584,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Static fictional weapon mesh. +Z forward after glTF import. Attach via supplied equipment metadata."
+  },
+  "longwatch_dmr_hazard": {
+    "path": "art/weapons/longwatch_dmr_hazard.glb",
+    "triangles": 4584,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Static fictional weapon mesh. +Z forward after glTF import. Attach via supplied equipment metadata."
+  },
+  "longwatch_dmr_abyss": {
+    "path": "art/weapons/longwatch_dmr_abyss.glb",
+    "triangles": 4584,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Static fictional weapon mesh. +Z forward after glTF import. Attach via supplied equipment metadata."
+  },
+  "ammo_light": {
+    "path": "art/weapons/ammo_light.glb",
+    "triangles": 1164,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "ammo_medium": {
+    "path": "art/weapons/ammo_medium.glb",
+    "triangles": 1348,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "ammo_heavy": {
+    "path": "art/weapons/ammo_heavy.glb",
+    "triangles": 844,
+    "colliders": [],
+    "trimesh": false,
+    "notes": ""
+  },
+  "promenade": {
+    "path": "art/detail/promenade.glb",
+    "triangles": 5188,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.055
+        ],
+        "size": [
+          12,
+          6,
+          0.11
+        ]
+      },
+      {
+        "position": [
+          -5.7,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -5.7,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -5.1000000000000005,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -5.1000000000000005,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -4.5,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -4.5,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -3.9000000000000004,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -3.9000000000000004,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -3.3000000000000003,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -3.3000000000000003,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -2.7,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -2.7,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -2.1000000000000005,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -2.1000000000000005,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -1.5,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -1.5,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -0.9000000000000004,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -0.9000000000000004,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -0.3000000000000007,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          -0.3000000000000007,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          0.2999999999999998,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          0.2999999999999998,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          0.8999999999999995,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          0.8999999999999995,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          1.4999999999999991,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          1.4999999999999991,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          2.0999999999999996,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          2.0999999999999996,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          2.7,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          2.7,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          3.3,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          3.3,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          3.8999999999999995,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          3.8999999999999995,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          4.499999999999999,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          4.499999999999999,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          5.099999999999999,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          5.099999999999999,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          5.7,
+          -2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      },
+      {
+        "position": [
+          5.7,
+          2.65,
+          0.15
+        ],
+        "size": [
+          0.58,
+          0.48,
+          0.3
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "planter_bench": {
+    "path": "art/detail/planter_bench.glb",
+    "triangles": 2808,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.55
+        ],
+        "size": [
+          4.8,
+          1.8,
+          1.1
+        ]
+      },
+      {
+        "position": [
+          0,
+          -1.22,
+          0.6
+        ],
+        "size": [
+          4.6,
+          0.65,
+          0.18
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "supply_terminal": {
+    "path": "art/detail/supply_terminal.glb",
+    "triangles": 2912,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.1
+        ],
+        "size": [
+          1.4,
+          0.9,
+          0.2
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          1.3
+        ],
+        "size": [
+          1.2,
+          0.8,
+          2.4
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "transit_gantry": {
+    "path": "art/detail/transit_gantry.glb",
+    "triangles": 3752,
+    "colliders": [
+      {
+        "position": [
+          -11,
+          0,
+          0.3
+        ],
+        "size": [
+          1.6,
+          2.2,
+          0.6
+        ]
+      },
+      {
+        "position": [
+          -11,
+          0,
+          4.3
+        ],
+        "size": [
+          0.65,
+          1.1,
+          8.6
+        ]
+      },
+      {
+        "position": [
+          11,
+          0,
+          0.3
+        ],
+        "size": [
+          1.6,
+          2.2,
+          0.6
+        ]
+      },
+      {
+        "position": [
+          11,
+          0,
+          4.3
+        ],
+        "size": [
+          0.65,
+          1.1,
+          8.6
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "cargo_rover": {
+    "path": "art/detail/cargo_rover.glb",
+    "triangles": 976,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.45
+        ],
+        "size": [
+          1.5,
+          2.4,
+          0.5
+        ]
+      },
+      {
+        "position": [
+          0,
+          -0.15,
+          0.95
+        ],
+        "size": [
+          1.35,
+          1.8,
+          0.55
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "covered_walk": {
+    "path": "art/detail/covered_walk.glb",
+    "triangles": 1924,
+    "colliders": [
+      {
+        "position": [
+          -4.3,
+          0,
+          0.14
+        ],
+        "size": [
+          0.65,
+          2,
+          0.28
+        ]
+      },
+      {
+        "position": [
+          -4.3,
+          0,
+          2.6
+        ],
+        "size": [
+          0.25,
+          0.45,
+          5.2
+        ]
+      },
+      {
+        "position": [
+          4.3,
+          0,
+          0.14
+        ],
+        "size": [
+          0.65,
+          2,
+          0.28
+        ]
+      },
+      {
+        "position": [
+          4.3,
+          0,
+          2.6
+        ],
+        "size": [
+          0.25,
+          0.45,
+          5.2
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "storm_drain": {
+    "path": "art/detail/storm_drain.glb",
+    "triangles": 2376,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "scanned_boulder3": {
+    "path": "art/detail/scanned_boulder3.glb",
+    "triangles": 2400,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Poly Haven CC0 scan, normalized and simplified. See v2-sources.json."
+  },
+  "scanned_boulder4": {
+    "path": "art/detail/scanned_boulder4.glb",
+    "triangles": 2399,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Poly Haven CC0 scan, normalized and simplified. See v2-sources.json."
+  },
+  "scanned_boulder5": {
+    "path": "art/detail/scanned_boulder5.glb",
+    "triangles": 2399,
+    "colliders": [],
+    "trimesh": false,
+    "notes": "Poly Haven CC0 scan, normalized and simplified. See v2-sources.json."
+  }
+}

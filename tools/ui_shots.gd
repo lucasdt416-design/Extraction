@@ -13,6 +13,12 @@ func _ready() -> void:
 	await _wait(1.0)
 	menu.call("_enter")
 	await _wait(2.2)
+	menu.call("_show_tab", "Play")
+	await _wait(1.4)
+	_save(out, "play")
+	if args.has("--menu-only"):
+		get_tree().quit()
+		return
 	menu.call("_show_tab", "Settings")
 	await _wait(1.4)
 	_save(out, "settings")
