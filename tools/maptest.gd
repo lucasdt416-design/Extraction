@@ -10,6 +10,7 @@ const HIGH_PLACES: Dictionary = {
 		["spire deck", Vector3(-4.6, 5.2, 4.6)], ["west bridge, middle", Vector3(-66.0, 5.24, 0.0)], ["east bridge, middle", Vector3(66.0, 5.24, 0.0)],
 		["north-west roof", Vector3(-66.0, 5.24, -31.0)], ["south-east roof", Vector3(66.0, 5.24, 31.0)], ["depot deck", Vector3(41.0, 3.3, 60.0)],
 		["inside a north building", Vector3(-33.0, 0.0, -62.0)], ["inside a south building", Vector3(-33.0, 0.0, 62.0)], ["inside the depot", Vector3(30.0, 0.12, 50.0)],
+		["north quarter, service lane", Vector3(-49.5, 0.0, -106.0)], ["south quarter, service lane", Vector3(49.5, 0.0, 106.0)],
 	],
 }
 
@@ -23,6 +24,8 @@ const WALKS: Dictionary = {
 		["up the roof stairs", Vector3(-56.0, 0.3, -24.0), Vector2(0, -1), 4.5, "y>4.6"],
 		["up the spire ramp", Vector3(-24.0, 0.3, 0.0), Vector2(1, 0), 4.0, "y>4.6"],
 		["into the depot", Vector3(33.0, 0.3, 14.0), Vector2(0, 1), 4.0, "z>30"],
+		["through the north gate", Vector3(4.0, 0.3, -66.0), Vector2(0, -1), 5.0, "z<-86"],
+		["through the south gate", Vector3(-2.0, 0.3, 70.0), Vector2(0, 1), 5.0, "z>86"],
 	],
 }
 
@@ -102,6 +105,42 @@ func _ready() -> void:
 	var bot := Bot.new()
 	player.add_child(bot)
 	player.input_source = bot
+	# Doors: shut ones stop the player, their button opens them, and the rest
+	# of the walks are done with everything open.
+	var doors := get_tree().get_nodes_in_group("door")
+	if not doors.is_empty():
+		for door: Door in doors:
+			door.close()
+		await get_tree().create_timer(4.0).timeout
+		for trial: Array in [["a shut door", Vector3(-33.0, 0.3, 16.0), 25.6, 27.0], ["the shut south gate", Vector3(-2.0, 0.3, 70.0), 80.0, 86.0]]:
+			var from: Vector3 = trial[1]
+			for pressed in 2:
+				player.global_position = from
+				player.velocity = Vector3.ZERO
+				player.set("_yaw", atan2(0.0, -1.0))
+				if pressed == 1:
+					var nearest: DoorSwitch = null
+					for node in raid.level.find_children("*", "StaticBody3D", false, false):
+						var button := node as DoorSwitch
+						if button != null and (nearest == null or button.global_position.distance_to(from) < nearest.global_position.distance_to(from)):
+							nearest = button
+					check("%s has a button the player can use" % trial[0], nearest != null and nearest.can_interact(), nearest.interact_label() if nearest != null else "")
+					nearest.interact(player)
+					await get_tree().create_timer(3.6).timeout
+				bot.move = Vector2(0, 1)
+				await get_tree().create_timer(4.5).timeout
+				bot.move = Vector2.ZERO
+				var z := player.global_position.z
+				if pressed == 0:
+					check("%s stops the player" % trial[0], z < trial[2], "ended at z %.1f" % z)
+				else:
+					check("%s lets the player through once opened" % trial[0], z > trial[3], "ended at z %.1f" % z)
+		for door: Door in doors:
+			door.open()
+		await get_tree().create_timer(4.0).timeout
+	var grass := raid.level.get_node_or_null("Grass") as Grass
+	if grass != null:
+		check("grass found bare ground to grow on", grass.planted > 2000, "%d tufts" % grass.planted)
 	for walk: Array in WALKS.get(args[0], []):
 		var heading: Vector2 = walk[2]
 		player.global_position = walk[1]

@@ -1,7 +1,8 @@
 class_name AsterLevel
 extends Level
 
-# Aster City: the four central blocks of the Vesper Reach colony, cordoned off.
+# Aster City: the four central blocks of the Vesper Reach colony, cordoned off,
+# and the two quarters north and south of the cordon, reached through its gates.
 #
 # The streets, buildings, terrain and skyline come from the Vesper Reach art
 # kit (res://vesper_reach, loaded through VesperKit). Everything that makes it
@@ -16,15 +17,19 @@ extends Level
 
 # The crossroads, in the kit's own coordinates.
 const CENTRE := Vector3(-245.0, 26.0, -130.0)
-const HALF := Vector2(84.0, 80.0)
+const HALF := Vector2(84.0, 112.0)
+# The cordon proper: the wall across the north and south of the centre, with a
+# gate in each. Past them the map runs on to the outer wall at HALF.y.
+const INNER: float = 80.0
 const SCENERY_RADIUS: float = 440.0
 const ROOF: float = 5.24            # top of a low building's roof
 const COLUMNS: Array[float] = [-66.0, -33.0, 33.0, 66.0]
-const ROWS: Array[float] = [-62.0, -31.0, 31.0, 62.0]
+const ROWS: Array[float] = [-93.0, -62.0, -31.0, 31.0, 62.0, 93.0]
 # The lot the depot stands on: the kit's buildings there are left out.
 const DEPOT := Rect2(20.0, 26.0, 26.0, 48.0)
 # Lots with a residential tower on them: a bigger ground floor than the rest.
-const TOWERS: Array[Vector2] = [Vector2(-66.0, -62.0), Vector2(66.0, -62.0), Vector2(-33.0, -31.0), Vector2(-66.0, 62.0), Vector2(66.0, 62.0)]
+const TOWERS: Array[Vector2] = [Vector2(-66.0, -62.0), Vector2(66.0, -62.0), Vector2(-33.0, -31.0), Vector2(-66.0, 62.0), Vector2(66.0, 62.0),
+	Vector2(33.0, -93.0), Vector2(-33.0, 93.0)]
 
 var kit: VesperKit
 
@@ -32,7 +37,7 @@ func _init() -> void:
 	player_spawn = Vector3(-4.0, 0.2, 75.0)
 	player_yaw = 0.0
 	reinforce_points = [
-		Vector3(0.0, 0.2, -75.0), Vector3(-79.0, 0.2, -46.0), Vector3(79.0, 0.2, -46.0),
+		Vector3(0.0, 0.2, -100.0), Vector3(-40.0, 0.2, 104.0), Vector3(-79.0, 0.2, -46.0), Vector3(79.0, 0.2, -46.0),
 		Vector3(-79.0, 0.2, 46.0), Vector3(79.0, 0.2, 46.0), Vector3(-79.0, 0.2, 8.0),
 	]
 
@@ -50,7 +55,10 @@ func build() -> void:
 	_depot()
 	_cordon()
 	_streets()
+	_outskirts()
 	_interiors()
+	_doors()
+	_grass()
 	kit.flush()
 	_squads_and_exits()
 	_placements()
@@ -112,7 +120,7 @@ func _leave_out(asset: String, at: Vector3, _placement: Dictionary) -> bool:
 		return true
 	if absf(at.x) < 21.0 and absf(at.z) < 9.0:
 		return true
-	if absf(absf(at.x) - HALF.x) < 3.0 or absf(absf(at.z) - HALF.y) < 3.0:
+	if absf(absf(at.x) - HALF.x) < 3.0 or absf(absf(at.z) - HALF.y) < 3.0 or absf(absf(at.z) - INNER) < 3.0:
 		return true
 	return false
 
@@ -312,26 +320,128 @@ func _cordon() -> void:
 	var wall_mat := Mats.wall(HULL_DARK, Color(0.17, 0.18, 0.2), 1.4, 3.0, 0.75, 0.2)
 	var hazard := Mats.surface(OCHRE, "plain", 0.6)
 	var gate := Mats.wall(Color(0.16, 0.17, 0.19), RUST, 0.6, 1.5, 0.5, 0.5)
+	# The outer wall, unbroken.
 	for side: Array in [[Vector2(-HALF.x, -HALF.y), Vector2(HALF.x, -HALF.y)], [Vector2(-HALF.x, HALF.y), Vector2(HALF.x, HALF.y)],
 			[Vector2(-HALF.x, -HALF.y), Vector2(-HALF.x, HALF.y)], [Vector2(HALF.x, -HALF.y), Vector2(HALF.x, HALF.y)]]:
 		_wall(side[0], side[1], 6.5, wall_mat, [], 1.0)
-	for corner: Vector2 in [Vector2(-HALF.x, -HALF.y), Vector2(HALF.x, -HALF.y), Vector2(-HALF.x, HALF.y), Vector2(HALF.x, HALF.y)]:
+	# The cordon across the north and south of the centre, open where the
+	# boulevard runs through it. The gates stand in those openings.
+	for z: float in [-INNER, INNER]:
+		_wall(Vector2(-HALF.x, z), Vector2(HALF.x, z), 6.5, wall_mat, [[0.0, 12.0, 5.2]], 1.0)
+	for corner: Vector2 in [Vector2(-HALF.x, -HALF.y), Vector2(HALF.x, -HALF.y), Vector2(-HALF.x, HALF.y), Vector2(HALF.x, HALF.y),
+			Vector2(-HALF.x, -INNER), Vector2(HALF.x, -INNER), Vector2(-HALF.x, INNER), Vector2(HALF.x, INNER)]:
 		_box(Vector3(corner.x, 4.5, corner.y), Vector3(2.4, 9.0, 2.4), wall_mat)
 		_box(Vector3(corner.x, 9.2, corner.y), Vector3(0.5, 0.4, 0.5), Mats.glow(RUST, 6.0), false)
-	# Gates: [centre, along x?, facing sign, label]
+	# Gates: [centre, along x?, facing sign, label]. East and west are the ways
+	# out and stay shut; north and south slide open from a button on either side.
 	for spec: Array in [[Vector3(-HALF.x, 0.0, 0.0), false, 1.0, "EXIT  W"], [Vector3(HALF.x, 0.0, 0.0), false, -1.0, "EXIT  E"],
-			[Vector3(0.0, 0.0, -HALF.y), true, 1.0, "GATE  N"], [Vector3(0.0, 0.0, HALF.y), true, -1.0, "GATE  S"]]:
+			[Vector3(0.0, 0.0, -INNER), true, 1.0, "GATE  N"], [Vector3(0.0, 0.0, INNER), true, -1.0, "GATE  S"]]:
 		var at: Vector3 = spec[0]
 		var along_x: bool = spec[1]
 		var inward: float = spec[2]
-		var offset := Vector3(0.0, 0.0, inward * 0.56) if along_x else Vector3(inward * 0.56, 0.0, 0.0)
-		_box(at + offset + Vector3(0.0, 2.6, 0.0), Vector3(12.0, 5.2, 0.14) if along_x else Vector3(0.14, 5.2, 12.0), gate, false)
-		_box(at + offset + Vector3(0.0, 5.35, 0.0), Vector3(12.6, 0.3, 0.2) if along_x else Vector3(0.2, 0.3, 12.6), hazard, false)
-		for post: float in [-6.3, 6.3]:
-			_box(at + offset + (Vector3(post, 3.4, 0.0) if along_x else Vector3(0.0, 3.4, post)), Vector3(0.6, 6.8, 0.5) if along_x else Vector3(0.5, 6.8, 0.6), wall_mat, false, false, 0.0, 0.05)
 		var exit: bool = (spec[3] as String).begins_with("EXIT")
-		var yaw := (0.0 if inward > 0.0 else PI) if along_x else (PI * 0.5 if inward > 0.0 else -PI * 0.5)
-		_sign(spec[3], at + offset * 1.3 + Vector3(0.0, 3.6, 0.0), yaw, 1.3, TEAL.lightened(0.35) if exit else Color(0.75, 0.74, 0.7), exit)
+		var offset := Vector3(0.0, 0.0, inward * 0.56) if along_x else Vector3(inward * 0.56, 0.0, 0.0)
+		if exit:
+			_box(at + offset + Vector3(0.0, 2.6, 0.0), Vector3(0.14, 5.2, 12.0), gate, false)
+		else:
+			# The leaf runs back into the thickness of the wall.
+			var leaf := _door(at, 0.0, Vector3(12.3, 5.2, 0.36), Vector3(-12.1, 0.0, 0.0), false, "gate")
+			leaf.material = gate
+			leaf.travel = 3.2
+			leaf.noise = 32.0
+			for face: float in [-1.0, 1.0]:
+				_switch(at + Vector3(7.3, 1.3, face * 0.57), 0.0 if face > 0.0 else PI, [leaf])
+				_box(at + Vector3(7.3, 2.0, face * 0.53), Vector3(0.7, 0.08, 0.06), hazard, false)
+		var faces: Array[float] = [inward]
+		if not exit:
+			faces = [-1.0, 1.0]
+		for face in faces:
+			var out := Vector3(0.0, 0.0, face * 0.56) if along_x else Vector3(face * 0.56, 0.0, 0.0)
+			_box(at + out + Vector3(0.0, 5.35, 0.0), Vector3(12.6, 0.3, 0.2) if along_x else Vector3(0.2, 0.3, 12.6), hazard, false)
+			for post: float in [-6.3, 6.3]:
+				_box(at + out + (Vector3(post, 3.4, 0.0) if along_x else Vector3(0.0, 3.4, post)), Vector3(0.6, 6.8, 0.5) if along_x else Vector3(0.5, 6.8, 0.6), wall_mat, false, false, 0.0, 0.05)
+			var yaw := (0.0 if face > 0.0 else PI) if along_x else (PI * 0.5 if face > 0.0 else -PI * 0.5)
+			_sign(spec[3], at + out * 1.3 + Vector3(0.0, 3.6 if exit else 5.95, 0.0), yaw, 1.3 if exit else 0.7, TEAL.lightened(0.35) if exit else Color(0.75, 0.74, 0.7), exit)
+
+# --- Doors ------------------------------------------------------------------------
+# Every building's doorway has a sliding door with a button outside and in.
+# About one in three stands open at the start. The depot's bay is a two-leaf
+# shutter; its three side doors are the quiet way in.
+
+func _doors() -> void:
+	var n := 0
+	for column in COLUMNS:
+		for row in ROWS:
+			if DEPOT.grow(3.0).has_point(Vector2(column, row)):
+				continue
+			n += 1
+			var front := 1.0 if row < 0.0 else -1.0   # which way the doorway faces
+			var depth := 7.88 if TOWERS.has(Vector2(column, row)) else 5.88
+			var door := _door(Vector3(column, 0.0, row + front * (depth - 0.27)), 0.0, Vector3(2.56, 3.34, 0.12), Vector3(-2.5, 0.0, 0.0), n % 3 == 1)
+			_switch(Vector3(column + 1.8, 1.25, row + front * (depth + 0.2)), 0.0 if front > 0.0 else PI, [door])
+			_switch(Vector3(column + 1.8, 1.25, row + front * (depth - 0.2)), PI if front > 0.0 else 0.0, [door])
+	var x0 := DEPOT.position.x
+	var z0 := DEPOT.position.y
+	var x1 := DEPOT.end.x
+	var z1 := DEPOT.end.y
+	var plate := Mats.wall(Color(0.24, 0.25, 0.27), OCHRE, 0.7, 1.25, 0.5, 0.5)
+	var bay: Array[Door] = []
+	for half: float in [-1.0, 1.0]:
+		var leaf := _door(Vector3(33.0 + half * 2.52, 0.0, z0 + 0.34), 0.0, Vector3(5.06, 5.5, 0.2), Vector3(half * 5.0, 0.0, 0.0), false, "shutter")
+		leaf.material = plate
+		leaf.travel = 2.0
+		leaf.noise = 22.0
+		bay.append(leaf)
+	_switch(Vector3(38.7, 1.3, z0 - 0.27), PI, bay)
+	_switch(Vector3(38.7, 1.3, z0 + 0.27), 0.0, bay)
+	var side := Vector3(2.7, 2.96, 0.12)
+	var west := _door(Vector3(x0 + 0.3, 0.0, 52.0), PI * 0.5, side, Vector3(-2.65, 0.0, 0.0))
+	_switch(Vector3(x0 - 0.27, 1.25, 53.9), -PI * 0.5, [west])
+	_switch(Vector3(x0 + 0.27, 1.25, 53.9), PI * 0.5, [west])
+	var east := _door(Vector3(x1 - 0.3, 0.0, 38.0), PI * 0.5, side, Vector3(-2.65, 0.0, 0.0))
+	_switch(Vector3(x1 + 0.27, 1.25, 39.9), PI * 0.5, [east])
+	_switch(Vector3(x1 - 0.27, 1.25, 39.9), -PI * 0.5, [east])
+	var south := _door(Vector3(26.0, 0.0, z1 - 0.3), 0.0, side, Vector3(-2.65, 0.0, 0.0))
+	_switch(Vector3(27.9, 1.25, z1 + 0.27), 0.0, [south])
+	_switch(Vector3(27.9, 1.25, z1 - 0.27), PI, [south])
+
+# --- Past the gates ---------------------------------------------------------------
+# North and south of the cordon the city carries on for a block: four more
+# buildings each side, the boulevard between them and a service lane behind.
+# Quieter than the centre, with a third way out at the far end of the north road.
+
+func _outskirts() -> void:
+	for far: float in [-1.0, 1.0]:
+		# The boulevard beyond the gate: cover to work up it from the gate.
+		kit.add("container_white" if far < 0.0 else "container_coral", Vector3(-8.0 * far, 0.0, far * 90.0), 0.25)
+		kit.add("container_teal", Vector3(10.0 * far, 0.0, far * 99.0), PI * 0.5 - 0.1)
+		kit.add("cargo_rover", Vector3(-13.0 * far, 0.0, far * 103.0), 0.8 * far)
+		_barrier(3.0 * far, far * 86.5, 3.2)
+		_barrier(-16.0, far * 94.0, 3.2, PI * 0.5)
+		_barrier(17.0, far * 92.0, 3.2, PI * 0.5)
+		_crate(15.5, far * 104.0, Vector3(1.5, 1.5, 1.5), RUST, 0.4)
+		_crate(16.8, far * 105.3, Vector3(1.1, 1.1, 1.1), STEEL, 0.1)
+		# The service lane behind the buildings, and the gaps between them.
+		for x: float in [-49.5, 49.5]:
+			_barrier(x, far * 96.0, 3.2)
+			_crate(x - 2.0 * far, far * 106.5, Vector3(1.3, 1.3, 1.3), OCHRE if x < 0.0 else STEEL, 0.3)
+		kit.add("container_coral" if far < 0.0 else "container_white", Vector3(-30.0 * far, 0.0, far * 107.0), 0.05)
+		kit.add("container_teal", Vector3(62.0 * far, 0.0, far * 106.5), -0.1)
+		for x: float in [-70.0, -20.0, 28.0, 74.0]:
+			_lamp(Vector3(x, 5.6, far * 110.9), LIGHT_WARM if far < 0.0 else LIGHT_COOL, 2.0, 13.0)
+		_mark(Vector3(-49.5 * far, 0.0, far * 109.5), "locker", PI if far > 0.0 else 0.0)
+		_mark(Vector3(24.0 * far, 0.0, far * 109.5), "crate", PI if far > 0.0 else 0.0)
+		_mark(Vector3(-80.5, 0.0, far * 96.0), "crate", PI * 0.5)
+		_mark(Vector3(80.5, 0.0, far * 100.0), "locker", -PI * 0.5)
+		_mark(Vector3(49.5, 0.0, far * 87.0), "crate", 0.0 if far > 0.0 else PI)
+	_sign("NORTH ROAD", Vector3(0.0, 4.4, -HALF.y + 0.55), 0.0, 0.9, TEAL.lightened(0.35), true)
+
+# Grass on whatever bare ground the kit leaves between its pavements.
+func _grass() -> void:
+	var grass := Grass.new()
+	grass.name = "Grass"
+	grass.area = Rect2(-HALF.x + 1.0, -HALF.y + 1.0, HALF.x * 2.0 - 2.0, HALF.y * 2.0 - 2.0)
+	add_child(grass)
 
 # --- Streets ------------------------------------------------------------------------
 # Hard cover so the avenue and the boulevard can be crossed, not just watched.
@@ -420,3 +530,9 @@ func _squads_and_exits() -> void:
 	squads.append({"members": ["marksman"], "points": [Vector3(66.0, ROOF + 0.05, -10.0), Vector3(66.0, ROOF + 0.05, 10.0)]})
 	extracts.append({"position": Vector3(-78.0, 0.0, 0.0), "name": "West gate"})
 	extracts.append({"position": Vector3(78.0, 0.0, 0.0), "name": "East gate"})
+	# Past the gates.
+	squads.append({"members": ["trooper", "marksman", "trooper"], "points": [Vector3(0.0, 0.0, -94.0), Vector3(-20.0, 0.0, -106.0), Vector3(20.0, 0.0, -106.0)]})
+	squads.append({"members": ["bulwark", "rusher"], "points": [Vector3(-49.5, 0.0, -100.0), Vector3(-70.0, 0.0, -106.5), Vector3(-49.5, 0.0, -90.0)]})
+	squads.append({"members": ["trooper", "lobber", "trooper"], "points": [Vector3(4.0, 0.0, 96.0), Vector3(24.0, 0.0, 106.0), Vector3(-22.0, 0.0, 106.0)]})
+	squads.append({"members": ["rusher", "trooper"], "points": [Vector3(49.5, 0.0, 100.0), Vector3(70.0, 0.0, 106.5), Vector3(49.5, 0.0, 90.0)]})
+	extracts.append({"position": Vector3(0.0, 0.0, -106.0), "name": "North road"})

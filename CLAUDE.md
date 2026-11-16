@@ -2,6 +2,10 @@
 
 Guidance for Claude Code working in this repository.
 
+## Doors, gates and grass
+
+See "Doors, gates and grass" in `BUILD.md`. Doors are never navmesh obstacles: guards open them by proximity. New set pieces that need a door use `Level._door` and `Level._switch`.
+
 ## What this project is
 
 A **first-person 3D extraction shooter** built in **Godot 4.7** with **GDScript**

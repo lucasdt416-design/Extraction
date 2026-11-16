@@ -305,6 +305,28 @@ func _dress_site() -> void:
 	beacon.omni_range = 14.0
 	add_child(beacon)
 
+# A sliding door standing at `at` (its foot, centred), `slide` being where the
+# slab goes when open, in the door's own axes. Not a navmesh obstacle: guards
+# open doors for themselves.
+func _door(at: Vector3, yaw: float, size: Vector3, slide: Vector3, open: bool = false, what: String = "door") -> Door:
+	var door := Door.new()
+	door.position = at
+	door.rotation.y = yaw
+	door.size = size
+	door.slide = slide
+	door.is_open = open
+	door.what = what
+	add_child(door)
+	return door
+
+# The button that works them. It faces along its own +z.
+func _switch(at: Vector3, yaw: float, doors: Array[Door]) -> void:
+	var button := DoorSwitch.new()
+	button.position = at
+	button.rotation.y = yaw
+	button.doors = doors
+	add_child(button)
+
 func _mark(position: Vector3, kind: String, yaw: float = 0.0) -> void:
 	containers.append({"position": position, "kind": kind, "yaw": yaw})
 
