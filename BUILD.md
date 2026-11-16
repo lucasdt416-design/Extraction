@@ -2,7 +2,7 @@
 
 What exists in this repo right now, how to run and check it, and where to change things.
 `CLAUDE.md` holds the rules; `PLAN.md` holds where this is going and how to work on it.
-Last updated 2026-11-13.
+Last updated 2026-11-16.
 
 ## State in one paragraph
 
@@ -137,6 +137,26 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
   built in `CairnKit._fir_stand_in`.
 
 ## Playtest log
+
+**2026-11-16, playability pass (asked for by the user).** Reported: "when I shoot 1, 3
+others spawn"; some buildings on Aster's outskirts can be walked through; distant
+structures look blocky. Changed:
+
+- Reinforcements (`Raid._escalate`, `send_reinforcements`): none in the first four
+  minutes, at most two a raid, three minutes apart, only after 100 s of fighting within
+  70 m of the player, and never closer than 80 m (30 m on Relay Station) or in sight.
+  The first wave is two troopers.
+- Backup (`Squad._call_backup`): only the single nearest quiet squad within 16 m comes,
+  7–12 s later. It used to be every squad within 22 m, 4–8 s later.
+- Collision (`VesperKit._queue`): every kit piece the kit calls solid is solid anywhere on
+  the island, not only near the zones. Trees get a trunk and rocks a block
+  (`_rough_collide`); the kit gave them none.
+- Distance: kit buildings on both big maps keep more detail far off (`lod_bias = 3`);
+  Aster's tree stand-ins start at 320 m with a rounder crown; Cairn's scanned firs are
+  drawn to 90 m and the stand-in beyond is a ragged ten-skirt fir, not a stack of cones.
+- Aster's buildings re-finished as colony modules (see Known gaps).
+
+All checks pass. Standing in the open on Relay Station: dead at 14.5 s. Not played.
 
 **2026-11-16, Aster City opened onto the island.** Not played by a person. `maptest
 aster_city` passes (all the old checks, the new road gate, every exit on ground, 79
@@ -336,7 +356,10 @@ Give this to whoever or whatever makes models:
   Southshore; whether an added building ever blocks a road; whether the cover in each
   street is enough. The buildings added are the same three models as the town's.
 - The user asked for the town's buildings to look more like a future colony and less
-  like apartment blocks. Not done: it needs new models or a material and rooftop pass.
+  like apartment blocks. Done as a finish, not as new models: `VesperKit.FINISH` re-tunes
+  the kit's HQ_ materials (pale hull, dark glass with a faint glow, lit accent stripes)
+  and `AsterLevel._colony_gear` adds a lit band under each roofline, masts, radomes and
+  solar wings. The shapes are still the kit's three blocks and one tower.
 - Doors, gates and grass (2026-11-16) are checked by `maptest` only. Unknown until played:
   whether guards opening doors reads as a warning or as noise, whether 33 guards on the
   bigger map is too many, and the frame rate with grass on a slower machine.

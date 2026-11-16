@@ -18,13 +18,18 @@ var over: bool = false
 var extract_points: Array[ExtractPoint] = []
 var _squads: Array[Squad] = []
 # Escalation: see _escalate.
-const HEAT_FOR_WAVE: float = 45.0
+# Seconds of fighting near the player (FIGHT_NEAR) before a squad is sent in.
+const HEAT_FOR_WAVE: float = 100.0
+const FIGHT_NEAR: float = 70.0
+# A fresh squad never appears closer than this, nor where the player can see it.
+const WAVE_MIN_DISTANCE: float = 80.0
+const MAX_WAVES: int = 2
 # With this fraction of the clock left, one wave comes regardless.
 const LATE_WAVE_AT: float = 0.3
-const WAVES: Array = [["trooper", "trooper", "rusher"], ["trooper", "bulwark", "lobber", "rusher"], ["overseer", "marksman", "trooper", "rusher"]]
+const WAVES: Array = [["trooper", "trooper"], ["trooper", "bulwark", "lobber", "rusher"], ["overseer", "marksman", "trooper", "rusher"]]
 var heat: float = 0.0
 var waves_sent: int = 0
-var _wave_cooldown: float = 20.0
+var _wave_cooldown: float = 240.0   # nothing comes in during the first four minutes
 var _env: Environment
 var _sun: DirectionalLight3D
 
@@ -110,16 +115,18 @@ func _physics_process(delta: float) -> void:
 		_end("lost")
 
 # --- Escalation --------------------------------------------------------------
-# A raid gets harder the longer and louder it goes. "Heat" builds while any
-# squad is in a firefight and bleeds off in the quiet; enough of it calls in a
-# fresh squad. Tripping a vault alarm calls one at once, and one always arrives
-# by the halfway mark so a careful raid still tightens.
+# A raid gets harder the longer and louder it goes. "Heat" builds while a squad
+# near the player is in a firefight and bleeds off in the quiet; a long fight
+# calls in a fresh squad. A vault alarm calls one too. One arrives in the last
+# 30% of the clock so a careful raid still tightens. Never in the first four
+# minutes, never twice in three minutes, never more than two, and always from
+# well out of sight: shooting one guard must not make three more appear.
 
 func _escalate(delta: float) -> void:
 	_wave_cooldown = maxf(_wave_cooldown - delta, 0.0)
 	var fighting := false
 	for squad in _squads:
-		if squad.mode == Squad.Mode.COMBAT and not squad.living().is_empty():
+		if squad.mode == Squad.Mode.COMBAT and not squad.living().is_empty() and squad.center().distance_to(player.global_position) < FIGHT_NEAR:
 			fighting = true
 	heat = heat + delta if fighting else maxf(heat - delta * 0.35, 0.0)
 	if heat >= HEAT_FOR_WAVE or (waves_sent == 0 and time_left < raid_length * LATE_WAVE_AT):
@@ -132,7 +139,7 @@ func alarm(position: Vector3) -> void:
 # Brings a squad in from whichever entry point is farthest from the player and
 # out of their sight, and sends it to search where the trouble was.
 func send_reinforcements(toward: Vector3) -> bool:
-	if over or waves_sent >= WAVES.size() or _wave_cooldown > 0.0:
+	if over or waves_sent >= mini(MAX_WAVES, WAVES.size()) or _wave_cooldown > 0.0:
 		return false
 	var space := get_world_3d().direct_space_state
 	var eye := player.eye_position()
@@ -140,7 +147,9 @@ func send_reinforcements(toward: Vector3) -> bool:
 	var best_distance := -1.0
 	for point: Vector3 in level.reinforce_points:
 		var distance := point.distance_to(player.global_position)
-		if distance < 30.0 or distance > level.reinforce_range:
+		# On a small compound "far" is 30 m; on the big maps it is WAVE_MIN_DISTANCE.
+		var closest := WAVE_MIN_DISTANCE if level.separate_regions else 30.0
+		if distance < closest or distance > maxf(level.reinforce_range, closest + 60.0):
 			continue
 		var query := PhysicsRayQueryParameters3D.create(eye, point + Vector3.UP * 1.2, Layers.WORLD)
 		# Seen from where the player stands: not an option, however far away.
@@ -155,7 +164,7 @@ func send_reinforcements(toward: Vector3) -> bool:
 	squad.respond_to(toward)
 	waves_sent += 1
 	heat = 0.0
-	_wave_cooldown = 75.0
+	_wave_cooldown = 180.0
 	Sfx.play("alert", 2.0, 0.6)
 	hud.show_alert("REINFORCEMENTS INBOUND")
 	return true

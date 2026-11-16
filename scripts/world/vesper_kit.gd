@@ -15,7 +15,7 @@ extends Node3D
 
 const ROOT: String = "res://vesper_reach/"
 const CELL: float = 128.0          # scenery is batched by map square, so far squares are not drawn
-const CANOPY_SWAP: float = 230.0   # a tree is the kit's model this close to the camera; a stand-in beyond
+const CANOPY_SWAP: float = 320.0   # a tree is the kit's model this close to the camera; a stand-in beyond
 const GRID: float = 4.0            # spacing of the terrain's vertices
 # Things that are kept however far away they are, because they make the skyline.
 const LANDMARKS: Array[String] = ["heliograph", "observatory"]
@@ -107,6 +107,8 @@ func flush() -> void:
 					batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if canopy else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				else:
 					batch.gi_mode = GeometryInstance3D.GI_MODE_STATIC
+					# Godot's automatic levels of detail turn far buildings to blocks; keep more of them.
+					batch.lod_bias = 3.0
 				if reach > 0.0:
 					batch.visibility_range_end = reach
 					batch.visibility_range_end_margin = 20.0
@@ -145,8 +147,8 @@ func _canopy_stand_in(box: AABB, leaf: Color) -> ArrayMesh:
 	var crown := SphereMesh.new()
 	crown.radius = box.size.x * 0.42
 	crown.height = box.size.y * 0.62
-	crown.radial_segments = 8
-	crown.rings = 4
+	crown.radial_segments = 12
+	crown.rings = 6
 	var parts: Array = [[trunk, Vector3(0.0, box.position.y + box.size.y * 0.25, 0.0), Color(0.13, 0.1, 0.08)],
 		[crown, Vector3(0.0, box.position.y + box.size.y * 0.68, 0.0), leaf]]
 	for part: Array in parts:
@@ -191,9 +193,50 @@ func _queue(asset: String, xform: Transform3D, solid: bool) -> void:
 		_batches[asset] = []
 	(_batches[asset] as Array).append(xform)
 	var local := to_level(xform.origin)
-	# Solid only where a player or a bullet can reach it.
-	if solid and (inside(local, 45.0) or Vector2(local.x, local.z).length() < solid_radius):
+	# The whole island can be walked, so anything the kit calls solid is solid
+	# everywhere. Trees and rocks, which the kit leaves without colliders, get a
+	# trunk or a block (see _rough_collide). Only inside a zone does it feed the navmesh.
+	if solid:
 		_collide(asset, xform, inside(local, 4.0))
+	elif asset.begins_with("canopy") or ROUGH.has(asset.rstrip("0123456789")):
+		_rough_collide(asset, xform)
+
+# Kit pieces the kit gives no collider, but a player should not walk through.
+const ROUGH: Array[String] = ["basalt", "salt", "cinder", "basalt_columns", "crystal_cluster", "scanned_boulder"]
+var _rough_shapes: Dictionary = {}
+
+func _rough_collide(asset: String, xform: Transform3D) -> void:
+	if not _rough_shapes.has(asset):
+		var box := AABB()
+		var template: Node3D = _scene(asset).instantiate()
+		for source in _meshes(template):
+			var part := source.transform * source.get_aabb()
+			box = part if box.size == Vector3.ZERO else box.merge(part)
+		template.free()
+		var made: Shape3D
+		var at := box.get_center()
+		if asset.begins_with("canopy"):
+			var trunk := CylinderShape3D.new()
+			trunk.radius = clampf(box.size.x * 0.045, 0.25, 0.7)
+			trunk.height = box.size.y * 0.55
+			made = trunk
+			at = Vector3(0.0, box.position.y + trunk.height * 0.5, 0.0)
+		else:
+			# A little inside the rock's bounds, so it never stops you short of the surface.
+			var block := BoxShape3D.new()
+			block.size = box.size * Vector3(0.78, 0.92, 0.78)
+			made = block
+		_rough_shapes[asset] = [made, at]
+	var spec: Array = _rough_shapes[asset]
+	var body := StaticBody3D.new()
+	body.collision_layer = Layers.WORLD
+	body.collision_mask = 0
+	body.transform = xform
+	var collider := CollisionShape3D.new()
+	collider.shape = spec[0]
+	collider.position = spec[1]
+	body.add_child(collider)
+	add_child(body)
 
 func _collide(asset: String, xform: Transform3D, walkable: bool) -> void:
 	var spec: Dictionary = catalog[asset]
@@ -259,30 +302,52 @@ func _trimesh_body(source: MeshInstance3D, walkable: bool) -> StaticBody3D:
 	source.add_child(body)
 	return body
 
-# The kit's models carry plain named materials; the look comes from swapping
-# those for its shaders here (painted concrete, wet asphalt, textured stone).
+# The kit's models carry plain named materials. Its built things (names starting
+# HQ_) are re-finished here as a colony's prefabricated modules: pale ceramic
+# hull in place of bare concrete, dark glass that glows from inside, and accent
+# stripes that are lit. Everything else gets the kit's own shaders (wet
+# asphalt, textured stone, foliage).
+const FINISH: Dictionary = {
+	# id: [albedo or null to keep, metallic, roughness, emission energy (0 = none), emission colour or null for the albedo]
+	"HQ_Concrete": [Color(0.74, 0.76, 0.75), 0.12, 0.4, 0.0, null],
+	"HQ_Ceramic": [Color(0.84, 0.86, 0.86), 0.15, 0.3, 0.0, null],
+	"HQ_Slate": [Color(0.09, 0.11, 0.13), 0.8, 0.28, 0.0, null],
+	"HQ_Metal": [null, 0.9, 0.22, 0.0, null],
+	"HQ_Glass": [Color(0.03, 0.07, 0.09), 0.9, 0.06, 0.1, Color(0.2, 0.8, 0.85)],
+	"HQ_Teal": [null, 0.4, 0.3, 1.5, null],
+	"HQ_Acid": [null, 0.2, 0.4, 1.3, null],
+	"HQ_Coral": [null, 0.3, 0.4, 0.9, null],
+}
+
 func _convert_materials(mesh: Mesh) -> void:
 	for i in mesh.get_surface_count():
 		var old := mesh.surface_get_material(i) as StandardMaterial3D
 		if old == null:
 			continue
-		var id: String = old.resource_name
+		var id: String = old.resource_name.split(".")[0]
 		if id in ["Window", "IceLight", "AmberLight", "Crystal"]:
 			continue
 		if _materials.has(id):
 			mesh.surface_set_material(i, _materials[id])
 			continue
-		var made := ShaderMaterial.new()
-		if id in ["HQ_Ceramic", "HQ_Concrete", "HQ_Coral", "HQ_Teal"]:
-			made.shader = load(ROOT + "shaders/painted_surface.gdshader")
-			made.set_shader_parameter("paint", old.albedo_color)
-			made.set_shader_parameter("metalness", old.metallic)
-			made.set_shader_parameter("base_roughness", old.roughness)
-			made.set_shader_parameter("surface_albedo", load(ROOT + "art/textures/concrete_albedo.jpg"))
-			made.set_shader_parameter("surface_normal", load(ROOT + "art/textures/concrete_normal.jpg"))
-		elif id.begins_with("HQ_") or id.begins_with("PH_"):
+		if FINISH.has(id):
+			var finish: Array = FINISH[id]
+			var tuned := old.duplicate() as StandardMaterial3D
+			if finish[0] != null:
+				tuned.albedo_color = finish[0]
+			tuned.metallic = finish[1]
+			tuned.roughness = finish[2]
+			if float(finish[3]) > 0.0:
+				tuned.emission_enabled = true
+				tuned.emission = finish[4] if finish[4] != null else tuned.albedo_color
+				tuned.emission_energy_multiplier = finish[3]
+			_materials[id] = tuned
+			mesh.surface_set_material(i, tuned)
 			continue
-		elif id == "World / asphalt":
+		if id.begins_with("HQ_") or id.begins_with("PH_"):
+			continue
+		var made := ShaderMaterial.new()
+		if id == "World / asphalt":
 			made.shader = load(ROOT + "shaders/wet_asphalt.gdshader")
 			made.set_shader_parameter("micro_normal", load(ROOT + "art/textures/concrete_normal.jpg"))
 		elif id.begins_with("Leaf"):

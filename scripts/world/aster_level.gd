@@ -90,6 +90,7 @@ func build() -> void:
 	_outskirts()
 	_interiors()
 	_doors()
+	_colony_gear()
 	for i in SITES.size():
 		_site(i)
 	_grass()
@@ -676,3 +677,51 @@ func _fit(x: float, z: float, front: float, n: int, kind: String) -> void:
 	_box(Vector3(x + 5.8, 0.5, z + back * 2.2), Vector3(1.0, 1.0, 3.2), Mats.surface(Color(0.88, 0.88, 0.87), "plain", 0.4, 0.1), true, true, 0.0, 0.04)
 	_box(Vector3(x + 5.8, 1.03, z + back * 2.2), Vector3(0.8, 0.04, 3.0), Mats.glow(tint, 0.7), false)
 	_mark(Vector3(x + 4.0 * back, 0.0, z + 4.9 * back), kind, 0.0 if back < 0.0 else PI)
+
+# --- A colony, not a housing estate ---------------------------------------------
+# What the kit's blocks lack is anything on them. Every building in the town
+# gets a lit band under its roofline, and something on the roof: a mast with a
+# beacon, and a radome or a pair of solar wings. Towers get a spire. None of
+# it is solid.
+
+func _colony_gear() -> void:
+	var steel := Mats.surface(Color(0.13, 0.14, 0.16), "metal", 0.5, 0.7)
+	var shell := Mats.surface(Color(0.86, 0.87, 0.86), "plain", 0.35, 0.1)
+	var cell := Mats.surface(Color(0.03, 0.06, 0.14), "metal", 0.15, 0.9)
+	var n := 0
+	for column in COLUMNS:
+		for row in ROWS:
+			if DEPOT.grow(3.0).has_point(Vector2(column, row)):
+				continue
+			n += 1
+			var back := -1.0 if row < 0.0 else 1.0
+			var glow := Mats.glow(TEAL.lightened(0.3) if n % 3 != 0 else Color(1.0, 0.55, 0.3), 2.4)
+			if TOWERS.has(Vector2(column, row)):
+				_box(Vector3(column, 47.5, row), Vector3(0.22, 11.0, 0.22), steel, false)
+				_box(Vector3(column, 53.2, row), Vector3(0.45, 0.45, 0.45), Mats.glow(Color(1.0, 0.25, 0.2), 8.0), false)
+				continue
+			_box(Vector3(column, 5.02, row + back * 6.42), Vector3(14.5, 0.12, 0.08), glow, false)
+			for side: float in [-1.0, 1.0]:
+				_box(Vector3(column + side * 7.47, 5.02, row + back * 0.6), Vector3(0.08, 0.12, 11.4), glow, false)
+			# Roof gear, kept to the back half so the roof routes stay clear.
+			var mast := Vector3(column - 4.6, ROOF, row + back * 4.2)
+			_box(mast + Vector3(0.0, 3.0, 0.0), Vector3(0.12, 6.0, 0.12), steel, false)
+			_box(mast + Vector3(0.0, 4.6, 0.0), Vector3(1.4, 0.06, 0.06), steel, false)
+			_box(mast + Vector3(0.0, 6.1, 0.0), Vector3(0.22, 0.22, 0.22), Mats.glow(Color(1.0, 0.3, 0.25), 6.0), false)
+			if n % 2 == 0:
+				var dome := MeshInstance3D.new()
+				var ball := SphereMesh.new()
+				ball.radius = 1.25
+				ball.height = 2.5
+				ball.radial_segments = 20
+				ball.rings = 10
+				dome.mesh = ball
+				dome.material_override = shell
+				dome.position = Vector3(column + 3.6, ROOF + 1.0, row + back * 3.8)
+				add_child(dome)
+				_box(Vector3(column + 3.6, ROOF + 0.15, row + back * 3.8), Vector3(1.9, 0.3, 1.9), steel, false, false, 0.0, 0.05)
+			else:
+				for wing: float in [-1.0, 1.0]:
+					var panel := _box(Vector3(column + 3.4 + wing * 1.5, ROOF + 0.95, row + back * 3.8), Vector3(2.6, 0.06, 1.7), cell, false)
+					panel.rotation.x = -back * 0.45
+					_box(Vector3(column + 3.4 + wing * 1.5, ROOF + 0.45, row + back * 3.8), Vector3(0.1, 0.9, 0.1), steel, false)
