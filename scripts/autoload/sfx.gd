@@ -36,6 +36,8 @@ func _ready() -> void:
 	_streams["empty"] = _make(0.05, func(t: float) -> float: return _n() * exp(-t * 140.0) * 0.3)
 	_streams["step"] = _make(0.09, func(t: float) -> float: return _lowpass(_n(), 0.12) * exp(-t * 55.0) * 1.6)
 	_streams["ability"] = _make(0.45, func(t: float) -> float: return sin(TAU * (240.0 + 1500.0 * t) * t) * exp(-t * 7.0) * 0.32)
+	# A door servo: a falling whirr and the clunk as it seats.
+	_streams["door"] = _make(0.75, func(t: float) -> float: return sin(TAU * (190.0 - 90.0 * t) * t) * minf(t * 20.0, 1.0) * maxf(0.0, 1.0 - t / 0.6) * 0.35 + _lowpass(_n(), 0.15) * exp(-absf(t - 0.6) * 40.0) * 1.2)
 	_streams["tick"] = _make(0.05, func(t: float) -> float: return sin(TAU * 1100.0 * t) * exp(-t * 70.0) * 0.3)
 	_streams["alert"] = _make(0.3, func(t: float) -> float: return signf(sin(TAU * 520.0 * t)) * exp(-t * 10.0) * 0.14 * (1.0 if fmod(t, 0.1) < 0.06 else 0.0))
 	_streams["click"] = _make(0.03, func(t: float) -> float: return sin(TAU * 1500.0 * t) * exp(-t * 120.0) * 0.2)
@@ -103,7 +105,7 @@ func _build_buses() -> void:
 	AudioServer.add_bus_effect(0, limiter)
 
 func _is_world_sound(id: String) -> bool:
-	return id.begins_with("shot_") or id in ["step", "hurt", "explosion", "reload", "open", "empty", "shield_break"]
+	return id.begins_with("shot_") or id in ["step", "hurt", "explosion", "reload", "open", "door", "empty", "shield_break"]
 
 # A bed of wind and a low hum under the raid, looping. Without it, the moments
 # between shots are dead silent, which reads as the game being broken.

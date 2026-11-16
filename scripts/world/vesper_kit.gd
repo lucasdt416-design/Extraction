@@ -149,7 +149,8 @@ func _terrain() -> void:
 			source.material_override = _terrain_material
 			source.gi_mode = GeometryInstance3D.GI_MODE_STATIC
 			if underfoot:
-				_trimesh_body(source, true)
+				# Marked so the grass knows bare ground from everything built on it.
+				_trimesh_body(source, true).set_meta("soil", true)
 
 func _roads() -> void:
 	var roads: Node3D = (load(ROOT + str(manifest["roads"])) as PackedScene).instantiate()
@@ -159,7 +160,7 @@ func _roads() -> void:
 		source.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_trimesh_body(source, true)
 
-func _trimesh_body(source: MeshInstance3D, walkable: bool) -> void:
+func _trimesh_body(source: MeshInstance3D, walkable: bool) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.collision_layer = Layers.WORLD | (Level.NAV_SOURCE if walkable else 0)
 	body.collision_mask = 0
@@ -167,6 +168,7 @@ func _trimesh_body(source: MeshInstance3D, walkable: bool) -> void:
 	collider.shape = source.mesh.create_trimesh_shape()
 	body.add_child(collider)
 	source.add_child(body)
+	return body
 
 # The kit's models carry plain named materials; the look comes from swapping
 # those for its shaders here (painted concrete, wet asphalt, textured stone).

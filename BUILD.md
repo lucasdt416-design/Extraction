@@ -23,7 +23,7 @@ Everything is on `main`. Work happens on a short branch per job, merged by PR.
 | Map | Level class | What it is |
 |---|---|---|
 | Relay Station 07 | `Level` (`world/level.gd`) | 90 × 70 m compound, every piece built in code. The default. |
-| Aster City | `AsterLevel` (`world/aster_level.gd`) | 168 × 160 m: four cordoned blocks of a colony town. 15 minutes. |
+| Aster City | `AsterLevel` (`world/aster_level.gd`) | 168 × 224 m: four cordoned blocks of a colony town, plus a quarter past each of the north and south gates. 15 minutes. |
 
 A map is an entry in `Catalog.MAPS`; `"level": "aster"` picks the class in `Raid._ready`.
 A level subclass overrides `build()`, `bake()` and optionally `tune(env, sun)`, and fills
@@ -42,6 +42,31 @@ A level subclass overrides `build()`, `bake()` and optionally `tune(env, sun)`, 
   over the avenue between roofs, the depot hangar (bay door, raised deck, vault), roof
   landings, the cordon wall and gates, street cover, interior lighting and shelving, loot,
   squads and exits.
+
+**Doors, gates and grass** (added 2026-11-16):
+
+- `Door` (`world/door.gd`) is a sliding slab that blocks movement, shots and sight while
+  shut. `DoorSwitch` (`world/door_switch.gd`) is the button beside it: amber when shut,
+  teal when open, pressed with the use key. Levels place them with `Level._door` and
+  `Level._switch`. Every Aster building has one (about a third start open), the depot bay
+  is a two-leaf shutter on one button, and the depot's three side doors each have their own.
+- Doors are not navmesh obstacles. Guards open any door by walking up to it and it shuts
+  2.5 s after the last of them is through, so a door working by itself means someone is
+  coming. The player working a door makes noise (7 m for a door, 22 m for the shutter,
+  32 m for a gate). A door never shuts on a body standing in it.
+- The cordon's **north and south gates open** from a button on either side. Past each is
+  one more block of the kit's city: four buildings, the boulevard and a service lane, with
+  two squads and ten loot spots a side, walled at z = ±112. The third way out, "North
+  road", is at the far end of the north quarter. East and west gates are still the exits
+  and stay shut.
+- `Grass` (`world/grass.gd`, `shaders/grass.gdshader`) plants itself: two physics frames
+  after the level is built it looks down on a 1 m grid and grows wherever the first thing
+  hit is the terrain (marked with the `soil` meta in `VesperKit`), so roads, pavements and
+  building pads stay clear without being listed. About 66,000 tufts in 24 m chunks, full
+  tufts within 30 m and a 4-blade stand-in out to 80 m. In the shader it sways in gusts,
+  parts round the player and the eight nearest guards, and is thrown flat by grenades
+  (`call_group("grass", "blast", at, radius)`). Some tufts carry lit seed heads. Off at
+  Low graphics quality.
 
 Things in the kit that had to be corrected (all in `AsterLevel._leave_out` and
 `_roof_access`): its roof stairs stop a metre short of the roofs; its arcades put a post
@@ -89,6 +114,12 @@ anisotropic filtering and a larger shadow atlas.
 Measured after: standing still in the open courtyard with two squads in view, death in
 about 11.5 s (was 7). That is the only number; whether it now *feels* fair needs playing.
 
+**2026-11-16, asked for by the user.** Doors with buttons, gates that open onto more of
+the city, and grass that moves, "make it feel alive". All three are in (see "Doors, gates
+and grass" above). `maptest` now also checks that a shut door and a shut gate stop the
+player, that their buttons open them, and that grass found ground to grow on. Not played
+by a person yet.
+
 ## Run it
 
 Godot 4.7 is **not installed** on the main dev Mac; install it from godotengine.org.
@@ -133,6 +164,8 @@ scripts/
   world/aster_level.gd       Aster City: the kit's streets plus code-built set pieces
   world/vesper_kit.gd        loads part of the Vesper Reach kit as a level's scenery
   core/steps.gd              step-up movement over kerbs and sills
+  world/door.gd, door_switch.gd   sliding doors and gates, and the buttons that work them
+  world/grass.gd             self-planting grass; movement is in shaders/grass.gdshader
   world/loot.gd, loot_container.gd, extract_point.gd
   fx/mats.gd, shapes.gd, fx.gd   materials, bevelled meshes, one-shot effects
   ui/hud.gd, menu.gd, ui_kit.gd
@@ -217,6 +250,14 @@ Give this to whoever or whatever makes models:
 - Played once by an outside tester; the balance changes made in response are untested by a person.
 - Aster City has not been played by a person. Its buildings have one door each, so the
   rooms are dead ends; upper floors of the towers are skyline only.
+- Doors, gates and grass (2026-11-16) are checked by `maptest` only. Unknown until played:
+  whether guards opening doors reads as a warning or as noise, whether 33 guards on the
+  bigger map is too many, and the frame rate with grass on a slower machine.
+- Aster City draws about 5 M triangles a frame, nearly all of it the kit's buildings (the
+  grass is about 0.3 M). The kit's towers are 84,000 triangles each with no lower-detail
+  version; that is the first thing to fix if the map runs slowly.
+- Ideas not built for "make it feel alive": loose props that can be knocked over, birds
+  that scatter at gunfire, banners that move in the wind, doors on Relay Station.
 - Kestrel has no crouch, jump, aim or death clips; crouch squashes the model.
 - First-person arms are capsules, not Kestrel's real arms. No weapon inspect/equip
   animation, no melee.

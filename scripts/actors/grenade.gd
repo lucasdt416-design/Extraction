@@ -58,6 +58,7 @@ func _physics_process(delta: float) -> void:
 
 func _explode() -> void:
 	Fx.explosion(self, _to + Vector3.UP * 0.3, RADIUS)
+	get_tree().call_group("grass", "blast", _to, RADIUS)
 	var space := get_world_3d().direct_space_state
 	for body in get_tree().get_nodes_in_group("player"):
 		var player := body as Player

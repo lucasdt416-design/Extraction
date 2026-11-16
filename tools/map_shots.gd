@@ -7,11 +7,10 @@ extends Node
 
 const VIEWS: Dictionary = {
 	"aster_city": [
-		[Vector3(-4.0, 0.2, 75.0), 0.0, 2.0], [Vector3(-30.0, 0.2, 14.0), -70.0, 8.0], [Vector3(-50.0, 0.2, 2.0), -90.0, 6.0],
-		[Vector3(0.0, 5.4, 5.5), 180.0, -8.0], [Vector3(-66.0, 5.4, -20.0), 180.0, -10.0], [Vector3(33.0, 0.3, 12.0), 180.0, 4.0],
-		[Vector3(30.0, 0.3, 40.0), 200.0, 6.0], [Vector3(42.0, 3.5, 52.0), 20.0, -10.0], [Vector3(-33.0, 0.2, -18.0), 0.0, 0.0],
-		[Vector3(-33.0, 0.2, -30.0), 30.0, 0.0], [Vector3(-56.0, 3.0, -30.0), 0.0, 10.0], [Vector3(-60.0, 5.4, -38.5), -90.0, -5.0],
-		[Vector3(60.0, 0.2, -46.0), 90.0, 4.0], [Vector3(70.0, 0.2, 0.0), 90.0, 6.0],
+		[Vector3(-4.0, 0.2, 75.0), 0.0, 2.0], [Vector3(-33.0, 0.2, 19.0), 180.0, 0.0], [Vector3(-49.5, 0.2, 20.0), 180.0, -8.0],
+		[Vector3(4.0, 0.2, -70.0), 0.0, 4.0], [Vector3(0.0, 0.2, -86.0), 0.0, 2.0], [Vector3(33.0, 0.3, 14.0), 180.0, 4.0],
+		[Vector3(-49.5, 0.2, -36.0), 180.0, -14.0], [Vector3(-20.0, 0.2, -104.0), -90.0, 0.0], [Vector3(-33.0, 0.2, -80.5), 0.0, 0.0],
+		[Vector3(0.0, 5.4, 5.5), 180.0, -8.0], [Vector3(-49.5, 1.0, 40.0), 150.0, -30.0], [Vector3(17.0, 0.2, 50.0), -90.0, 0.0],
 	],
 }
 
@@ -39,7 +38,7 @@ func _ready() -> void:
 	# Plan view.
 	var top := Camera3D.new()
 	top.projection = Camera3D.PROJECTION_ORTHOGONAL
-	top.size = 190.0
+	top.size = 240.0
 	top.far = 400.0
 	top.position = Vector3(0.0, 150.0, 0.0)
 	top.rotation.x = -PI * 0.5
@@ -61,7 +60,14 @@ func _ready() -> void:
 		await get_tree().create_timer(1.2).timeout
 		_save(out, "view_%02d" % i)
 	var rid := get_viewport().get_viewport_rid()
+	print("MAP fps %d" % Performance.get_monitor(Performance.TIME_FPS))
+	await get_tree().create_timer(1.0).timeout
 	print("MAP draws %d  prims %d" % [Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
+	var grass := raid.level.get_node_or_null("Grass") as Node3D
+	if grass != null:
+		grass.visible = false
+		await get_tree().create_timer(1.0).timeout
+		print("MAP without grass: fps %d  prims %d" % [Performance.get_monitor(Performance.TIME_FPS), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
 	get_tree().quit()
 
 func _save(out: String, name: String) -> void:
