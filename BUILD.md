@@ -23,7 +23,7 @@ Everything is on `main`. Work happens on a short branch per job, merged by PR.
 | Map | Level class | What it is |
 |---|---|---|
 | Relay Station 07 | `Level` (`world/level.gd`) | 90 × 70 m compound, every piece built in code. The default. |
-| Aster City | `AsterLevel` (`world/aster_level.gd`) | 168 × 224 m: four cordoned blocks of a colony town, plus a quarter past each of the north and south gates. 15 minutes. |
+| Aster City | `AsterLevel` (`world/aster_level.gd`) | The whole 2 km island: the cordoned town in the middle (168 × 224 m) and seven more places beyond its gates. 30 minutes, seven exits. |
 | Cairn Divide | `CairnLevel` (`world/cairn_level.gd`) | 1.5 km square valley: five abandoned colonies, guard posts on the trails, rock shelters. 25 minutes, five exits. |
 
 A map is an entry in `Catalog.MAPS`; its `"level"` (`"aster"`, `"cairn"`) picks the class in `Raid._ready`.
@@ -79,6 +79,26 @@ Not used yet from the kit: the three weapon models in three skins
 (`vesper_reach/art/weapons`, stats in `data/equipment.json`), the minimap image, and the
 other districts.
 
+**The island (2026-11-16).** Aster City no longer ends at its wall. The west, east and
+outer south gates slide open like the inner ones (`_cordon`), and the kit's seven other
+districts are playable (`AsterLevel.SITES`, built by `_site`):
+
+- Five get a small colony built by rule: up to six more of the kit's buildings in two
+  rows (`SLOTS`; a different mix of workshop, clinic and habitat at each place), skipped
+  wherever the kit already stands something. `_fit` gives each a door, buttons, light,
+  shelving and a container. Cover and containers go in the street between the rows, the
+  kit's own loot cases become containers, two squads hold it, and a raid can start there.
+- Northwatch and Southshore are left as the kit made them, with one squad: outposts.
+- The six ways off the island are the kit's own extraction pads, out at the sites, plus
+  North road inside the wall. The old West gate and East gate exits are gone.
+- As on Cairn Divide: one island of navmesh per place (`Level._bake_islands`), guards
+  stay home, reinforcements within 170 m, the corner map, a start chosen from the seed.
+- `VesperKit` now makes the whole island's terrain solid, gives heights
+  (`height(x, z)`), takes `zones` (where colliders and navmesh are wanted) and
+  `solid_radius` (the rest of the town outside the wall is solid but has no doors), and
+  draws ground cover, rocks and trees by 128 m square with a distance limit. A tree past
+  230 m is a 60-triangle stand-in.
+
 **Cairn Divide** (added 2026-11-16, widened to the whole valley the same day) is all of
 ChatGPT's second kit (`cairn_divide/`; its notes are `cairn_divide/HANDOFF.md`, licences
 in `LICENSES.md`): a 1.5 km square of mountain valley with five abandoned colonies either
@@ -117,6 +137,11 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
   built in `CairnKit._fir_stand_in`.
 
 ## Playtest log
+
+**2026-11-16, Aster City opened onto the island.** Not played by a person. `maptest
+aster_city` passes (all the old checks, the new road gate, every exit on ground, 79
+containers, 62 of 62 guards moving). Four of the seven sites were looked at in screenshots.
+About 2.4 M triangles a frame from the town spawn.
 
 **2026-11-16, Cairn Divide added, then widened to the whole valley.** Not played by a
 person. `maptest cairn_divide` passes (Hearth on both floors, the walkways, an archive, a
@@ -306,7 +331,12 @@ Give this to whoever or whatever makes models:
   at. A post on a slope stands on a tall concrete block; a shelter's way in may be tight.
 - Guards never leave their colony or post, so nothing hunts you on the trails yet. Drone
   drops and roaming patrols are the planned next step.
-- Only Cairn Divide has the corner map.
+- Relay Station has no corner map.
+- Aster's outer sites were laid out by rule. Not checked by eye: Saltglass, Northwatch,
+  Southshore; whether an added building ever blocks a road; whether the cover in each
+  street is enough. The buildings added are the same three models as the town's.
+- The user asked for the town's buildings to look more like a future colony and less
+  like apartment blocks. Not done: it needs new models or a material and rooftop pass.
 - Doors, gates and grass (2026-11-16) are checked by `maptest` only. Unknown until played:
   whether guards opening doors reads as a warning or as noise, whether 33 guards on the
   bigger map is too many, and the frame rate with grass on a slower machine.

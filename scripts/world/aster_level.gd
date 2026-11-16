@@ -21,7 +21,24 @@ const HALF := Vector2(84.0, 112.0)
 # The cordon proper: the wall across the north and south of the centre, with a
 # gate in each. Past them the map runs on to the outer wall at HALF.y.
 const INNER: float = 80.0
-const SCENERY_RADIUS: float = 440.0
+const SCENERY_RADIUS: float = 1500.0
+# The other places on the island, from the kit's own list of districts:
+# [name, where it is in the kit's coordinates, half the side of its level ground,
+#  the three kinds of building this game adds there].
+const SITES: Array[Array] = [
+	["The Heliograph", Vector3(135.0, 65.0, -285.0), 68.0, ["workshop", "clinic", "workshop"]],
+	["Tideworks", Vector3(650.0, 9.0, -120.0), 72.0, ["workshop", "workshop", "habitat"]],
+	["Saltglass Terraces", Vector3(-650.0, 53.0, -310.0), 68.0, ["clinic", "habitat", "clinic"]],
+	["Viridian Conservatory", Vector3(350.0, 29.0, 425.0), 72.0, ["habitat", "clinic", "habitat"]],
+	["Cinder Excavation", Vector3(-490.0, 59.0, 485.0), 68.0, ["workshop", "habitat", "workshop"]],
+	["Northwatch", Vector3(-90.0, 98.0, -735.0), 40.0, []],
+	["Southshore Ferry", Vector3(-20.0, 10.0, 770.0), 40.0, []],
+]
+# Where a building may be added on a site, about its middle: (x, z, which way its door faces).
+const SLOTS: Array[Vector3] = [Vector3(-33.0, -31.0, 1.0), Vector3(0.0, -31.0, 1.0), Vector3(33.0, -31.0, 1.0),
+	Vector3(-33.0, 31.0, -1.0), Vector3(0.0, 31.0, -1.0), Vector3(33.0, 31.0, -1.0)]
+const SCENERY_ONLY: Array[String] = ["meadow_patch", "red_scrub", "fern", "basalt0", "basalt1", "basalt2", "salt0", "salt1", "salt2",
+	"cinder0", "cinder1", "cinder2", "crystal_cluster", "basalt_columns", "loot_crate", "storm_drain"]
 const ROOF: float = 5.24            # top of a low building's roof
 const COLUMNS: Array[float] = [-66.0, -33.0, 33.0, 66.0]
 const ROWS: Array[float] = [-93.0, -62.0, -31.0, 31.0, 62.0, 93.0]
@@ -32,6 +49,8 @@ const TOWERS: Array[Vector2] = [Vector2(-66.0, -62.0), Vector2(66.0, -62.0), Vec
 	Vector2(33.0, -93.0), Vector2(-33.0, 93.0)]
 
 var kit: VesperKit
+var _islands: Array[AABB] = []       # one island of navmesh each: the city, then every site
+var _starts: Array[Array] = []       # [position, yaw] of each place a raid can begin
 
 func _init() -> void:
 	player_spawn = Vector3(-4.0, 0.2, 75.0)
@@ -47,6 +66,19 @@ func build() -> void:
 	add_child(kit)
 	kit.load_data()
 	kit.skip = _leave_out
+	kit.zones.append(Rect2(-HALF, HALF * 2.0))
+	for site: Array in SITES:
+		var middle := kit.to_level(site[1])
+		var reach: float = site[2]
+		kit.zones.append(Rect2(middle.x - reach, middle.z - reach, reach * 2.0, reach * 2.0))
+	kit.solid_radius = 230.0   # the rest of the city, outside the cordon, is solid too
+	separate_regions = true
+	reinforce_range = 170.0
+	minimap = load(VesperKit.ROOT + "art/textures/minimap.png")
+	minimap_span = 2048.0
+	minimap_centre = Vector2(-CENTRE.x, -CENTRE.z)
+	places.append({"name": "Aster City", "position": Vector3.ZERO})
+	_starts.append([player_spawn, player_yaw])
 	kit.build(CENTRE, HALF, SCENERY_RADIUS)
 	_roof_access()
 	_spire()
@@ -58,9 +90,14 @@ func build() -> void:
 	_outskirts()
 	_interiors()
 	_doors()
+	for i in SITES.size():
+		_site(i)
 	_grass()
 	kit.flush()
 	_squads_and_exits()
+	var pick := spawn_at if spawn_at >= 0 else int(GameManager.rng.randi() % _starts.size())
+	player_spawn = _starts[pick][0]
+	player_yaw = _starts[pick][1]
 	_placements()
 
 # The environment is the raid's; this map only wants a longer view.
@@ -71,20 +108,9 @@ func tune(env: Environment, sun: DirectionalLight3D) -> void:
 	sun.directional_shadow_max_distance = 150.0
 
 func bake() -> void:
-	var mesh := NavigationMesh.new()
-	mesh.agent_radius = 0.5
-	mesh.agent_height = 1.75
-	mesh.agent_max_climb = 0.3
-	mesh.agent_max_slope = 40.0
-	mesh.cell_size = 0.25
-	mesh.cell_height = 0.25
-	mesh.region_min_size = 220.0
-	mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
-	mesh.geometry_collision_mask = NAV_SOURCE
-	# The terrain collider is a whole 512 m cell; only the cordon is walkable.
-	mesh.filter_baking_aabb = AABB(Vector3(-HALF.x, -1.0, -HALF.y), Vector3(HALF.x * 2.0, 12.0, HALF.y * 2.0))
-	navigation_mesh = mesh
-	bake_navigation_mesh(false)
+	# The terrain collider is the whole island; only the cordon and the sites are walkable.
+	_islands.push_front(AABB(Vector3(-HALF.x, -1.0, -HALF.y), Vector3(HALF.x * 2.0, 12.0, HALF.y * 2.0)))
+	_bake_islands(_islands, 0.3)
 
 # --- What the kit's manifest gets wrong for this game -------------------------
 
@@ -92,7 +118,7 @@ func _leave_out(asset: String, at: Vector3, _placement: Dictionary) -> bool:
 	# Loot and exits are this game's own objects.
 	if asset in ["loot_crate", "extraction_pad"]:
 		return true
-	if not kit.inside(at, 6.0):
+	if not Rect2(-HALF, HALF * 2.0).grow(6.0).has_point(Vector2(at.x, at.z)):
 		return false
 	# The gantries stand where the glass bridges go; the kit's skywalks sit
 	# 40 cm above the roofs they are meant to join.
@@ -320,10 +346,11 @@ func _cordon() -> void:
 	var wall_mat := Mats.wall(HULL_DARK, Color(0.17, 0.18, 0.2), 1.4, 3.0, 0.75, 0.2)
 	var hazard := Mats.surface(OCHRE, "plain", 0.6)
 	var gate := Mats.wall(Color(0.16, 0.17, 0.19), RUST, 0.6, 1.5, 0.5, 0.5)
-	# The outer wall, unbroken.
-	for side: Array in [[Vector2(-HALF.x, -HALF.y), Vector2(HALF.x, -HALF.y)], [Vector2(-HALF.x, HALF.y), Vector2(HALF.x, HALF.y)],
-			[Vector2(-HALF.x, -HALF.y), Vector2(-HALF.x, HALF.y)], [Vector2(HALF.x, -HALF.y), Vector2(HALF.x, HALF.y)]]:
-		_wall(side[0], side[1], 6.5, wall_mat, [], 1.0)
+	# The outer wall: unbroken along the north, a gateway in each other side.
+	var gateway: Array = [[0.0, 12.0, 5.2]]
+	for side: Array in [[Vector2(-HALF.x, -HALF.y), Vector2(HALF.x, -HALF.y), []], [Vector2(-HALF.x, HALF.y), Vector2(HALF.x, HALF.y), gateway],
+			[Vector2(-HALF.x, -HALF.y), Vector2(-HALF.x, HALF.y), gateway], [Vector2(HALF.x, -HALF.y), Vector2(HALF.x, HALF.y), gateway]]:
+		_wall(side[0], side[1], 6.5, wall_mat, side[2], 1.0)
 	# The cordon across the north and south of the centre, open where the
 	# boulevard runs through it. The gates stand in those openings.
 	for z: float in [-INNER, INNER]:
@@ -332,36 +359,28 @@ func _cordon() -> void:
 			Vector2(-HALF.x, -INNER), Vector2(HALF.x, -INNER), Vector2(-HALF.x, INNER), Vector2(HALF.x, INNER)]:
 		_box(Vector3(corner.x, 4.5, corner.y), Vector3(2.4, 9.0, 2.4), wall_mat)
 		_box(Vector3(corner.x, 9.2, corner.y), Vector3(0.5, 0.4, 0.5), Mats.glow(RUST, 6.0), false)
-	# Gates: [centre, along x?, facing sign, label]. East and west are the ways
-	# out and stay shut; north and south slide open from a button on either side.
-	for spec: Array in [[Vector3(-HALF.x, 0.0, 0.0), false, 1.0, "EXIT  W"], [Vector3(HALF.x, 0.0, 0.0), false, -1.0, "EXIT  E"],
-			[Vector3(0.0, 0.0, -INNER), true, 1.0, "GATE  N"], [Vector3(0.0, 0.0, INNER), true, -1.0, "GATE  S"]]:
+	# Gates: [centre, along x?, label]. Each slides open from a button on either
+	# side. North and south are inside the cordon; the other three lead out of
+	# the city onto the island.
+	for spec: Array in [[Vector3(-HALF.x, 0.0, 0.0), false, "WEST ROAD"], [Vector3(HALF.x, 0.0, 0.0), false, "EAST ROAD"],
+			[Vector3(0.0, 0.0, -INNER), true, "GATE  N"], [Vector3(0.0, 0.0, INNER), true, "GATE  S"], [Vector3(0.0, 0.0, HALF.y), true, "SOUTH ROAD"]]:
 		var at: Vector3 = spec[0]
 		var along_x: bool = spec[1]
-		var inward: float = spec[2]
-		var exit: bool = (spec[3] as String).begins_with("EXIT")
-		var offset := Vector3(0.0, 0.0, inward * 0.56) if along_x else Vector3(inward * 0.56, 0.0, 0.0)
-		if exit:
-			_box(at + offset + Vector3(0.0, 2.6, 0.0), Vector3(0.14, 5.2, 12.0), gate, false)
-		else:
-			# The leaf runs back into the thickness of the wall.
-			var leaf := _door(at, 0.0, Vector3(12.3, 5.2, 0.36), Vector3(-12.1, 0.0, 0.0), false, "gate")
-			leaf.material = gate
-			leaf.travel = 3.2
-			leaf.noise = 32.0
-			for face: float in [-1.0, 1.0]:
-				_switch(at + Vector3(7.3, 1.3, face * 0.57), 0.0 if face > 0.0 else PI, [leaf])
-				_box(at + Vector3(7.3, 2.0, face * 0.53), Vector3(0.7, 0.08, 0.06), hazard, false)
-		var faces: Array[float] = [inward]
-		if not exit:
-			faces = [-1.0, 1.0]
-		for face in faces:
+		# The leaf runs back into the thickness of the wall.
+		var leaf := _door(at, 0.0 if along_x else PI * 0.5, Vector3(12.3, 5.2, 0.36), Vector3(-12.1, 0.0, 0.0), false, "gate")
+		leaf.material = gate
+		leaf.travel = 3.2
+		leaf.noise = 32.0
+		for face: float in [-1.0, 1.0]:
 			var out := Vector3(0.0, 0.0, face * 0.56) if along_x else Vector3(face * 0.56, 0.0, 0.0)
+			var yaw := (0.0 if face > 0.0 else PI) if along_x else (PI * 0.5 if face > 0.0 else -PI * 0.5)
+			var beside := Vector3(7.3, 0.0, 0.0) if along_x else Vector3(0.0, 0.0, -7.3)
+			_switch(at + beside + out * 1.02 + Vector3(0.0, 1.3, 0.0), yaw, [leaf])
+			_box(at + beside + out * 0.95 + Vector3(0.0, 2.0, 0.0), Vector3(0.7, 0.08, 0.06) if along_x else Vector3(0.06, 0.08, 0.7), hazard, false)
 			_box(at + out + Vector3(0.0, 5.35, 0.0), Vector3(12.6, 0.3, 0.2) if along_x else Vector3(0.2, 0.3, 12.6), hazard, false)
 			for post: float in [-6.3, 6.3]:
 				_box(at + out + (Vector3(post, 3.4, 0.0) if along_x else Vector3(0.0, 3.4, post)), Vector3(0.6, 6.8, 0.5) if along_x else Vector3(0.5, 6.8, 0.6), wall_mat, false, false, 0.0, 0.05)
-			var yaw := (0.0 if face > 0.0 else PI) if along_x else (PI * 0.5 if face > 0.0 else -PI * 0.5)
-			_sign(spec[3], at + out * 1.3 + Vector3(0.0, 3.6 if exit else 5.95, 0.0), yaw, 1.3 if exit else 0.7, TEAL.lightened(0.35) if exit else Color(0.75, 0.74, 0.7), exit)
+			_sign(spec[2], at + out * 1.3 + Vector3(0.0, 5.95, 0.0), yaw, 0.7, Color(0.75, 0.74, 0.7), false)
 
 # --- Doors ------------------------------------------------------------------------
 # Every building's doorway has a sliding door with a button outside and in.
@@ -528,11 +547,132 @@ func _squads_and_exits() -> void:
 	squads.append({"members": ["bulwark", "trooper"], "points": [Vector3(-42.0, 0.0, 2.0), Vector3(-30.0, 0.0, 12.0), Vector3(-58.0, 0.0, -8.0)]})
 	squads.append({"members": ["trooper", "lobber"], "points": [Vector3(48.0, 0.0, -2.0), Vector3(62.0, 0.0, 10.0), Vector3(36.0, 0.0, 12.0)]})
 	squads.append({"members": ["marksman"], "points": [Vector3(66.0, ROOF + 0.05, -10.0), Vector3(66.0, ROOF + 0.05, 10.0)]})
-	extracts.append({"position": Vector3(-78.0, 0.0, 0.0), "name": "West gate"})
-	extracts.append({"position": Vector3(78.0, 0.0, 0.0), "name": "East gate"})
+	# The ways off the island are out at the sites: the kit's own six.
+	for spec: Dictionary in kit.manifest["extractions"]:
+		var at := kit.to_level(VesperKit._v3(spec["position"]))
+		extracts.append({"position": Vector3(at.x, kit.height(at.x, at.z), at.z), "name": spec["name"]})
 	# Past the gates.
 	squads.append({"members": ["trooper", "marksman", "trooper"], "points": [Vector3(0.0, 0.0, -94.0), Vector3(-20.0, 0.0, -106.0), Vector3(20.0, 0.0, -106.0)]})
 	squads.append({"members": ["bulwark", "rusher"], "points": [Vector3(-49.5, 0.0, -100.0), Vector3(-70.0, 0.0, -106.5), Vector3(-49.5, 0.0, -90.0)]})
 	squads.append({"members": ["trooper", "lobber", "trooper"], "points": [Vector3(4.0, 0.0, 96.0), Vector3(24.0, 0.0, 106.0), Vector3(-22.0, 0.0, 106.0)]})
 	squads.append({"members": ["rusher", "trooper"], "points": [Vector3(49.5, 0.0, 100.0), Vector3(70.0, 0.0, 106.5), Vector3(49.5, 0.0, 90.0)]})
 	extracts.append({"position": Vector3(0.0, 0.0, -106.0), "name": "North road"})
+
+# --- The rest of the island ------------------------------------------------------
+# Each of the kit's other districts is a patch of level ground with a landmark
+# and little else. This game builds a small colony on it: up to six more of the
+# kit's buildings (a different mix at each place) with doors, lamps, shelving
+# and something to search, cover in the street between the two rows, the
+# kit's own loot cases as containers, a squad or two, and a place to start.
+# The two smallest are left as they are: outposts.
+
+func _site(index: int) -> void:
+	var site: Array = SITES[index]
+	var middle := kit.to_level(site[1])
+	var reach: float = site[2]
+	var kinds: Array = site[3]
+	origin = middle
+	places.append({"name": site[0], "position": middle})
+	_islands.append(AABB(Vector3(middle.x - reach, middle.y - 3.0, middle.z - reach), Vector3(reach * 2.0, 7.5, reach * 2.0)))
+	# What the kit already stands here, so nothing is built on top of it.
+	var taken: Array[Vector3] = []     # (x, z about the middle, radius it needs)
+	for placement: Dictionary in kit.manifest["placements"]:
+		var asset: String = placement["asset"]
+		if asset in SCENERY_ONLY or asset.begins_with("canopy"):
+			continue
+		var at := kit.to_level(VesperKit._v3(placement["position"])) - middle
+		if absf(at.x) < reach + 20.0 and absf(at.z) < reach + 20.0:
+			var room := 24.0 if asset in ["heliograph", "observatory", "conservatory_frame", "hangar"] else (9.0 if asset.begins_with("container") or asset == "pipeline" else 5.0)
+			taken.append(Vector3(at.x, at.z, room))
+	var free := func(x: float, z: float, room: float) -> bool:
+		for spot in taken:
+			if Vector2(x - spot.x, z - spot.y).length() < room + spot.z:
+				return false
+		return true
+	var built := 0
+	var first := Vector3.ZERO
+	for i in SLOTS.size():
+		var slot := SLOTS[i]
+		if kinds.is_empty() or not free.call(slot.x, slot.y, 12.0):
+			continue
+		built += 1
+		kit.add(kinds[i % kinds.size()], middle + Vector3(slot.x, 0.0, slot.y), 0.0 if slot.z > 0.0 else PI)
+		_fit(slot.x, slot.y, slot.z, index * 7 + i, "vault" if built == 2 and index % 2 == 0 else ("locker" if i % 2 == 0 else "crate"))
+		taken.append(Vector3(slot.x, slot.y, 10.0))
+		if built == 1:
+			first = slot
+	if built > 0:
+		_sign((site[0] as String).to_upper(), Vector3(first.x, 4.5, first.y + first.z * 6.1), 0.0 if first.z > 0.0 else PI, 0.55, TEAL.lightened(0.4), true)
+	# The street between the rows: cover, lamps, a container or two.
+	var tints: Array[String] = ["container_teal", "container_coral", "container_white"]
+	for spot: Array in [[-18.0, 6.0, 0.0], [15.0, -7.0, 0.0], [0.0, 13.0, PI * 0.5], [-40.0, -4.0, PI * 0.5], [42.0, 5.0, PI * 0.5], [22.0, 12.0, 0.2], [-8.0, -12.0, 0.0]]:
+		if reach >= 60.0 and free.call(spot[0], spot[1], 2.5):
+			_barrier(spot[0], spot[1], 3.2, spot[2])
+			taken.append(Vector3(spot[0], spot[1], 2.0))
+	for spot: Array in [[-28.0, 2.0, 0.3], [30.0, -3.0, PI * 0.5 + 0.1], [6.0, -2.0, -0.2]]:
+		if reach >= 60.0 and free.call(spot[0], spot[1], 6.0):
+			kit.add(tints[(index + int(spot[0])) % 3], middle + Vector3(spot[0], 0.0, spot[1]), spot[2])
+			taken.append(Vector3(spot[0], spot[1], 5.0))
+	for x: float in [-24.0, 24.0]:
+		if free.call(x, 0.0, 1.5):
+			_lamp(Vector3(x, 5.2, 0.0), LIGHT_WARM if index % 2 == 0 else LIGHT_COOL, 2.0, 13.0, false, false)
+			_box(Vector3(x, 2.6, 0.0), Vector3(0.14, 5.2, 0.14), Mats.surface(Color(0.16, 0.17, 0.19), "metal", 0.5, 0.6))
+	origin = Vector3.ZERO
+	# The kit's own loot cases, wherever they are not now inside a building.
+	for spec: Dictionary in kit.manifest["loot"]:
+		var at := kit.to_level(VesperKit._v3(spec["position"]))
+		var local := at - middle
+		if absf(local.x) > reach - 3.0 or absf(local.z) > reach - 3.0:
+			continue
+		var clear := true
+		for slot in SLOTS:
+			if not kinds.is_empty() and absf(local.x - slot.x) < 8.5 and absf(local.z - slot.y) < 8.0:
+				clear = false
+		if clear:
+			_mark(Vector3(at.x, middle.y, at.z), "crate", local.x * 0.3)
+	# Who holds it.
+	var base := middle + Vector3(0.0, 0.05, 0.0)
+	if reach >= 60.0:
+		squads.append({"members": ["trooper", "trooper", "lobber"] if index % 2 == 0 else ["trooper", "rusher", "trooper"],
+			"points": [base + Vector3(-12.0, 0.0, 2.0), base + Vector3(14.0, 0.0, -3.0), base + Vector3(0.0, 0.0, 16.0)]})
+		squads.append({"members": ["bulwark", "trooper"] if index % 3 != 1 else ["marksman", "trooper"],
+			"points": [base + Vector3(-44.0, 0.0, 8.0), base + Vector3(-50.0, 0.0, -40.0), base + Vector3(-16.0, 0.0, -50.0)]})
+		for corner: Vector2 in [Vector2(-52.0, -52.0), Vector2(52.0, 52.0), Vector2(52.0, -52.0)]:
+			reinforce_points.append(middle + Vector3(corner.x, 0.2, corner.y))
+		_starts.append([middle + Vector3(-48.0, 0.4, 50.0), atan2(-48.0, 50.0)])
+		var grass := Grass.new()
+		grass.name = "Grass%d" % (index + 1)
+		grass.area = Rect2(middle.x - reach, middle.z - reach, reach * 2.0, reach * 2.0)
+		grass.density = 7.0
+		grass.reach = Vector2(middle.y + 3.0, middle.y - 4.0)
+		grass.seed_value = 40 + index
+		add_child(grass)
+	else:
+		squads.append({"members": ["marksman", "trooper"], "points": [base + Vector3(-10.0, 0.0, 10.0), base + Vector3(12.0, 0.0, 14.0), base + Vector3(0.0, 0.0, 24.0)]})
+
+# One added building made usable: its door and buttons, a lit ceiling strip,
+# shelving down one side, a bench, and a container against the back wall.
+# (x, z) is its middle about the site's; `front` is +1 when its door faces south.
+func _fit(x: float, z: float, front: float, n: int, kind: String) -> void:
+	var door := _door(Vector3(x, 0.0, z + front * 5.61), 0.0, Vector3(2.56, 3.34, 0.12), Vector3(-2.5, 0.0, 0.0), n % 3 == 1)
+	_switch(Vector3(x + 1.8, 1.25, z + front * 6.08), 0.0 if front > 0.0 else PI, [door])
+	_switch(Vector3(x + 1.8, 1.25, z + front * 5.68), PI if front > 0.0 else 0.0, [door])
+	var back := -front
+	var tint := LIGHT_WARM if n % 2 == 0 else LIGHT_COOL
+	for offset: float in [-0.45, 0.45]:
+		_box(Vector3(x + offset * 6.3, 4.86, z), Vector3(0.3, 0.06, 7.1), Mats.glow(tint, 1.4), false)
+	var light := OmniLight3D.new()
+	light.position = origin + Vector3(x, 4.2, z)
+	light.light_color = tint
+	light.light_energy = 4.5
+	light.omni_range = 11.0
+	light.omni_attenuation = 0.8
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = 70.0
+	light.distance_fade_length = 20.0
+	add_child(light)
+	for i in 3:
+		_rack(x - 6.0, z + back * (0.6 + i * 1.3), PI * 0.5)
+	_box(Vector3(x + 5.8, 0.5, z + back * 2.2), Vector3(1.0, 1.0, 3.2), Mats.surface(Color(0.88, 0.88, 0.87), "plain", 0.4, 0.1), true, true, 0.0, 0.04)
+	_box(Vector3(x + 5.8, 1.03, z + back * 2.2), Vector3(0.8, 0.04, 3.0), Mats.glow(tint, 0.7), false)
+	_mark(Vector3(x + 4.0 * back, 0.0, z + 4.9 * back), kind, 0.0 if back < 0.0 else PI)

@@ -7,10 +7,10 @@ extends Node
 
 const VIEWS: Dictionary = {
 	"aster_city": [
-		[Vector3(-4.0, 0.2, 75.0), 0.0, 2.0], [Vector3(-33.0, 0.2, 19.0), 180.0, 0.0], [Vector3(-49.5, 0.2, 20.0), 180.0, -8.0],
-		[Vector3(4.0, 0.2, -70.0), 0.0, 4.0], [Vector3(0.0, 0.2, -86.0), 0.0, 2.0], [Vector3(33.0, 0.3, 14.0), 180.0, 4.0],
-		[Vector3(-49.5, 0.2, -36.0), 180.0, -14.0], [Vector3(-20.0, 0.2, -104.0), -90.0, 0.0], [Vector3(-33.0, 0.2, -80.5), 0.0, 0.0],
-		[Vector3(0.0, 5.4, 5.5), 180.0, -8.0], [Vector3(-49.5, 1.0, 40.0), 150.0, -30.0], [Vector3(17.0, 0.2, 50.0), -90.0, 0.0],
+		[Vector3(-4.0, 0.2, 75.0), 0.0, 2.0], [Vector3(-104.0, 0.3, 4.0), -90.0, 4.0], [Vector3(847.0, 0.4, 60.0), -43.8, 2.0],
+		[Vector3(895.0, 0.4, 14.0), 20.0, 2.0], [Vector3(-453.0, 0.4, -130.0), -43.8, 2.0], [Vector3(547.0, 0.4, 605.0), -43.8, 2.0],
+		[Vector3(-293.0, 0.4, 665.0), -43.8, 2.0], [Vector3(332.0, 0.4, -105.0), -43.8, 6.0], [Vector3(150.0, 0.4, -40.0), -60.0, 0.0],
+		[Vector3(-33.0, 0.2, 19.0), 180.0, 0.0], [Vector3(0.0, 5.4, 5.5), 180.0, -8.0],
 	],
 	"cairn_divide": [
 		[Vector3(-60.0, 0.3, 58.0), -45.0, 2.0], [Vector3(-126.0, 6.0, -96.0), 0.0, -8.0], [Vector3(-82.8, 1.0, 147.0), 55.6, 0.0],
@@ -23,7 +23,7 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	var out := args[0]
 	GameManager.map_id = args[1]
-	CairnLevel.spawn_at = 0
+	Level.spawn_at = 0
 	GameManager.loadout["primary"] = "rifle"
 	var started := Time.get_ticks_msec()
 	var raid: Raid = load("res://scenes/raid.tscn").instantiate()
@@ -62,10 +62,10 @@ func _ready() -> void:
 	var views: Array = VIEWS.get(args[1], [])
 	for i in views.size():
 		player.global_position = views[i][0]
-		if raid.level is CairnLevel:
-			# Heights on this map are looked up, not written down: y is metres above the ground.
+		if raid.level.separate_regions:
+			# Heights on these maps are looked up, not written down: y is metres above the ground.
 			var at: Vector3 = views[i][0]
-			player.global_position.y = (raid.level as CairnLevel).kit.height(at.x, at.z) + at.y
+			player.global_position.y = raid.level.get("kit").height(at.x, at.z) + at.y
 		player.velocity = Vector3.ZERO
 		player.set("_yaw", deg_to_rad(views[i][1]))
 		player.set("_pitch", deg_to_rad(views[i][2]))
