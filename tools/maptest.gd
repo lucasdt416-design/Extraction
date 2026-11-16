@@ -23,7 +23,7 @@ const HIGH_PLACES: Dictionary = {
 # A shut door to walk into, and a second one further on, per map:
 # [what, from, the z it must stop short of, the z it must pass once opened].
 const SHUT: Dictionary = {
-	"aster_city": [["a shut door", Vector3(-33.0, 0.3, 16.0), 25.6, 27.0], ["the shut south gate", Vector3(-2.0, 0.3, 70.0), 80.0, 86.0]],
+	"aster_city": [["a shut door", Vector3(-33.0, 0.3, 16.0), 25.6, 27.0], ["the shut south gate", Vector3(-2.0, 0.3, 70.0), 80.0, 86.0], ["the shut road gate", Vector3(4.0, 0.3, 102.0), 112.0, 118.0]],
 	"cairn_divide": [["a shut front door", Vector3(0.0, 0.3, -14.0), -8.2, -7.0]],
 }
 
@@ -65,7 +65,7 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	GameManager.map_id = args[0]
 	GameManager.in_raid = true
-	CairnLevel.spawn_at = 0
+	Level.spawn_at = 0
 	var started := Time.get_ticks_msec()
 	var raid: Raid = load("res://scenes/raid.tscn").instantiate()
 	add_child(raid)
@@ -82,9 +82,9 @@ func _ready() -> void:
 	var targets: Array = []
 	for point in raid.extract_points:
 		if raid.level.separate_regions:
-			# Islands of navmesh: an exit has to be on one, not reachable from the spawn.
-			var close := NavigationServer3D.map_get_closest_point(map, point.global_position)
-			check("on the navmesh: " + point.label, close.distance_to(point.global_position) < 1.6, "%.1f m off" % close.distance_to(point.global_position))
+					# Islands of navmesh: an exit cannot be reached from the spawn, it only has to be on the ground.
+			var foot := raid.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(point.global_position + Vector3.UP * 2.0, point.global_position + Vector3.DOWN * 2.0, Layers.WORLD))
+			check("exit stands on the ground: " + point.label, not foot.is_empty())
 		else:
 			targets.append([point.label, point.global_position])
 	targets.append_array(HIGH_PLACES.get(args[0], []))

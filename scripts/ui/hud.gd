@@ -348,17 +348,25 @@ func _draw_overlay() -> void:
 
 	# Extraction markers, pinned to the screen edge when off screen.
 	if camera != null:
-		for point in _raid.extract_points:
+		# On a map with a corner map only the two nearest exits are marked in the
+		# view; the rest are on the map.
+		var marked: Array = _raid.extract_points.duplicate()
+		if _raid.level.minimap != null:
+			var from := _player.global_position
+			marked.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_squared_to(from) < b.global_position.distance_squared_to(from))
+			marked.resize(mini(marked.size(), 2))
+		for point: ExtractPoint in marked:
 			var world: Vector3 = point.global_position + Vector3.UP * 2.2
 			var screen := camera.unproject_position(world)
 			if camera.is_position_behind(world):
 				screen = center + (center - screen).normalized() * 4000.0
 			screen = screen.clamp(Vector2(140, 130), size - Vector2(140, 240))
+			if _raid.level.minimap != null and screen.x > size.x - MARGIN - MAP_SIZE - 110.0:
+				screen.y = maxf(screen.y, MARGIN + MAP_SIZE + 24.0)
 			var distance := int(point.global_position.distance_to(_player.global_position))
 			_canvas.draw_arc(screen, 6.0, 0.0, TAU, 16, TEAL, 1.5, true)
 			_canvas.draw_string(_font, screen + Vector2(-100, 24), "%s  %dm" % [point.label, distance], HORIZONTAL_ALIGNMENT_CENTER, 200, 13, Color(TEAL, 0.9))
 
-# A small square with a key's letter on it. Lit when the thing is available.
 # The corner map: a north-up window on the level's picture, centred on the
 # player, with the exits and the named places marked.
 func _draw_map(size: Vector2) -> void:
@@ -370,7 +378,7 @@ func _draw_map(size: Vector2) -> void:
 	var here := Vector2(_player.global_position.x, _player.global_position.z)
 	var per_metre := level.minimap.get_width() / level.minimap_span
 	var window := MAP_SHOWS * per_metre
-	var source := Rect2((here + Vector2.ONE * level.minimap_span * 0.5) * per_metre - Vector2.ONE * window * 0.5, Vector2(window, window))
+	var source := Rect2((here - level.minimap_centre + Vector2.ONE * level.minimap_span * 0.5) * per_metre - Vector2.ONE * window * 0.5, Vector2(window, window))
 	_canvas.draw_rect(frame, Color(0.03, 0.05, 0.05, 0.75))
 	_canvas.draw_texture_rect_region(level.minimap, frame, source, Color(1, 1, 1, 0.92))
 	var scale := MAP_SIZE / MAP_SHOWS
@@ -397,6 +405,7 @@ func _draw_map(size: Vector2) -> void:
 	_canvas.draw_rect(frame, Color(1, 1, 1, 0.5), false, 1.0)
 	_canvas.draw_string(mono, corner + Vector2(6, 13), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.7))
 
+# A small square with a key's letter on it. Lit when the thing is available.
 func _keycap(at: Vector2, letter: String, lit: bool) -> void:
 	_canvas.draw_rect(Rect2(at, Vector2(24, 24)), INK if lit else Color(1, 1, 1, 0.2))
 	_canvas.draw_string(UiKit.mono(true), at + Vector2(0, 17), letter, HORIZONTAL_ALIGNMENT_CENTER, 24, 13, Color(0.06, 0.07, 0.08) if lit else INK)

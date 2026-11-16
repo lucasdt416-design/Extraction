@@ -43,8 +43,6 @@ const POSTS: Array[Array] = [
 ]
 # Rock shelters in the hills: (x, z).
 const SHELTERS: Array[Vector2] = [Vector2(-96.0, 138.0), Vector2(-66.0, -118.0), Vector2(440.0, 132.0), Vector2(-190.0, 20.0)]
-# Tools set this to start in a known place (0 = Hearth, south-west); -1 picks one by chance.
-static var spawn_at: int = -1
 
 var kit: CairnKit
 var zones: Array[Dictionary] = []   # {"rect": Rect2, "ground": float}: one island of navmesh each
@@ -104,38 +102,15 @@ func tune(env: Environment, sun: DirectionalLight3D) -> void:
 	env.sdfgi_max_distance = 200.0
 	sun.directional_shadow_max_distance = 170.0
 
-# One island of navmesh per colony and manned post. The level's colliders are
-# read once and each island is cut from them.
+# One island of navmesh per colony and manned post.
 func bake() -> void:
-	var source := NavigationMeshSourceGeometryData3D.new()
-	NavigationServer3D.parse_source_geometry_data(_nav(AABB()), source, self)
-	for i in zones.size():
-		var rect: Rect2 = zones[i]["rect"]
-		var ground: float = zones[i]["ground"]
+	var boxes: Array[AABB] = []
+	for zone in zones:
+		var rect: Rect2 = zone["rect"]
+		var ground: float = zone["ground"]
 		# The top stops under the roofs, which nobody can reach.
-		var mesh := _nav(AABB(Vector3(rect.position.x, ground - 8.0, rect.position.y), Vector3(rect.size.x, 17.0, rect.size.y)))
-		NavigationServer3D.bake_from_source_geometry_data(mesh, source)
-		if i == 0:
-			navigation_mesh = mesh
-		else:
-			var region := NavigationRegion3D.new()
-			region.name = "Island%d" % i
-			region.navigation_mesh = mesh
-			add_child(region)
-
-func _nav(box: AABB) -> NavigationMesh:
-	var mesh := NavigationMesh.new()
-	mesh.agent_radius = 0.5
-	mesh.agent_height = 1.75
-	mesh.agent_max_climb = 0.25
-	mesh.agent_max_slope = 40.0
-	mesh.cell_size = 0.25
-	mesh.cell_height = 0.25
-	mesh.region_min_size = 220.0
-	mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
-	mesh.geometry_collision_mask = NAV_SOURCE
-	mesh.filter_baking_aabb = box
-	return mesh
+		boxes.append(AABB(Vector3(rect.position.x, ground - 8.0, rect.position.y), Vector3(rect.size.x, 17.0, rect.size.y)))
+	_bake_islands(boxes)
 
 func _leave_out(asset: String, at: Vector3, _placement: Dictionary) -> bool:
 	# Nothing grows through a post's deck.

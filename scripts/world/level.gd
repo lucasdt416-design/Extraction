@@ -45,7 +45,41 @@ var reinforce_range: float = INF
 # HUD's corner map; `minimap_span` is how many metres it covers.
 var minimap: Texture2D
 var minimap_span: float = 0.0
+var minimap_centre := Vector2.ZERO      # where the middle of that picture is, in level (x, z)
 var places: Array[Dictionary] = []      # {"name": String, "position": Vector3}, labelled on the corner map
+# Tools set this to start in a known place (0 = the first); -1 lets the map choose.
+static var spawn_at: int = -1
+
+# One island of navmesh per box, for maps made of separate places. The level's
+# colliders are read once and each island is cut from them; the first becomes
+# this node's own mesh and the rest get a region each.
+func _bake_islands(boxes: Array[AABB], climb: float = 0.25) -> void:
+	var source := NavigationMeshSourceGeometryData3D.new()
+	NavigationServer3D.parse_source_geometry_data(_island(AABB(), climb), source, self)
+	for i in boxes.size():
+		var mesh := _island(boxes[i], climb)
+		NavigationServer3D.bake_from_source_geometry_data(mesh, source)
+		if i == 0:
+			navigation_mesh = mesh
+		else:
+			var region := NavigationRegion3D.new()
+			region.name = "Island%d" % i
+			region.navigation_mesh = mesh
+			add_child(region)
+
+func _island(box: AABB, climb: float) -> NavigationMesh:
+	var mesh := NavigationMesh.new()
+	mesh.agent_radius = 0.5
+	mesh.agent_height = 1.75
+	mesh.agent_max_climb = climb
+	mesh.agent_max_slope = 40.0
+	mesh.cell_size = 0.25
+	mesh.cell_height = 0.25
+	mesh.region_min_size = 220.0
+	mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
+	mesh.geometry_collision_mask = NAV_SOURCE
+	mesh.filter_baking_aabb = box
+	return mesh
 
 func build() -> void:
 	_ground_and_perimeter()
@@ -324,7 +358,7 @@ func _dress_site() -> void:
 # open doors for themselves.
 func _door(at: Vector3, yaw: float, size: Vector3, slide: Vector3, open: bool = false, what: String = "door") -> Door:
 	var door := Door.new()
-	door.position = at
+	door.position = at + origin
 	door.rotation.y = yaw
 	door.size = size
 	door.slide = slide
@@ -336,7 +370,7 @@ func _door(at: Vector3, yaw: float, size: Vector3, slide: Vector3, open: bool = 
 # The button that works them. It faces along its own +z.
 func _switch(at: Vector3, yaw: float, doors: Array[Door]) -> void:
 	var button := DoorSwitch.new()
-	button.position = at
+	button.position = at + origin
 	button.rotation.y = yaw
 	button.doors = doors
 	add_child(button)

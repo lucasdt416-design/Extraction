@@ -78,7 +78,7 @@ const MAPS: Dictionary = {
 	"relay_07": {"name": "Relay Station 07", "title": "RELAY\nSTATION 07", "mark": "07", "scene": "res://scenes/raid.tscn",
 		"minutes": 12, "exits": 2, "brief": "Twelve minutes before the station locks down. Two ways out. Squads hold every building."},
 	"aster_city": {"name": "Aster City", "title": "ASTER\nCITY", "mark": "AC", "scene": "res://scenes/raid.tscn", "level": "aster",
-		"minutes": 15, "exits": 3, "brief": "Four cordoned blocks of a colony town. A relay spire on the crossroads, glass bridges over the avenue, a vault in the depot. Fifteen minutes."},
+		"minutes": 30, "exits": 7, "brief": "A cordoned colony town in the middle of an island, and seven more places beyond its gates: the port, the terraces, the conservatory, the excavation, the heliograph and two outposts. The ways off are out there. Thirty minutes."},
 	"cairn_divide": {"name": "Cairn Divide", "title": "CAIRN\nDIVIDE", "mark": "CD", "scene": "res://scenes/raid.tscn", "level": "cairn",
 		"minutes": 25, "exits": 5, "brief": "A valley of five abandoned colonies either side of a river gorge. Guard posts on the trails, shelters in the hills, a locked archive in most houses, and a way out of every colony. Twenty-five minutes."},
 }

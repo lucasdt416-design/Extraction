@@ -14,8 +14,9 @@ extends Node3D
 # near the playable area, and only those inside it feed the navmesh.
 
 const ROOT: String = "res://vesper_reach/"
-# Purely decorative ground cover is dropped beyond this distance from the centre.
-const DETAIL_RADIUS: float = 170.0
+const CELL: float = 128.0          # scenery is batched by map square, so far squares are not drawn
+const CANOPY_SWAP: float = 230.0   # a tree is the kit's model this close to the camera; a stand-in beyond
+const GRID: float = 4.0            # spacing of the terrain's vertices
 # Things that are kept however far away they are, because they make the skyline.
 const LANDMARKS: Array[String] = ["heliograph", "observatory"]
 
@@ -23,6 +24,12 @@ var manifest: Dictionary = {}
 var catalog: Dictionary = {}
 # Set by the level before build(): return true to leave a placement out.
 var skip: Callable = Callable()
+# The places a player can be, as rectangles in level coordinates. Colliders are
+# only made in and near them, and only what stands inside one feeds the navmesh.
+# Left empty, build() makes one from its `half`.
+var zones: Array[Rect2] = []
+# Kit models within this distance of the centre are solid even outside a zone.
+var solid_radius: float = 0.0
 
 var _centre := Vector3.ZERO
 var _half := Vector2.ZERO
@@ -30,6 +37,7 @@ var _scenes: Dictionary = {}
 var _materials: Dictionary = {}
 var _batches: Dictionary = {}
 var _terrain_material: ShaderMaterial
+var _heights: Dictionary = {}   # Vector2i (terrain grid, kit coordinates) -> y
 
 func load_data() -> void:
 	manifest = JSON.parse_string(FileAccess.get_file_as_string(ROOT + "data/world_manifest.json"))
@@ -38,6 +46,8 @@ func load_data() -> void:
 func build(centre: Vector3, half: Vector2, scenery_radius: float) -> void:
 	_centre = centre
 	_half = half
+	if zones.is_empty():
+		zones.append(Rect2(-half, half * 2.0))
 	position = -centre
 	_terrain()
 	_roads()
@@ -47,8 +57,6 @@ func build(centre: Vector3, half: Vector2, scenery_radius: float) -> void:
 		var distance := Vector2(at.x - centre.x, at.z - centre.z).length()
 		if not asset in LANDMARKS:
 			if distance > scenery_radius:
-				continue
-			if distance > DETAIL_RADIUS and (asset.begins_with("meadow") or asset in ["fern", "red_scrub", "storm_drain"]):
 				continue
 		if skip.is_valid() and skip.call(asset, to_level(at), placement):
 			continue
@@ -65,35 +73,116 @@ func add(asset: String, at: Vector3, yaw: float = 0.0, solid: bool = true) -> vo
 	_queue(asset, Transform3D(Basis(Vector3.UP, yaw), at + _centre), solid)
 
 # Turns everything queued into MultiMeshes. Call once, after the last add().
+# Ground cover, trees and rocks are split by map square and only drawn near the
+# camera; a tree beyond CANOPY_SWAP is a stand-in of a few dozen triangles.
 func flush() -> void:
 	for asset: String in _batches:
 		var transforms: Array = _batches[asset]
 		var template: Node3D = _scene(asset).instantiate()
-		var foliage := asset.begins_with("canopy") or asset.begins_with("meadow") or asset in ["fern", "red_scrub"]
+		var canopy := asset.begins_with("canopy")
+		var small := asset.begins_with("meadow") or asset in ["fern", "red_scrub", "storm_drain"]
+		var rock := asset.begins_with("basalt") or asset.begins_with("salt") or asset.begins_with("cinder") or asset == "crystal_cluster"
+		var reach := 150.0 if small else (CANOPY_SWAP if canopy else (520.0 if rock else 0.0))
+		var groups: Dictionary = {}
+		for xform: Transform3D in transforms:
+			var key := Vector2i.ZERO if reach == 0.0 else Vector2i(floori(xform.origin.x / CELL), floori(xform.origin.z / CELL))
+			if not groups.has(key):
+				groups[key] = []
+			(groups[key] as Array).append(xform)
+		var whole := AABB()
+		var leaf := Color(0.1, 0.2, 0.13)
 		for source in _meshes(template):
+			var box := source.transform * source.get_aabb()
+			whole = box if whole.size == Vector3.ZERO else whole.merge(box)
+			for i in source.mesh.get_surface_count():
+				var old := source.mesh.surface_get_material(i) as StandardMaterial3D
+				if old != null and old.resource_name.begins_with("Leaf"):
+					leaf = old.albedo_color.darkened(0.15)
 			_convert_materials(source.mesh)
-			var multi := MultiMesh.new()
-			multi.transform_format = MultiMesh.TRANSFORM_3D
-			multi.mesh = source.mesh
-			multi.instance_count = transforms.size()
-			for i in transforms.size():
-				multi.set_instance_transform(i, (transforms[i] as Transform3D) * source.transform)
-			var batch := MultiMeshInstance3D.new()
-			batch.name = asset
-			batch.multimesh = multi
-			if foliage:
-				batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if not asset.begins_with("canopy") else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-			else:
-				batch.gi_mode = GeometryInstance3D.GI_MODE_STATIC
-			add_child(batch)
+			for key: Vector2i in groups:
+				var batch := MultiMeshInstance3D.new()
+				batch.name = asset
+				batch.multimesh = _multi(source.mesh, groups[key], source.transform)
+				if canopy or small:
+					batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if canopy else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				else:
+					batch.gi_mode = GeometryInstance3D.GI_MODE_STATIC
+				if reach > 0.0:
+					batch.visibility_range_end = reach
+					batch.visibility_range_end_margin = 20.0
+				add_child(batch)
+		if canopy:
+			var far := _canopy_stand_in(whole, leaf)
+			for key: Vector2i in groups:
+				var batch := MultiMeshInstance3D.new()
+				batch.name = asset + "_far"
+				batch.multimesh = _multi(far, groups[key], Transform3D.IDENTITY)
+				batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				batch.visibility_range_begin = CANOPY_SWAP
+				batch.visibility_range_begin_margin = 20.0
+				add_child(batch)
 		template.free()
 	_batches.clear()
+
+func _multi(mesh: Mesh, transforms: Array, offset: Transform3D) -> MultiMesh:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	for i in transforms.size():
+		multi.set_instance_transform(i, (transforms[i] as Transform3D) * offset)
+	return multi
+
+# A trunk and a rounded crown the size of the real tree, for far away.
+func _canopy_stand_in(box: AABB, leaf: Color) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	var trunk := CylinderMesh.new()
+	trunk.top_radius = box.size.x * 0.03
+	trunk.bottom_radius = box.size.x * 0.045
+	trunk.height = box.size.y * 0.5
+	trunk.radial_segments = 5
+	trunk.rings = 1
+	var crown := SphereMesh.new()
+	crown.radius = box.size.x * 0.42
+	crown.height = box.size.y * 0.62
+	crown.radial_segments = 8
+	crown.rings = 4
+	var parts: Array = [[trunk, Vector3(0.0, box.position.y + box.size.y * 0.25, 0.0), Color(0.13, 0.1, 0.08)],
+		[crown, Vector3(0.0, box.position.y + box.size.y * 0.68, 0.0), leaf]]
+	for part: Array in parts:
+		var tool := SurfaceTool.new()
+		tool.append_from(part[0], 0, Transform3D(Basis.IDENTITY, part[1]))
+		var material := StandardMaterial3D.new()
+		material.albedo_color = part[2]
+		material.roughness = 1.0
+		tool.set_material(material)
+		tool.commit(mesh)
+	return mesh
 
 func to_level(kit_position: Vector3) -> Vector3:
 	return kit_position - _centre
 
+# Whether a point is in a zone (or within `margin` of one).
 func inside(level_position: Vector3, margin: float = 0.0) -> bool:
-	return absf(level_position.x) <= _half.x + margin and absf(level_position.z) <= _half.y + margin
+	var at := Vector2(level_position.x, level_position.z)
+	for zone in zones:
+		if zone.grow(margin).has_point(at):
+			return true
+	return false
+
+# Height of the ground at a point, in level coordinates.
+func height(x: float, z: float) -> float:
+	var gx := (x + _centre.x) / GRID
+	var gz := (z + _centre.z) / GRID
+	var x0 := floori(gx)
+	var z0 := floori(gz)
+	var fx := gx - x0
+	var fz := gz - z0
+	var a: float = _heights.get(Vector2i(x0, z0), _centre.y)
+	var b: float = _heights.get(Vector2i(x0 + 1, z0), _centre.y)
+	var c: float = _heights.get(Vector2i(x0, z0 + 1), _centre.y)
+	var d: float = _heights.get(Vector2i(x0 + 1, z0 + 1), _centre.y)
+	return lerpf(lerpf(a, b, fx), lerpf(c, d, fx), fz) - _centre.y
 
 # --- Pieces ------------------------------------------------------------------
 
@@ -103,7 +192,7 @@ func _queue(asset: String, xform: Transform3D, solid: bool) -> void:
 	(_batches[asset] as Array).append(xform)
 	var local := to_level(xform.origin)
 	# Solid only where a player or a bullet can reach it.
-	if solid and inside(local, 45.0):
+	if solid and (inside(local, 45.0) or Vector2(local.x, local.z).length() < solid_radius):
 		_collide(asset, xform, inside(local, 4.0))
 
 func _collide(asset: String, xform: Transform3D, walkable: bool) -> void:
@@ -142,15 +231,15 @@ func _terrain() -> void:
 	for cell: Dictionary in manifest["terrain"]:
 		var node: Node3D = (load(ROOT + str(cell["path"])) as PackedScene).instantiate()
 		add_child(node)
-		var low := _v3(cell["bounds_min"])
-		var high := _v3(cell["bounds_max"])
-		var underfoot := _centre.x >= low.x and _centre.x <= high.x and _centre.z >= low.z and _centre.z <= high.z
 		for source in _meshes(node):
 			source.material_override = _terrain_material
 			source.gi_mode = GeometryInstance3D.GI_MODE_STATIC
-			if underfoot:
-				# Marked so the grass knows bare ground from everything built on it.
-				_trimesh_body(source, true).set_meta("soil", true)
+			# Marked so the grass knows bare ground from everything built on it.
+			_trimesh_body(source, true).set_meta("soil", true)
+			var vertices: PackedVector3Array = source.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+			for vertex in vertices:
+				var at := source.transform * vertex
+				_heights[Vector2i(roundi(at.x / GRID), roundi(at.z / GRID))] = at.y
 
 func _roads() -> void:
 	var roads: Node3D = (load(ROOT + str(manifest["roads"])) as PackedScene).instantiate()
