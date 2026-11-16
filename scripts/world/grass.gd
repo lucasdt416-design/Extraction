@@ -17,6 +17,8 @@ const PUSHERS: int = 8
 
 var area := Rect2(-80.0, -80.0, 160.0, 160.0)
 var seed_value: int = 7
+var density: float = 13.0     # tufts on a square metre of thick grass
+var reach := Vector2(3.0, -4.0)   # how far above and below y = 0 the ground is looked for
 var planted: int = 0
 
 var _material: ShaderMaterial
@@ -81,7 +83,7 @@ func _plant() -> void:
 		while z < area.end.y:
 			var cover := patches.get_noise_2d(x, z) * 0.5 + 0.5
 			if cover > 0.34:
-				var query := PhysicsRayQueryParameters3D.create(Vector3(x, 3.0, z), Vector3(x, -4.0, z), Layers.WORLD)
+				var query := PhysicsRayQueryParameters3D.create(Vector3(x, reach.x, z), Vector3(x, reach.y, z), Layers.WORLD)
 				var hit := space.intersect_ray(query)
 				if not hit.is_empty() and (hit["collider"] as Node).has_meta("soil"):
 					var ground: Vector3 = hit["position"]
@@ -91,7 +93,7 @@ func _plant() -> void:
 						chunks[key] = []
 					var thick := clampf((cover - 0.34) * 5.0, 0.25, 1.0)
 					var glowing := blooms.get_noise_2d(x, z) > 0.42
-					for i in int(round(13.0 * thick)):
+					for i in int(round(density * thick)):
 						var ox := rng.randf_range(-0.5, 0.5)
 						var oz := rng.randf_range(-0.5, 0.5)
 						# Follow the slope the ray found, so tufts neither float nor sink.

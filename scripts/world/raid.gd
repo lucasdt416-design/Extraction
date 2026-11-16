@@ -36,7 +36,10 @@ func _ready() -> void:
 	var map: Dictionary = Catalog.MAPS[GameManager.map_id]
 	raid_length = float(map["minutes"]) * 60.0
 	time_left = raid_length
-	level = AsterLevel.new() if map.get("level", "") == "aster" else Level.new()
+	match map.get("level", ""):
+		"aster": level = AsterLevel.new()
+		"cairn": level = CairnLevel.new()
+		_: level = Level.new()
 	level.name = "Level"
 	add_child(level)
 	level.build()

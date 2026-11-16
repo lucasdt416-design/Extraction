@@ -12,6 +12,19 @@ const HIGH_PLACES: Dictionary = {
 		["inside a north building", Vector3(-33.0, 0.0, -62.0)], ["inside a south building", Vector3(-33.0, 0.0, 62.0)], ["inside the depot", Vector3(30.0, 0.12, 50.0)],
 		["north quarter, service lane", Vector3(-49.5, 0.0, -106.0)], ["south quarter, service lane", Vector3(49.5, 0.0, 106.0)],
 	],
+	"cairn_divide": [
+		["inside the middle house", Vector3(-5.0, 0.0, 3.0)], ["upstairs in the middle house", Vector3(-5.0, 5.0, 3.0)],
+		["the middle archive", Vector3(6.5, 5.0, -5.0)], ["upper glass walkway, west", Vector3(-18.0, 5.0, 0.0)],
+		["lower glass walkway, east", Vector3(18.0, 0.0, 0.0)], ["upstairs in the south-east house", Vector3(31.0, 5.0, 39.0)],
+		["a front balcony", Vector3(36.0, 5.0, 9.5)], ["the square", Vector3(0.0, 0.0, 34.0)], ["the salvage yard", Vector3(-20.0, 0.0, -28.0)],
+	],
+}
+
+# A shut door to walk into, and a second one further on, per map:
+# [what, from, the z it must stop short of, the z it must pass once opened].
+const SHUT: Dictionary = {
+	"aster_city": [["a shut door", Vector3(-33.0, 0.3, 16.0), 25.6, 27.0], ["the shut south gate", Vector3(-2.0, 0.3, 70.0), 80.0, 86.0]],
+	"cairn_divide": [["a shut front door", Vector3(0.0, 0.3, -14.0), -8.2, -7.0]],
 }
 
 # Walks the real player body in a straight line, to catch kerbs, sills and
@@ -26,6 +39,12 @@ const WALKS: Dictionary = {
 		["into the depot", Vector3(33.0, 0.3, 14.0), Vector2(0, 1), 4.0, "z>30"],
 		["through the north gate", Vector3(4.0, 0.3, -66.0), Vector2(0, -1), 5.0, "z<-86"],
 		["through the south gate", Vector3(-2.0, 0.3, 70.0), Vector2(0, 1), 5.0, "z>86"],
+	],
+	"cairn_divide": [
+		["in through a front door", Vector3(0.0, 0.3, 14.0), Vector2(0, -1), 3.0, "z<6"],
+		["up the stairs", Vector3(-9.0, 0.3, -4.5), Vector2(1, 0), 4.0, "y>4.6"],
+		["along the upper glass walkway", Vector3(-8.0, 5.3, 0.0), Vector2(-1, 0), 4.5, "x<-24"],
+		["stopped by the fence", Vector3(70.0, 0.4, 20.0), Vector2(1, 0), 6.0, "x<86"],
 	],
 }
 
@@ -112,7 +131,7 @@ func _ready() -> void:
 		for door: Door in doors:
 			door.close()
 		await get_tree().create_timer(4.0).timeout
-		for trial: Array in [["a shut door", Vector3(-33.0, 0.3, 16.0), 25.6, 27.0], ["the shut south gate", Vector3(-2.0, 0.3, 70.0), 80.0, 86.0]]:
+		for trial: Array in SHUT.get(args[0], []):
 			var from: Vector3 = trial[1]
 			for pressed in 2:
 				player.global_position = from

@@ -12,6 +12,12 @@ const VIEWS: Dictionary = {
 		[Vector3(-49.5, 0.2, -36.0), 180.0, -14.0], [Vector3(-20.0, 0.2, -104.0), -90.0, 0.0], [Vector3(-33.0, 0.2, -80.5), 0.0, 0.0],
 		[Vector3(0.0, 5.4, 5.5), 180.0, -8.0], [Vector3(-49.5, 1.0, 40.0), 150.0, -30.0], [Vector3(17.0, 0.2, 50.0), -90.0, 0.0],
 	],
+	"cairn_divide": [
+		[Vector3(-60.0, 0.3, 58.0), -45.0, 2.0], [Vector3(0.0, 0.3, 26.0), 0.0, 4.0], [Vector3(0.0, 0.3, 13.0), 0.0, 0.0],
+		[Vector3(-4.0, 0.3, 4.0), -60.0, 0.0], [Vector3(-6.0, 5.3, 4.0), -90.0, 0.0], [Vector3(3.0, 5.3, 0.5), -30.0, 0.0],
+		[Vector3(-12.0, 5.3, 0.0), 90.0, 0.0], [Vector3(36.0, 5.3, 9.6), 150.0, -4.0], [Vector3(70.0, 0.4, -20.0), -80.0, 0.0],
+		[Vector3(-20.0, 0.3, -40.0), 170.0, 3.0], [Vector3(40.0, 0.3, -50.0), -70.0, 2.0], [Vector3(-70.0, 0.3, -30.0), 60.0, 6.0],
+	],
 }
 
 func _ready() -> void:
@@ -24,6 +30,8 @@ func _ready() -> void:
 	add_child(raid)
 	print("MAP built and baked in %d ms" % (Time.get_ticks_msec() - started))
 	var nav := raid.level.navigation_mesh
+	if raid.level is CairnLevel:
+		print("MAP firs: %d real, %d stand-ins" % [(raid.level as CairnLevel).kit.real_trees, (raid.level as CairnLevel).kit.far_trees])
 	print("MAP navmesh polygons %d, containers %d, squads %d" % [nav.get_polygon_count(), raid.level.containers.size(), raid.level.squads.size()])
 	await get_tree().create_timer(4.0).timeout
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

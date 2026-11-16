@@ -2,7 +2,10 @@ class_name DoorSwitch
 extends StaticBody3D
 
 # The button beside a door or a gate. Amber while the way is shut, teal once it
-# is open. One switch can work several slabs (the two leaves of a shutter).
+# is open, red while it is locked and has to be forced. One switch can work
+# several slabs (the two leaves of a shutter).
+
+const FORCE_TIME: float = 3.0   # seconds held to break a locked door
 
 var doors: Array[Door] = []
 var _button: MeshInstance3D
@@ -39,12 +42,15 @@ func _ready() -> void:
 	_show()
 
 func _show() -> void:
-	var color := Level.TEAL.lightened(0.25) if _open() else Level.OCHRE
+	var color := Level.TEAL.lightened(0.25) if _open() else (Level.RUST.lightened(0.1) if _locked() else Level.OCHRE)
 	_button.material_override = Mats.glow(color, 4.0)
 	_light.light_color = color
 
 func _open() -> bool:
 	return not doors.is_empty() and doors[0].is_open
+
+func _locked() -> bool:
+	return not doors.is_empty() and doors[0].locked
 
 func can_interact() -> bool:
 	for door in doors:
@@ -53,12 +59,16 @@ func can_interact() -> bool:
 	return not doors.is_empty()
 
 func interact_label() -> String:
+	if _locked():
+		return "Force the %s (loud)" % doors[0].what
 	return ("Close " if _open() else "Open ") + doors[0].what
 
 func interact_time() -> float:
-	return 0.0
+	return FORCE_TIME if _locked() else 0.0
 
 func interact(player: Player) -> void:
 	Sfx.play("click")
+	for door in doors:
+		door.force(player)
 	for door in doors:
 		door.toggle(player)

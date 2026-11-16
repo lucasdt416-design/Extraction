@@ -8,8 +8,8 @@ Last updated 2026-11-13.
 
 A first-person 3D extraction shooter in Godot 4.7 (GDScript). The loop is complete: menu →
 deploy → loot and fight AI squads → hold an extraction pad → stash, with loss on death.
-Two maps: Relay Station 07 (all code-built) and Aster City (the Vesper Reach art kit plus
-code-built set pieces). The player character is Kestrel, an imported rigged model; everything else is
+Three maps: Relay Station 07 (all code-built), Aster City (the Vesper Reach art kit plus
+code-built set pieces) and Cairn Divide (the Cairn Divide art kit: a mountain colony). The player character is Kestrel, an imported rigged model; everything else is
 built in code from primitives, generated textures and synthesized sound. An automated
 play-through passes. It has had **one outside playtest** (2026-11-15); the fixes from it
 are listed under "Playtest log" below and have not been re-played yet.
@@ -24,8 +24,9 @@ Everything is on `main`. Work happens on a short branch per job, merged by PR.
 |---|---|---|
 | Relay Station 07 | `Level` (`world/level.gd`) | 90 × 70 m compound, every piece built in code. The default. |
 | Aster City | `AsterLevel` (`world/aster_level.gd`) | 168 × 224 m: four cordoned blocks of a colony town, plus a quarter past each of the north and south gates. 15 minutes. |
+| Cairn Divide | `CairnLevel` (`world/cairn_level.gd`) | 172 × 156 m fenced mountain shelf: five two-storey houses joined by glass walkways. 14 minutes. |
 
-A map is an entry in `Catalog.MAPS`; `"level": "aster"` picks the class in `Raid._ready`.
+A map is an entry in `Catalog.MAPS`; its `"level"` (`"aster"`, `"cairn"`) picks the class in `Raid._ready`.
 A level subclass overrides `build()`, `bake()` and optionally `tune(env, sun)`, and fills
 `containers`, `extracts`, `squads`, `reinforce_points`, `player_spawn`.
 
@@ -78,7 +79,37 @@ Not used yet from the kit: the three weapon models in three skins
 (`vesper_reach/art/weapons`, stats in `data/equipment.json`), the minimap image, and the
 other districts.
 
+**Cairn Divide** (added 2026-11-16) is Hearth Colony, the middle one of the five
+settlements in ChatGPT's second kit (`cairn_divide/`; its notes are `cairn_divide/HANDOFF.md`,
+licences in `LICENSES.md`). The kit is a 2 km valley; `CairnKit` (`world/cairn_kit.gd`)
+loads the terrain for all of it and everything else near the shelf.
+
+- From the kit: the houses (two real floors, stairs, a locked archive upstairs), the
+  glass walkways, the door model, terrain, paths, river, ferns, boulders, one fir.
+- The kit's manifest lists its doorways and loot cases. `CairnLevel._doors` turns each
+  doorway into two `Door` leaves wearing the kit's model with a `DoorSwitch` either side
+  (42 doorways). `_loot` turns the loot cases into containers. Archive doors are
+  `locked`: the button is red, takes 3 s to force and is loud; guards do not open them.
+  Two archives hold a vault (`VAULTS`), the other three a locker.
+- Authored in code: the wire fence round the shelf (`shaders/fence.gdshader`), cover in
+  the yards, mast lamps, squads (11, 23 guards), two exits, the meadow (`Grass`).
+- `CairnKit.height(x, z)` gives the ground height; the shelf is flat (y = 0) between about
+  x ±80 and z -56..60 and rises or falls toward the fence. Code-built cover assumes y = 0,
+  so keep it on the flat part.
+- Left out of the repo to keep it small: the other four districts' buildings, the kit's
+  own grass, cliff, sky image, loot-case and button models, and the young-fir model (a
+  young fir is the big one at 0.3 scale). Copy them from
+  `~/Documents/ChatGPT/extraction/assets/maps/cairn-divide/godot` to use them.
+- The scanned fir is 220,000 triangles. Each of the 58 near the shelf is drawn as the
+  scan only within 75 m of the camera; beyond that, and for its shadow, and for the
+  1,300 on the far hillsides, a 130-triangle stand-in built in `CairnKit._fir_stand_in`.
+
 ## Playtest log
+
+**2026-11-16, Cairn Divide added.** Not played by a person. `maptest cairn_divide` passes
+(both floors, the walkways, an archive, every container, a shut door, the fence); 18 of
+23 guards moved in ten seconds of patrol, and which five stood still was not looked into.
+About 2.8 M triangles a frame from the spawn, against Aster City's 5 M.
 
 **2026-11-15, first outside playtest.** Reported: a freed-instance error in
 `Fx._bullet_hole`; enemies run you down; one shot brings the whole map; the window is
@@ -163,6 +194,8 @@ scripts/
   world/level.gd             Relay Station, hand-authored as code; bakes its navmesh
   world/aster_level.gd       Aster City: the kit's streets plus code-built set pieces
   world/vesper_kit.gd        loads part of the Vesper Reach kit as a level's scenery
+  world/cairn_level.gd       Cairn Divide: the kit's houses, doors and loot as game objects
+  world/cairn_kit.gd         loads Hearth Colony and the valley round it from the Cairn Divide kit
   core/steps.gd              step-up movement over kerbs and sills
   world/door.gd, door_switch.gd   sliding doors and gates, and the buttons that work them
   world/grass.gd             self-planting grass; movement is in shaders/grass.gdshader
@@ -170,6 +203,7 @@ scripts/
   fx/mats.gd, shapes.gd, fx.gd   materials, bevelled meshes, one-shot effects
   ui/hud.gd, menu.gd, ui_kit.gd
 vesper_reach/                the Vesper Reach art kit: models, textures, shaders, manifest
+cairn_divide/                the Cairn Divide art kit (the part this game uses)
 tools/                       selftest, sim, maptest, shots, ui_shots, map_shots: development helpers
 ```
 
@@ -250,6 +284,10 @@ Give this to whoever or whatever makes models:
 - Played once by an outside tester; the balance changes made in response are untested by a person.
 - Aster City has not been played by a person. Its buildings have one door each, so the
   rooms are dead ends; upper floors of the towers are skyline only.
+- Cairn Divide has not been played by a person. Unknown: whether fights across the open
+  shelf are fair with this little cover, whether guards cope with stairs and the upper
+  walkways in a real fight, and how the houses' glass walls play (glass stops shots).
+  The other four districts of the kit are not in the game.
 - Doors, gates and grass (2026-11-16) are checked by `maptest` only. Unknown until played:
   whether guards opening doors reads as a warning or as noise, whether 33 guards on the
   bigger map is too many, and the frame rate with grass on a slower machine.
