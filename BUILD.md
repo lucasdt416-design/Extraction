@@ -138,6 +138,16 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
 ## Playtest log
 
+**2026-11-16, first look pass ("make everything nicer, more futuristic").** In first
+person the rifle, SMG and DMR are now ChatGPT's modelled guns (K-27 carbine, Sable SMG,
+Longwatch DMR, from `vesper_reach/art/weapons`; `Player.MODELLED_GUNS`, `_gun_model`).
+They have no separate magazine, so their reload has no magazine drop. Shotgun and pistol
+are still code-built. The forearms are armoured: dark under-suit, a pale ceramic shell on
+top with a lit seam in the frame's colour, a lit wrist band (`Player._arm`). The lens
+(`shaders/post.gdshader`) now grades the image: teal shade, warm light, an S-curve and
+vibrance. Glow picks up lit trim more readily, the sun is lower, and light shafts in the
+fog are stronger. All checks pass; not played.
+
 **2026-11-16, the wild ground.** ChatGPT's Colony Biomes scenery kit
 (`assets/scenery/colony-biomes/`: 3 trees, 11 plants, 2 logs, 8 rock formations) now
 covers the open ground between the places on both big maps. `Scenery`

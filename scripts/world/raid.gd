@@ -274,9 +274,11 @@ func _build_environment() -> void:
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.tonemap_exposure = 1.05
 	env.glow_enabled = true
-	env.glow_intensity = 0.55
-	env.glow_bloom = 0.04
-	env.glow_hdr_threshold = 1.5
+	# Lit trim, screens and visors should bloom; daylight should not.
+	env.glow_intensity = 0.85
+	env.glow_bloom = 0.05
+	env.glow_hdr_threshold = 1.1
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
 	env.ssao_enabled = true
 	env.ssao_radius = 1.4
 	env.ssao_intensity = 2.2
@@ -310,14 +312,14 @@ func _build_environment() -> void:
 	add_child(world)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation = Vector3(deg_to_rad(-27.0), deg_to_rad(-118.0), 0.0)
-	sun.light_color = Color(1.0, 0.84, 0.68)
-	sun.light_energy = 3.0
+	sun.rotation = Vector3(deg_to_rad(-23.0), deg_to_rad(-118.0), 0.0)
+	sun.light_color = Color(1.0, 0.86, 0.72)
+	sun.light_energy = 3.2
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 110.0
 	sun.directional_shadow_blend_splits = true
 	sun.light_angular_distance = 0.8
-	sun.light_volumetric_fog_energy = 1.4
+	sun.light_volumetric_fog_energy = 1.7   # shafts through gaps and doorways
 	add_child(sun)
 	_sun = sun
 	apply_quality()
