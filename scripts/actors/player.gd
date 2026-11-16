@@ -585,6 +585,30 @@ func _unhandled_input(event: InputEvent) -> void:
 func _muzzle_position() -> Vector3:
 	return _view.global_transform * Vector3(0.0, 0.0, -0.1 - float(gun().def["length"]))
 
+# Guns with a real model (made outside this repo, in vesper_reach/art/weapons).
+# The rest are built in code below.
+const MODELLED_GUNS: Dictionary = {
+	"rifle": ["res://vesper_reach/art/weapons/k27_carbine_standard.glb", 0.99],
+	"smg": ["res://vesper_reach/art/weapons/sable_smg_standard.glb", 0.66],
+	"dmr": ["res://vesper_reach/art/weapons/longwatch_dmr_standard.glb", 1.15],
+}
+
+# One of the modelled guns, turned to point down -z, scaled to the length the
+# game gives the weapon, with its grip where the code-built guns have theirs.
+func _gun_model(parent: Node3D, id: String, length: float) -> void:
+	var spec: Array = MODELLED_GUNS[id]
+	var made: Node3D = (load(spec[0]) as PackedScene).instantiate()
+	# The models are chunkier than the code-built guns, so they are sized by
+	# length and then brought down to sit in the same space on screen.
+	var size := (length + 0.3) / float(spec[1]) * 0.52
+	made.rotation.y = PI
+	made.scale = Vector3.ONE * size
+	# The file's grip is at (0, -0.11, -0.09); turned round it is at z = +0.09.
+	made.position = Vector3(0.0, -0.085, 0.01) - Vector3(0.0, -0.11, 0.09) * size
+	for node in made.find_children("*", "MeshInstance3D", true, false):
+		(node as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(made)
+
 func _build_view_models() -> void:
 	_view = Node3D.new()
 	_view.scale = Vector3.ONE * 0.85
@@ -593,9 +617,8 @@ func _build_view_models() -> void:
 	var steel := Mats.surface(Color(0.2, 0.21, 0.23), "plain", 0.3, 0.9)
 	var pale := Mats.surface(Color(0.74, 0.73, 0.69), "plain", 0.55, 0.1)
 	var rubber := Mats.surface(Color(0.05, 0.05, 0.055), "plain", 0.85, 0.0)
-	# Kestrel's forearms: chalk ceramic, carbon gloves, an acid-yellow cuff.
+	# Kestrel's forearms: chalk ceramic over a dark under-suit, carbon gloves, lit seams.
 	var sleeve := Mats.surface(Color(0.90, 0.91, 0.89), "plain", 0.32, 0.2)
-	var cuff := Mats.surface(Color(0.62, 0.66, 0.07), "plain", 0.45, 0.1)
 	var accent: Color = frame_def["accent"]
 	var lit := Mats.glow(accent, 3.0)
 	for g in guns:
@@ -607,8 +630,11 @@ func _build_view_models() -> void:
 		var body := 0.3 if long else length          # receiver length
 		var reach := length - body                    # how far the barrel runs past it
 		var wide := 0.056 if g.id == "shotgun" else 0.046
+		var modelled := MODELLED_GUNS.has(g.id)
 
-		if long:
+		if modelled:
+			_gun_model(model, g.id, length)
+		elif long:
 			# Receiver, with a pale side plate and an ejection port.
 			_solid(model, Vector3(0.0, 0.0, -body * 0.5), Vector3(wide, 0.078, body), dark, 0.012)
 			_solid(model, Vector3(0.0, -0.004, -body * 0.42), Vector3(wide + 0.006, 0.04, body * 0.5), pale, 0.006)
@@ -658,26 +684,32 @@ func _build_view_models() -> void:
 			_solid(model, Vector3(0.0, -0.036, -length * 0.5), Vector3(0.012, 0.02, 0.07), dark, 0.004)
 
 		# Grip, trigger guard, magazine (kept as its own node so reloads can drop it).
-		var grip := _solid(model, Vector3(0.0, -0.085, 0.006 if long else -0.012), Vector3(0.034, 0.115, 0.046), rubber, 0.012)
-		grip.rotation.x = 0.28
-		_solid(model, Vector3(0.0, -0.058, -0.06), Vector3(0.008, 0.008, 0.075), dark, 0.002)
+		# A modelled gun has its magazine built in, so its mag node stays empty.
+		if not modelled:
+			var grip := _solid(model, Vector3(0.0, -0.085, 0.006 if long else -0.012), Vector3(0.034, 0.115, 0.046), rubber, 0.012)
+			grip.rotation.x = 0.28
+			_solid(model, Vector3(0.0, -0.058, -0.06), Vector3(0.008, 0.008, 0.075), dark, 0.002)
 		var mag := Node3D.new()
 		model.add_child(mag)
 		_mags.append(mag)
-		if long and g.id != "shotgun":
+		if modelled:
+			pass
+		elif long and g.id != "shotgun":
 			var mag_height := 0.2 if g.id == "smg" else (0.1 if g.id == "dmr" else 0.16)
 			var block := _solid(mag, Vector3(0.0, -0.04 - mag_height * 0.5, -body * 0.42), Vector3(0.028, mag_height, 0.056), steel, 0.007)
 			block.rotation.x = 0.0 if g.id == "smg" else -0.2
 		elif not long:
 			_solid(mag, Vector3(0.0, -0.148, 0.004), Vector3(0.03, 0.012, 0.046), steel, 0.004).rotation.x = 0.28
 		# Accent line down the receiver.
-		_part(model, Vector3((wide if long else 0.034) * 0.5 + 0.0015, 0.024, -body * 0.5), Vector3(0.0015, 0.006, body * 0.7), lit)
+		if not modelled:
+			_part(model, Vector3((wide if long else 0.034) * 0.5 + 0.0015, 0.024, -body * 0.5), Vector3(0.0015, 0.006, body * 0.7), lit)
 
 		# Hands and forearms: trigger hand on the grip, support hand forward.
 		var hold := Vector3(0.0, -0.085, 0.01 if long else -0.01)
-		_arm(model, hold + Vector3(0.012, -0.012, 0.0), Vector3(0.1, -0.2, 0.34), rubber, sleeve, cuff)
+		var seam := Mats.glow(accent, 1.4)
+		_arm(model, hold + Vector3(0.012, -0.012, 0.0), Vector3(0.1, -0.2, 0.34), rubber, sleeve, seam)
 		var support := Vector3(0.0, -0.045, -body - reach * 0.3) if long else Vector3(-0.012, -0.11, -0.012)
-		_arm(model, support + Vector3(-0.012, -0.012, 0.0), Vector3(-0.2, -0.22, 0.2 if long else 0.3), rubber, sleeve, cuff)
+		_arm(model, support + Vector3(-0.012, -0.012, 0.0), Vector3(-0.2, -0.22, 0.2 if long else 0.3), rubber, sleeve, seam)
 
 	_flash = MeshInstance3D.new()
 	var burst := SphereMesh.new()
@@ -690,13 +722,38 @@ func _build_view_models() -> void:
 	_flash.visible = false
 	_view.add_child(_flash)
 
-# A glove at `hand` and a sleeved forearm running back to `elbow`.
-func _arm(parent: Node3D, hand: Vector3, elbow: Vector3, glove: Material, cloth: Material, cuff: Material) -> void:
-	_solid(parent, hand, Vector3(0.052, 0.05, 0.078), glove, 0.016)
+# An armoured forearm: a gloved hand with a knuckle plate, a dark sleeve of
+# under-suit tapering to the wrist, a pale ceramic shell over the top of the
+# forearm with a lit seam down it, and a lit band at the wrist.
+func _arm(parent: Node3D, hand: Vector3, elbow: Vector3, glove: Material, shell: Material, seam: Material) -> void:
+	var under := Mats.surface(Color(0.06, 0.065, 0.075), "plain", 0.6, 0.35)
 	var along := elbow - hand
+	var up := along.normalized()
+	var side := up.cross(Vector3.FORWARD).normalized()
+	var top := side.cross(up)
+	if top.y < 0.0:
+		top = -top
+	var frame := Basis(side, up, top)
+	_solid(parent, hand, Vector3(0.05, 0.048, 0.08), glove, 0.018)
+	_solid(parent, hand + Vector3(0.0, 0.022, -0.012), Vector3(0.054, 0.012, 0.05), under, 0.005)
 	var wrist := hand + along * 0.12
-	_limb(parent, wrist, elbow, 0.036, cloth)
-	_limb(parent, wrist + along * 0.02, wrist + along * 0.07, 0.04, cuff)
+	_limb(parent, wrist, elbow, 0.034, under)
+	_limb(parent, wrist + along * 0.02, wrist + along * 0.035, 0.0365, seam)
+	# The shell, laid along the top of the forearm.
+	var length := (elbow - wrist).length() * 0.8
+	var middle := wrist + along * 0.45 + top * 0.018
+	var plate := MeshInstance3D.new()
+	plate.mesh = Shapes.rounded_box(Vector3(0.075, length, 0.05), 0.02, 2)
+	plate.material_override = shell
+	plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	plate.transform = Transform3D(frame, middle)
+	parent.add_child(plate)
+	var line := MeshInstance3D.new()
+	line.mesh = Shapes.rounded_box(Vector3(0.006, length * 0.85, 0.004), 0.001, 1)
+	line.material_override = seam
+	line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	line.transform = Transform3D(frame, middle + top * 0.0255)
+	parent.add_child(line)
 
 # A capsule between two points.
 func _limb(parent: Node3D, from: Vector3, to: Vector3, radius: float, mat: Material) -> void:
