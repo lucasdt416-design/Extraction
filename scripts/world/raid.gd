@@ -17,7 +17,9 @@ var over: bool = false
 var extract_points: Array[ExtractPoint] = []
 var _squads: Array[Squad] = []
 # Escalation: see _escalate.
-const HEAT_FOR_WAVE: float = 24.0
+const HEAT_FOR_WAVE: float = 45.0
+# With this fraction of the clock left, one wave comes regardless.
+const LATE_WAVE_AT: float = 0.3
 const WAVES: Array = [["trooper", "trooper", "rusher"], ["trooper", "bulwark", "lobber", "rusher"], ["overseer", "marksman", "trooper", "rusher"]]
 var heat: float = 0.0
 var waves_sent: int = 0
@@ -112,7 +114,7 @@ func _escalate(delta: float) -> void:
 		if squad.mode == Squad.Mode.COMBAT and not squad.living().is_empty():
 			fighting = true
 	heat = heat + delta if fighting else maxf(heat - delta * 0.35, 0.0)
-	if heat >= HEAT_FOR_WAVE or (waves_sent == 0 and time_left < RAID_LENGTH * 0.5):
+	if heat >= HEAT_FOR_WAVE or (waves_sent == 0 and time_left < RAID_LENGTH * LATE_WAVE_AT):
 		send_reinforcements(player.global_position)
 
 # Called through the "raid" group by anything that trips an alarm.
@@ -145,7 +147,7 @@ func send_reinforcements(toward: Vector3) -> bool:
 	squad.respond_to(toward)
 	waves_sent += 1
 	heat = 0.0
-	_wave_cooldown = 45.0
+	_wave_cooldown = 75.0
 	Sfx.play("alert", 2.0, 0.6)
 	hud.show_alert("REINFORCEMENTS INBOUND")
 	return true

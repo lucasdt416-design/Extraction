@@ -8,7 +8,9 @@ extends RefCounted
 static var _tracer_mesh: BoxMesh
 static var _spark_mesh: BoxMesh
 static var _hole_texture: ImageTexture
-static var _holes: Array[Decal] = []
+# Untyped on purpose: decals from a finished raid are freed with their scene,
+# and a freed object can't be assigned to a typed variable.
+static var _holes: Array = []
 static var _smoke_mesh: QuadMesh
 const MAX_HOLES: int = 90
 
@@ -86,9 +88,9 @@ static func _bullet_hole(ctx: Node, position: Vector3, normal: Vector3) -> void:
 	hole.global_transform = Transform3D(Basis(side, normal, side.cross(normal)).rotated(normal, randf() * TAU), position)
 	_holes.append(hole)
 	while _holes.size() > MAX_HOLES:
-		var oldest: Decal = _holes.pop_front()
+		var oldest: Variant = _holes.pop_front()
 		if is_instance_valid(oldest):
-			oldest.queue_free()
+			(oldest as Node).queue_free()
 
 # A small puff of dust knocked off the surface.
 static func _dust_puff(ctx: Node, position: Vector3, normal: Vector3) -> void:

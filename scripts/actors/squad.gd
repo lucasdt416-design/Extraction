@@ -32,6 +32,7 @@ const BARKS: Dictionary = {
 	"hit": ["Taking fire!", "I'm hit."],
 	"command_down": ["Command is down. Hold together."],
 	"backup": ["Shots fired nearby. Moving to assist."],
+	"fallback": ["Falling back.", "I need support!"],
 }
 
 # Every squad in the raid, so one in a fight can call the others in.
@@ -44,6 +45,19 @@ var last_known: Vector3 = Vector3.ZERO
 # Seconds since any member last saw the player.
 var contact_age: float = 999.0
 var rng := RandomNumberGenerator.new()
+# 0..1. Rises as the squad takes hits and losses, fades slowly. A cautious
+# squad keeps its distance and stops pushing.
+var caution: float = 0.0
+
+# A noise further off than this gets a look in its direction, not a visit.
+const WALK_TO_NOISE: float = 14.0
+# However many squads are in the fight, this many units at most fire at once.
+const MAX_SHOOTERS: int = 2
+# After a burst ends, the squad's fire slackens for this long before the next
+# unit takes over: the gaps are when the player gets to move or shoot back.
+const FIRE_GAP: float = 0.6
+# How close a firefight has to be for a calm squad to come and help.
+const BACKUP_RANGE: float = 22.0
 
 var _tokens: Array[Enemy] = []
 var _claims: Dictionary = {}
@@ -53,6 +67,8 @@ var _lost_announced: bool = false
 var _push_announced: bool = false
 var _backup_in: float = -1.0
 var _backup_at: Vector3 = Vector3.ZERO
+var _broken: bool = false
+var _fire_gap: float = 0.0
 
 func _init(patrol_points: Array, stream_seed: int) -> void:
 	points = patrol_points
@@ -79,6 +95,9 @@ func center() -> Vector3:
 func tick(delta: float) -> void:
 	_bark_cooldown = maxf(_bark_cooldown - delta, 0.0)
 	contact_age += delta
+	_fire_gap = maxf(_fire_gap - delta, 0.0)
+	if not _broken:
+		caution = maxf(caution - delta * 0.04, 0.0)
 	if _backup_in >= 0.0:
 		_backup_in -= delta
 		if _backup_in < 0.0 and mode == Mode.CALM and not living().is_empty():
@@ -110,31 +129,36 @@ func report_sighting(by: Enemy, position: Vector3) -> void:
 		_enter_combat()
 
 # A noise or a body: not proof, so it earns a look rather than a firefight.
-func report_noise(by: Enemy, position: Vector3) -> void:
+func report_noise(by: Enemy, position: Vector3, distance: float = 0.0) -> void:
 	match mode:
 		Mode.COMBAT:
 			# Mid-fight a sound is as good as a sighting for where to push.
 			if contact_age > 1.0:
 				last_known = position
 		Mode.SEARCH:
-			last_known = position
-			_assign_search_points()
+			if distance < WALK_TO_NOISE * 1.5:
+				last_known = position
+				_assign_search_points()
 		_:
 			bark(by, "heard")
 			last_known = position
 			_search_left = 14.0
 			_set_mode(Mode.INVESTIGATE)
-			# The nearest two go and look; the rest stop and face it.
+			# Close by, the nearest two go and look and the rest face it. Further
+			# off, everyone stops and watches that direction but nobody leaves
+			# their post: distant shooting is somebody else's problem.
+			var near := distance < WALK_TO_NOISE
 			var alive := living()
 			alive.sort_custom(func(a: Enemy, b: Enemy) -> bool:
 				return a.global_position.distance_squared_to(position) < b.global_position.distance_squared_to(position))
 			for i in alive.size():
-				alive[i].investigate(position, i < 2)
+				alive[i].investigate(position, near and i < 2)
 
 func report_hit(by: Enemy, from_position: Vector3) -> void:
 	if mode != Mode.COMBAT or contact_age > 1.5:
 		last_known = from_position
 		contact_age = minf(contact_age, 1.0)
+	caution = minf(caution + 0.04, 1.0)
 	if mode != Mode.COMBAT:
 		bark(by, "hit")
 		_enter_combat()
@@ -145,7 +169,18 @@ func report_death(member: Enemy, killer: Node) -> void:
 	var alive := living()
 	if alive.is_empty():
 		return
-	bark(alive[0], "command_down" if member.arch.get("commander", false) else "down")
+	# Losing someone shakes the rest: they get their heads down, and the squad
+	# fights from further back. The last one left of a full squad stops
+	# advancing altogether.
+	caution = minf(caution + 0.4, 1.0)
+	for other in alive:
+		other.take_cover(rng.randf_range(1.5, 3.0))
+	if alive.size() == 1 and members.size() >= 3:
+		_broken = true
+		caution = 1.0
+		bark(alive[0], "fallback")
+	else:
+		bark(alive[0], "command_down" if member.arch.get("commander", false) else "down")
 	if killer is Node3D and mode != Mode.COMBAT:
 		last_known = (killer as Node3D).global_position
 		contact_age = 1.0
@@ -159,7 +194,7 @@ func _enter_combat() -> void:
 	assign_roles()
 	# Nearby squads hear the shooting and come to look a few seconds later.
 	for other in all:
-		if other != self and other.mode == Mode.CALM and other.center().distance_to(last_known) < 42.0:
+		if other != self and other.mode == Mode.CALM and other.center().distance_to(last_known) < BACKUP_RANGE:
 			other._backup_in = other.rng.randf_range(4.0, 8.0)
 			other._backup_at = last_known
 
@@ -188,7 +223,7 @@ func assign_roles() -> void:
 	var side := 1.0 if rng.randf() < 0.5 else -1.0
 	var announced := false
 	for member in living():
-		if float(member.arch["aggression"]) >= 0.7:
+		if float(member.arch["aggression"]) >= 0.9:
 			member.role = &"push"
 		elif holders % 2 == 1:
 			member.role = &"flank"
@@ -216,19 +251,27 @@ func request_token(member: Enemy) -> bool:
 	for i in range(_tokens.size() - 1, -1, -1):
 		if not is_instance_valid(_tokens[i]) or _tokens[i].is_dead:
 			_tokens.remove_at(i)
-	if _tokens.size() >= max_tokens():
+	if _fire_gap > 0.0 or _tokens.size() >= max_tokens():
+		return false
+	# Two squads converging must not double the incoming fire.
+	var firing := 0
+	for squad in all:
+		firing += squad._tokens.size()
+	if firing >= MAX_SHOOTERS:
 		return false
 	_tokens.append(member)
 	return true
 
 func release_token(member: Enemy) -> void:
+	if _tokens.has(member):
+		_fire_gap = FIRE_GAP
 	_tokens.erase(member)
 
 # True in the moments the squad should close in: the player is reloading,
-# healing or badly hurt, or has gone to ground long enough to be dug out.
+# healing or badly hurt, and the squad hasn't been bloodied into caution.
 func should_push(player: Player) -> bool:
-	var push := (player != null and player.is_vulnerable() and contact_age < 2.0) or (contact_age > 3.5 and contact_age < 9.0)
-	if push and not _push_announced and contact_age < 2.0:
+	var push := player != null and player.is_vulnerable() and contact_age < 2.0 and caution < 0.5
+	if push and not _push_announced:
 		_push_announced = true
 		_bark_any("push")
 	if not push:

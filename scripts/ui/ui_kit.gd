@@ -76,22 +76,33 @@ static func button(text: String, primary: bool = false, small: bool = false) -> 
 static func settings_rows(include_quality: bool = true, ink: Color = INK, dim: Color = DIM, faint: Color = FAINT, accent: Color = ACID) -> VBoxContainer:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
+	# A row with a list in fourth place is a pick-one; the rest are sliders.
+	var sizes: Array = []
+	for size: Vector2i in GameManager.WINDOW_SIZES:
+		sizes.append("%d×%d" % [size.x, size.y])
 	var rows := [
 		["sensitivity", "Mouse sensitivity", func(v: float) -> String: return "%.1f" % v],
 		["fov", "Field of view", func(v: float) -> String: return "%d°" % v],
 		["volume", "Volume", func(v: float) -> String: return "%d%%" % roundi(v * 100.0)],
+		["fullscreen", "Display", null, ["Windowed", "Fullscreen"]],
+		["window", "Window size", null, sizes],
+		["scale", "Render resolution", func(v: float) -> String: return "%d%%" % roundi(v * 100.0)],
 	]
 	if include_quality:
-		rows.append(["quality", "Graphics quality", func(v: float) -> String: return ["Low", "Medium", "High"][int(v)]])
+		rows.append(["quality", "Graphics quality", null, ["Low", "Medium", "High"]])
 	for row: Array in rows:
 		var key: String = row[0]
-		var format: Callable = row[2]
 		var limits: Array = GameManager.SETTING_RANGES[key]
 		var line := HBoxContainer.new()
 		line.add_theme_constant_override("separation", 16)
 		var name_label := text(row[1], 16, ink)
 		name_label.custom_minimum_size.x = 210
 		line.add_child(name_label)
+		if row.size() > 3:
+			line.add_child(_choices(key, row[3], ink, dim, accent))
+			column.add_child(line)
+			continue
+		var format: Callable = row[2]
 		var slider := HSlider.new()
 		slider.min_value = limits[0]
 		slider.max_value = limits[1]
@@ -115,6 +126,39 @@ static func settings_rows(include_quality: bool = true, ink: Color = INK, dim: C
 			value_label.text = format.call(GameManager.settings[key]))
 		column.add_child(line)
 	return column
+
+# A pick-one row: plain words, the chosen one in full ink with a rule under it.
+static func _choices(key: String, options: Array, ink: Color, dim: Color, accent: Color) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 18)
+	var restyle := func() -> void:
+		for i in row.get_child_count():
+			var chosen := i == int(GameManager.settings[key])
+			var option := row.get_child(i) as Button
+			var box := StyleBoxFlat.new()
+			box.bg_color = Color(0, 0, 0, 0)
+			box.border_color = accent
+			box.border_width_bottom = 2 if chosen else 0
+			box.content_margin_bottom = 4
+			box.content_margin_top = 2
+			for state: String in ["normal", "hover", "pressed"]:
+				option.add_theme_stylebox_override(state, box)
+			option.add_theme_color_override("font_color", ink if chosen else dim)
+			option.add_theme_color_override("font_hover_color", ink)
+			option.add_theme_color_override("font_pressed_color", ink)
+	for i in options.size():
+		var option := Button.new()
+		option.text = options[i]
+		option.focus_mode = Control.FOCUS_NONE
+		option.add_theme_font_override("font", mono())
+		option.add_theme_font_size_override("font_size", 14)
+		option.pressed.connect(func() -> void:
+			Sfx.play("click", -8.0)
+			GameManager.set_setting(key, float(i))
+			restyle.call())
+		row.add_child(option)
+	restyle.call()
+	return row
 
 static func text(content: String, size: int = 16, color: Color = INK, wrap: bool = false, weight: int = 500, tracking: int = 0) -> Label:
 	var label := Label.new()

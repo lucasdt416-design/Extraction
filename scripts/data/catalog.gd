@@ -59,15 +59,15 @@ const ITEMS: Dictionary = {
 # shot does min_falloff of its damage.
 const WEAPONS: Dictionary = {
 	"sidearm": {"damage": 24.0, "rpm": 330.0, "mag": 12, "reload": 1.3, "spread": 1.4, "ads": 0.35, "pellets": 1,
-		"recoil": 1.5, "range": 120.0, "falloff": [18.0, 40.0], "auto": false, "ads_fov": 62.0, "length": 0.26, "noise": 34.0},
+		"recoil": 1.5, "range": 120.0, "falloff": [18.0, 40.0], "auto": false, "ads_fov": 62.0, "length": 0.26, "noise": 20.0},
 	"smg": {"damage": 15.0, "rpm": 820.0, "mag": 32, "reload": 1.7, "spread": 2.6, "ads": 0.5, "pellets": 1,
-		"recoil": 0.85, "range": 120.0, "falloff": [14.0, 34.0], "auto": true, "ads_fov": 64.0, "length": 0.42, "noise": 38.0},
+		"recoil": 0.85, "range": 120.0, "falloff": [14.0, 34.0], "auto": true, "ads_fov": 64.0, "length": 0.42, "noise": 22.0},
 	"rifle": {"damage": 25.0, "rpm": 570.0, "mag": 28, "reload": 2.1, "spread": 1.6, "ads": 0.22, "pellets": 1,
-		"recoil": 1.15, "range": 200.0, "falloff": [32.0, 70.0], "auto": true, "ads_fov": 54.0, "length": 0.62, "noise": 46.0},
+		"recoil": 1.15, "range": 200.0, "falloff": [32.0, 70.0], "auto": true, "ads_fov": 54.0, "length": 0.62, "noise": 26.0},
 	"shotgun": {"damage": 12.0, "rpm": 75.0, "mag": 6, "reload": 2.6, "spread": 5.5, "ads": 0.75, "pellets": 9,
-		"recoil": 4.5, "range": 60.0, "falloff": [7.0, 20.0], "auto": false, "ads_fov": 64.0, "length": 0.58, "noise": 52.0},
+		"recoil": 4.5, "range": 60.0, "falloff": [7.0, 20.0], "auto": false, "ads_fov": 64.0, "length": 0.58, "noise": 30.0},
 	"dmr": {"damage": 62.0, "rpm": 190.0, "mag": 10, "reload": 2.4, "spread": 2.2, "ads": 0.05, "pellets": 1,
-		"recoil": 3.2, "range": 300.0, "falloff": [60.0, 120.0], "auto": false, "ads_fov": 36.0, "length": 0.78, "noise": 54.0},
+		"recoil": 3.2, "range": 300.0, "falloff": [60.0, 120.0], "auto": false, "ads_fov": 36.0, "length": 0.78, "noise": 30.0},
 }
 const MIN_FALLOFF: float = 0.45
 const HEADSHOT_MULT: float = 1.75
@@ -106,22 +106,22 @@ const FRAMES: Dictionary = {
 #   reaction     seconds between seeing you and the first trigger pull
 #   accuracy     degrees of aim error once settled; it starts triple that
 const ENEMIES: Dictionary = {
-	"trooper": {"name": "Trooper", "health": 90.0, "speed": 3.6, "weapon": "rifle", "damage": 7.0, "burst": [3, 5],
-		"range": 16.0, "aggression": 0.45, "reaction": 0.55, "accuracy": 2.6, "scale": 1.0,
+	"trooper": {"name": "Trooper", "health": 90.0, "speed": 3.3, "weapon": "rifle", "damage": 5.0, "burst": [3, 5],
+		"range": 16.0, "aggression": 0.45, "reaction": 0.55, "accuracy": 3.2, "scale": 1.0,
 		"color": Color(0.30, 0.33, 0.38), "accent": Color(1.0, 0.36, 0.22), "loot": 0.55},
-	"rusher": {"name": "Stalker", "health": 70.0, "speed": 5.2, "weapon": "shotgun", "damage": 5.5, "burst": [1, 2],
+	"rusher": {"name": "Stalker", "health": 70.0, "speed": 4.5, "weapon": "shotgun", "damage": 4.0, "burst": [1, 2],
 		"range": 6.0, "aggression": 0.95, "reaction": 0.4, "accuracy": 3.5, "scale": 0.94, "cloak": true,
 		"color": Color(0.16, 0.18, 0.22), "accent": Color(0.65, 0.4, 1.0), "loot": 0.6},
 	"bulwark": {"name": "Bulwark", "health": 220.0, "speed": 2.5, "weapon": "smg", "damage": 5.0, "burst": [6, 10],
-		"range": 11.0, "aggression": 0.7, "reaction": 0.7, "accuracy": 3.8, "scale": 1.14, "shield": true,
+		"range": 11.0, "aggression": 0.6, "reaction": 0.7, "accuracy": 3.8, "scale": 1.14, "shield": true,
 		"color": Color(0.36, 0.34, 0.30), "accent": Color(1.0, 0.72, 0.2), "loot": 0.85},
-	"marksman": {"name": "Marksman", "health": 70.0, "speed": 3.2, "weapon": "dmr", "damage": 34.0, "burst": [1, 1],
+	"marksman": {"name": "Marksman", "health": 70.0, "speed": 3.2, "weapon": "dmr", "damage": 30.0, "burst": [1, 1],
 		"range": 30.0, "aggression": 0.1, "reaction": 1.25, "accuracy": 0.7, "scale": 1.0, "laser": true,
 		"color": Color(0.26, 0.31, 0.30), "accent": Color(1.0, 0.15, 0.2), "loot": 0.7},
 	"lobber": {"name": "Grenadier", "health": 110.0, "speed": 3.2, "weapon": "smg", "damage": 5.0, "burst": [4, 6],
 		"range": 18.0, "aggression": 0.3, "reaction": 0.6, "accuracy": 3.4, "scale": 1.04, "grenades": true,
 		"color": Color(0.33, 0.30, 0.27), "accent": Color(0.55, 1.0, 0.3), "loot": 0.7},
-	"overseer": {"name": "Overseer", "health": 380.0, "speed": 3.4, "weapon": "rifle", "damage": 9.0, "burst": [5, 8],
+	"overseer": {"name": "Overseer", "health": 380.0, "speed": 3.4, "weapon": "rifle", "damage": 8.0, "burst": [5, 8],
 		"range": 14.0, "aggression": 0.6, "reaction": 0.4, "accuracy": 2.0, "scale": 1.24, "commander": true, "grenades": true,
 		"color": Color(0.12, 0.13, 0.15), "accent": Color(1.0, 0.9, 0.75), "loot": 1.0},
 }

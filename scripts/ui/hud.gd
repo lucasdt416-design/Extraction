@@ -411,8 +411,8 @@ func show_result(result: Dictionary) -> void:
 	column.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 	column.offset_left = 96.0
 	column.offset_right = 900.0
-	column.offset_top = 150.0
-	column.offset_bottom = -130.0
+	column.offset_top = 112.0
+	column.offset_bottom = -200.0
 	column.add_theme_constant_override("separation", 6)
 	shade.add_child(column)
 
@@ -441,14 +441,20 @@ func show_result(result: Dictionary) -> void:
 	tween.tween_property(sub, "modulate:a", 1.0, 0.35)
 	tween.parallel().tween_property(rule, "modulate:a", 1.0, 0.35)
 
-	# One line per item, capped so a full backpack doesn't run off the screen.
-	var shown := mini(items.size(), 7)
+	# One line per item in two columns, capped so that however much comes out,
+	# the list is a fixed height and can't reach the button below it.
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 48)
+	grid.add_theme_constant_override("v_separation", 2)
+	column.add_child(grid)
+	var shown := mini(items.size(), 10)
 	for i in shown:
 		var id: String = items[i]
 		var text := "%s   %s" % [("+ %d CR" % Catalog.sell_price(id)).rpad(11) if won else "LOST".rpad(6), Catalog.item_name(id).to_upper()]
 		var row := _line(text, 14, DIM, UiKit.mono(false, 1))
 		row.modulate.a = 0.0
-		column.add_child(row)
+		grid.add_child(row)
 		tween.tween_callback(func() -> void: Sfx.play("tick", -12.0, 1.0 + i * 0.05))
 		tween.tween_property(row, "modulate:a", 1.0, 0.1)
 	if items.size() > shown:
@@ -471,17 +477,19 @@ func show_result(result: Dictionary) -> void:
 		tween.tween_property(total, "modulate:a", 1.0, 0.2)
 		tween.tween_method(func(v: float) -> void: total.text = "%d CR SECURED" % int(v), 0.0, float(value), 0.9).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
-	var gap := Control.new()
-	gap.custom_minimum_size.y = 14
-	column.add_child(gap)
+	# The way out is pinned to the bottom of the screen, not the end of the list.
 	var leave := UiKit.button("RETURN TO BASE  →", true)
 	leave.add_theme_font_override("font", UiKit.display(800, 2))
 	leave.add_theme_font_size_override("font_size", 28)
 	leave.custom_minimum_size = Vector2(320, 66)
-	leave.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	leave.modulate.a = 0.0
 	leave.pressed.connect(GameManager.return_to_menu)
-	column.add_child(leave)
+	shade.add_child(leave)
+	leave.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	leave.offset_left = 96.0
+	leave.offset_right = 416.0
+	leave.offset_top = -184.0
+	leave.offset_bottom = -118.0
 	tween.tween_property(leave, "modulate:a", 1.0, 0.4)
 
 func _line(text: String, size: int, color: Color, face: Font) -> Label:
@@ -527,10 +535,10 @@ func _panel(title: String, body: String, actions: Array, dim: float, with_settin
 	shade.create_tween().tween_property(shade, "color:a", dim, 0.5)
 	var column := VBoxContainer.new()
 	column.set_anchors_preset(Control.PRESET_CENTER)
-	column.offset_left = -280.0
-	column.offset_right = 280.0
-	column.offset_top = -220.0 if with_settings else -150.0
-	column.offset_bottom = 220.0 if with_settings else 150.0
+	column.offset_left = -400.0 if with_settings else -280.0
+	column.offset_right = 400.0 if with_settings else 280.0
+	column.offset_top = -330.0 if with_settings else -150.0
+	column.offset_bottom = 330.0 if with_settings else 150.0
 	column.add_theme_constant_override("separation", 18)
 	shade.add_child(column)
 	var heading := Label.new()
