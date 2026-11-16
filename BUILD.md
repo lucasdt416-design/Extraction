@@ -78,6 +78,14 @@ few loot boxes and they look like ordinary crates. What changed in response:
 - Loot containers are chalk white with a lit teal band and a pool of light; 34 on the
   map, up from 19.
 
+**2026-11-15, second note from the user after playing.** "Guards are still too fast", the
+new map couldn't be found, and the image "looks like it was built in 1982". Changed: every
+enemy type about 18% slower with gentler acceleration (Trooper 2.7 m/s against the player's
+5.0 walk); the Play page's map links became two large blocks and Aster City is the default
+map; walls, floors and ground now carry photographed concrete and rock detail with relief
+and grooved panel seams (`shaders/surface.gdshader`, `Mats.ground`), with 4x MSAA, 16x
+anisotropic filtering and a larger shadow atlas.
+
 Measured after: standing still in the open courtyard with two squads in view, death in
 about 11.5 s (was 7). That is the only number; whether it now *feels* fair needs playing.
 

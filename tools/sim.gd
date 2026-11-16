@@ -9,6 +9,7 @@ func wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
 
 func _ready() -> void:
+	GameManager.map_id = "relay_07"   # these checks use Relay Station's coordinates
 	# Survive the scene changes we're about to trigger.
 	get_parent().remove_child.call_deferred(self)
 	get_tree().root.add_child.call_deferred(self)

@@ -16,6 +16,7 @@ const VIEWS: Array = [
 ]
 
 func _ready() -> void:
+	GameManager.map_id = "relay_07"   # these checks use Relay Station's coordinates
 	var args := OS.get_cmdline_user_args()
 	var out := args[0] if args.size() > 0 else "user://"
 	var menu: Control = load("res://scenes/menu.tscn").instantiate()

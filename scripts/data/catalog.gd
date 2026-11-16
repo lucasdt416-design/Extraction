@@ -108,22 +108,22 @@ const FRAMES: Dictionary = {
 #   reaction     seconds between seeing you and the first trigger pull
 #   accuracy     degrees of aim error once settled; it starts triple that
 const ENEMIES: Dictionary = {
-	"trooper": {"name": "Trooper", "health": 90.0, "speed": 3.3, "weapon": "rifle", "damage": 5.0, "burst": [3, 5],
+	"trooper": {"name": "Trooper", "health": 90.0, "speed": 2.7, "weapon": "rifle", "damage": 5.0, "burst": [3, 5],
 		"range": 16.0, "aggression": 0.45, "reaction": 0.55, "accuracy": 3.2, "scale": 1.0,
 		"color": Color(0.30, 0.33, 0.38), "accent": Color(1.0, 0.36, 0.22), "loot": 0.55},
-	"rusher": {"name": "Stalker", "health": 70.0, "speed": 4.5, "weapon": "shotgun", "damage": 4.0, "burst": [1, 2],
+	"rusher": {"name": "Stalker", "health": 70.0, "speed": 3.8, "weapon": "shotgun", "damage": 4.0, "burst": [1, 2],
 		"range": 6.0, "aggression": 0.95, "reaction": 0.4, "accuracy": 3.5, "scale": 0.94, "cloak": true,
 		"color": Color(0.16, 0.18, 0.22), "accent": Color(0.65, 0.4, 1.0), "loot": 0.6},
-	"bulwark": {"name": "Bulwark", "health": 220.0, "speed": 2.5, "weapon": "smg", "damage": 5.0, "burst": [6, 10],
+	"bulwark": {"name": "Bulwark", "health": 220.0, "speed": 2.1, "weapon": "smg", "damage": 5.0, "burst": [6, 10],
 		"range": 11.0, "aggression": 0.6, "reaction": 0.7, "accuracy": 3.8, "scale": 1.14, "shield": true,
 		"color": Color(0.36, 0.34, 0.30), "accent": Color(1.0, 0.72, 0.2), "loot": 0.85},
-	"marksman": {"name": "Marksman", "health": 70.0, "speed": 3.2, "weapon": "dmr", "damage": 30.0, "burst": [1, 1],
+	"marksman": {"name": "Marksman", "health": 70.0, "speed": 2.6, "weapon": "dmr", "damage": 30.0, "burst": [1, 1],
 		"range": 30.0, "aggression": 0.1, "reaction": 1.25, "accuracy": 0.7, "scale": 1.0, "laser": true,
 		"color": Color(0.26, 0.31, 0.30), "accent": Color(1.0, 0.15, 0.2), "loot": 0.7},
-	"lobber": {"name": "Grenadier", "health": 110.0, "speed": 3.2, "weapon": "smg", "damage": 5.0, "burst": [4, 6],
+	"lobber": {"name": "Grenadier", "health": 110.0, "speed": 2.6, "weapon": "smg", "damage": 5.0, "burst": [4, 6],
 		"range": 18.0, "aggression": 0.3, "reaction": 0.6, "accuracy": 3.4, "scale": 1.04, "grenades": true,
 		"color": Color(0.33, 0.30, 0.27), "accent": Color(0.55, 1.0, 0.3), "loot": 0.7},
-	"overseer": {"name": "Overseer", "health": 380.0, "speed": 3.4, "weapon": "rifle", "damage": 8.0, "burst": [5, 8],
+	"overseer": {"name": "Overseer", "health": 380.0, "speed": 2.7, "weapon": "rifle", "damage": 8.0, "burst": [5, 8],
 		"range": 14.0, "aggression": 0.6, "reaction": 0.4, "accuracy": 2.0, "scale": 1.24, "commander": true, "grenades": true,
 		"color": Color(0.12, 0.13, 0.15), "accent": Color(1.0, 0.9, 0.75), "loot": 1.0},
 }
