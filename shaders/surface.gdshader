@@ -14,6 +14,13 @@ uniform float roughness_base = 0.65;
 uniform float metallic_base = 0.05;
 uniform float wear = 1.0;
 uniform sampler2D noise_tex : repeat_enable, filter_linear_mipmap;
+// Photographed surface detail (CC0, from the Vesper Reach kit): fine colour
+// variation and real relief, so a flat box catches light like poured concrete.
+uniform sampler2D detail_albedo : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
+uniform sampler2D detail_normal : hint_normal, repeat_enable, filter_linear_mipmap_anisotropic;
+uniform float detail_scale = 0.4;
+uniform float detail_strength = 0.5;
+uniform float relief = 0.8;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -63,7 +70,30 @@ void fragment() {
 	color *= 1.0 - seam * seam_strength;
 	color *= 0.97 + bevel * 0.03;
 
+	// Two scales of the photographed detail, so it neither tiles up close nor
+	// turns to mush at a distance.
+	vec3 near_detail = texture(detail_albedo, uv * detail_scale).rgb;
+	vec3 far_detail = texture(detail_albedo, uv * detail_scale * 0.23 + 0.37).rgb;
+	vec3 detail = mix(near_detail, far_detail, 0.4);
+	float grain = dot(detail, vec3(0.333));
+	color *= mix(vec3(1.0), detail * 2.0, detail_strength);
+
+	// The mesh's own tangents know nothing about this world-space mapping, so
+	// build the frame from the same axes the texture was projected along.
+	vec3 t_world = is_floor ? vec3(1.0, 0.0, 0.0) : (an.x > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0));
+	vec3 b_world = is_floor ? vec3(0.0, 0.0, 1.0) : vec3(0.0, -1.0, 0.0);
+	TANGENT = normalize((VIEW_MATRIX * vec4(t_world, 0.0)).xyz);
+	BINORMAL = normalize((VIEW_MATRIX * vec4(b_world, 0.0)).xyz);
+	vec3 bump = texture(detail_normal, uv * detail_scale).rgb;
+	// Panel seams are grooves: tilt the surface towards the nearest one.
+	vec2 toward = (f - 0.5) * 2.0;
+	vec2 groove = (abs(toward.x) > abs(toward.y) ? vec2(sign(toward.x), 0.0) : vec2(0.0, sign(toward.y)))
+		* (1.0 - smoothstep(0.0, 0.035, min(edge.x, edge.y))) * seam_strength;
+	bump.xy = clamp(bump.xy + groove * 0.45, 0.0, 1.0);
+	NORMAL_MAP = bump;
+	NORMAL_MAP_DEPTH = relief;
+
 	ALBEDO = color;
-	ROUGHNESS = clamp(roughness_base + (mid - 0.5) * 0.3 * wear + seam * 0.2, 0.05, 1.0);
+	ROUGHNESS = clamp(roughness_base + (mid - 0.5) * 0.3 * wear + seam * 0.2 + (0.5 - grain) * 0.35, 0.05, 1.0);
 	METALLIC = metallic_base;
 }

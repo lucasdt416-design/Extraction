@@ -10,6 +10,9 @@ static var _cache: Dictionary = {}
 
 # kind: "panel" (seamed wall plating), "concrete" (floors, rough), "metal"
 # (crates, props), "plain" (no texture).
+# Photographed detail textures (CC0, bundled with the Vesper Reach kit).
+const DETAIL: String = "res://vesper_reach/art/textures/"
+
 static func surface(color: Color, kind: String = "panel", roughness: float = 0.7, metallic: float = 0.0) -> StandardMaterial3D:
 	var key := "s%s%s%.2f%.2f" % [color.to_html(), kind, roughness, metallic]
 	if _cache.has(key):
@@ -49,6 +52,33 @@ static func wall(color: Color, band: Color = Color.BLACK, band_height: float = 0
 	mat.set_shader_parameter("metallic_base", metallic)
 	mat.set_shader_parameter("wear", wear)
 	mat.set_shader_parameter("noise_tex", noise())
+	mat.set_shader_parameter("detail_albedo", load(DETAIL + "concrete_albedo.jpg"))
+	mat.set_shader_parameter("detail_normal", load(DETAIL + "concrete_normal.jpg"))
+	# Polished floors keep their sheen: less grit in the colour and the relief.
+	mat.set_shader_parameter("detail_strength", 0.5 if roughness > 0.4 else 0.25)
+	mat.set_shader_parameter("relief", 0.8 if roughness > 0.4 else 0.35)
+	_cache[key] = mat
+	return mat
+
+# Open ground: the same shader over photographed rock and grit instead of
+# concrete, with no panel seams.
+static func ground(color: Color) -> ShaderMaterial:
+	var key := "ground" + color.to_html()
+	if _cache.has(key):
+		return _cache[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/surface.gdshader")
+	mat.set_shader_parameter("base_color", color)
+	mat.set_shader_parameter("panel_size", 8.0)
+	mat.set_shader_parameter("seam_strength", 0.0)
+	mat.set_shader_parameter("roughness_base", 0.92)
+	mat.set_shader_parameter("metallic_base", 0.0)
+	mat.set_shader_parameter("noise_tex", noise())
+	mat.set_shader_parameter("detail_albedo", load(DETAIL + "rock_albedo.jpg"))
+	mat.set_shader_parameter("detail_normal", load(DETAIL + "rock_normal.jpg"))
+	mat.set_shader_parameter("detail_scale", 0.22)
+	mat.set_shader_parameter("detail_strength", 0.85)
+	mat.set_shader_parameter("relief", 1.4)
 	_cache[key] = mat
 	return mat
 

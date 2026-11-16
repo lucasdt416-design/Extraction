@@ -311,8 +311,7 @@ func _mark(position: Vector3, kind: String, yaw: float = 0.0) -> void:
 # --- Areas -------------------------------------------------------------------
 
 func _ground_and_perimeter() -> void:
-	var ground := Mats.wall(SAND, Color.BLACK, 0.0, 8.0, 0.92, 0.0, 1.0)
-	ground.set_shader_parameter("seam_strength", 0.2)
+	var ground := Mats.ground(SAND.lightened(0.12))
 	_box(Vector3(0.0, -0.5, 0.0), Vector3(140.0, 1.0, 120.0), ground)
 	var wall_mat := Mats.wall(HULL_DARK, Color(0.17, 0.18, 0.2), 1.4, 3.0, 0.75, 0.2)
 	for side: Array in [[Vector2(-45, -35), Vector2(45, -35)], [Vector2(-45, 35), Vector2(45, 35)], [Vector2(-45, -35), Vector2(-45, 35)], [Vector2(45, -35), Vector2(45, 35)]]:

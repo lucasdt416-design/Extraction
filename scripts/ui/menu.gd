@@ -477,24 +477,42 @@ func _refresh() -> void:
 func _play() -> void:
 	var map_ids := Catalog.MAPS.keys()
 	var map: Dictionary = Catalog.MAPS[GameManager.map_id]
-	_content.add_child(_text("NEXT RAID   /   MAP %02d OF %02d" % [map_ids.find(GameManager.map_id) + 1, map_ids.size()], 13, INK, "mono-bold", 3))
+	_content.add_child(_text("NEXT RAID   /   CHOOSE A MAP", 13, INK, "mono-bold", 3))
+	# The map picker: one block per map, the chosen one filled in.
+	var picker := HBoxContainer.new()
+	picker.add_theme_constant_override("separation", 10)
+	for id: String in map_ids:
+		var chosen := id == GameManager.map_id
+		var pick := Button.new()
+		pick.text = "%s   %d MIN" % [(Catalog.MAPS[id]["name"] as String).to_upper(), Catalog.MAPS[id]["minutes"]]
+		pick.focus_mode = Control.FOCUS_NONE
+		pick.add_theme_font_override("font", UiKit.display(800, 2))
+		pick.add_theme_font_size_override("font_size", 26)
+		for state: String in ["normal", "hover", "pressed", "focus"]:
+			var box := StyleBoxFlat.new()
+			box.bg_color = INK if chosen else Color(INK, 0.0 if state == "normal" else 0.12)
+			box.border_color = INK
+			box.set_border_width_all(0 if chosen else 2)
+			box.content_margin_left = 18
+			box.content_margin_right = 18
+			box.content_margin_top = 8
+			box.content_margin_bottom = 8
+			pick.add_theme_stylebox_override(state, box)
+		for color_name: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			pick.add_theme_color_override(color_name, UiKit.ACID if chosen else INK)
+		pick.pressed.connect(func() -> void:
+			Sfx.play("click", -8.0)
+			GameManager.set_map(id)
+			_set_scene("Play"))
+		picker.add_child(pick)
+	_content.add_child(_gap(4))
+	_content.add_child(picker)
+	_content.add_child(_gap(2))
 	var title := _text(map["title"], 132, INK, "display-black")
 	title.add_theme_constant_override("line_spacing", -30)
 	_content.add_child(title)
 	_content.add_child(_gap(4))
 	_content.add_child(_text(map["brief"], 18, DIM, "text", 0, true))
-	# Other maps, once there are any: pick one and the page re-forms around it.
-	if map_ids.size() > 1:
-		var others := HBoxContainer.new()
-		others.add_theme_constant_override("separation", 6)
-		for id: String in map_ids:
-			var pick := _link((Catalog.MAPS[id]["name"] as String).to_upper())
-			pick.disabled = id == GameManager.map_id
-			pick.pressed.connect(func() -> void:
-				GameManager.set_map(id)
-				_set_scene("Play"))
-			others.add_child(pick)
-		_content.add_child(others)
 	_content.add_child(_gap(18))
 
 	var frame: Dictionary = Catalog.FRAMES[GameManager.frame_id]

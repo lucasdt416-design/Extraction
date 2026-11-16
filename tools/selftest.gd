@@ -30,6 +30,7 @@ func aim(player: Player, at: Vector3) -> void:
 	player.set("_pitch", atan2(to.y, Vector2(to.x, to.z).length()))
 
 func _ready() -> void:
+	GameManager.map_id = "relay_07"   # these checks use Relay Station's coordinates
 	GameManager.reset_profile()
 	GameManager.credits = 5000
 	check("buy rifle", GameManager.buy("rifle") and GameManager.stash.has("rifle"))

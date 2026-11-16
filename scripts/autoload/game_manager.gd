@@ -26,7 +26,7 @@ var credits: int = 0
 var stash: Array[String] = []
 var loadout: Dictionary = {"primary": "", "secondary": "", "armor": "", "implant_a": "", "implant_b": ""}
 var frame_id: String = "striker"
-var map_id: String = "relay_07"
+var map_id: String = "aster_city"
 var stats: Dictionary = {"raids": 0, "extracted": 0, "kills": 0, "earned": 0}
 
 # --- Settings ---------------------------------------------------------------

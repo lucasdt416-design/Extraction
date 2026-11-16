@@ -376,14 +376,14 @@ func _steer(delta: float) -> void:
 	match state:
 		State.PATROL: speed *= 0.42
 		State.INVESTIGATE: speed *= 0.6
-		State.SEARCH: speed *= 0.75
+		State.SEARCH: speed *= 0.7
 	var wish := Vector3.ZERO
 	if _has_goal and _react_left <= 0.0 and not _agent.is_navigation_finished():
 		var next := _agent.get_next_path_position()
 		wish = next - global_position
 		wish.y = 0.0
 		wish = wish.normalized() if wish.length() > 0.05 else Vector3.ZERO
-	var flat := Vector3(velocity.x, 0.0, velocity.z).move_toward(wish * speed, 22.0 * delta)
+	var flat := Vector3(velocity.x, 0.0, velocity.z).move_toward(wish * speed, 12.0 * delta)
 	velocity.x = flat.x
 	velocity.z = flat.z
 	velocity.y = 0.0 if is_on_floor() else velocity.y - GRAVITY * delta
