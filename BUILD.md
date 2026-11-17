@@ -138,6 +138,19 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
 ## Playtest log
 
+**2026-11-16, first-person arms and guns.** All five guns in first person are now
+ChatGPT's view models (`assets/viewmodels/`, its README): Kestrel's gloved hands and
+forearms on one skeleton with the gun, and Idle, Reload, Holster and Equip clips. Rifle
+is the K-27, SMG the Sable, DMR the Longwatch, shotgun the Breach, pistol the Relay
+(`Player.FP_MODELS`). `_fp_view` puts each where its maker did, at 65% size and a little
+nearer (`FP_SIZE`, `FP_PLACE`) because the models were made for a narrower view. It finds
+the gun's bounds from the vertices on its `WeaponRoot` bone and works out the aim point
+(just over the top of the gun, so aiming brings it up under the crosshair) and the muzzle.
+`_fp_animate` plays Equip as a gun comes up and Reload timed to the gun's own reload. The
+code-built guns and the colour grade from the pass below remain as fallback.
+`tools/view_shots.tscn` photographs every gun at the hip, aiming and mid-reload. The
+Arc Carbine and the new world-gun models in `assets/weapons/` are copied in, not used.
+
 **2026-11-16, first look pass ("make everything nicer, more futuristic").** In first
 person the rifle, SMG and DMR are now ChatGPT's modelled guns (K-27 carbine, Sable SMG,
 Longwatch DMR, from `vesper_reach/art/weapons`; `Player.MODELLED_GUNS`, `_gun_model`).
@@ -406,8 +419,8 @@ Give this to whoever or whatever makes models:
 - Ideas not built for "make it feel alive": loose props that can be knocked over, birds
   that scatter at gunfire, banners that move in the wind, doors on Relay Station.
 - Kestrel has no crouch, jump, aim or death clips; crouch squashes the model.
-- First-person arms are capsules, not Kestrel's real arms. No weapon inspect/equip
-  animation, no melee.
+- First-person arms and guns are modelled with reload and equip clips, but there is no
+  firing or inspect clip (recoil is the code's kick), and no melee.
 - Enemy bodies are modelled, but have only Idle, Walk and Stagger clips: firing, ducking
   and aiming are bone bends added in code, and death is a topple. Their crouch doesn't
   lower their hit capsule.
