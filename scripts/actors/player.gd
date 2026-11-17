@@ -78,6 +78,14 @@ var _camera: Camera3D
 var _view: Node3D
 var _view_models: Array[Node3D] = []
 var _mags: Array[Node3D] = []
+# Per gun, for the ones with a first-person model (assets/viewmodels): its
+# AnimationPlayer, where its sight must sit when aiming, and its muzzle, both in
+# _view's space. null for the code-built guns.
+var _fp_players: Array = []
+var _ads_points: Array = []
+var _muzzles: Array = []
+var _fp_reloading: bool = false
+var _fp_shown: int = -1
 var _flash: MeshInstance3D
 var _body: KestrelBody
 var _shadow_body: KestrelBody
@@ -446,6 +454,10 @@ func add_gun(id: String) -> void:
 	_view.queue_free()
 	_view_models.clear()
 	_mags.clear()
+	_fp_players.clear()
+	_ads_points.clear()
+	_muzzles.clear()
+	_fp_shown = -1
 	_build_view_models()
 	gun_index = 0
 	_swap_left = SWAP_TIME
@@ -522,10 +534,13 @@ func _process(delta: float) -> void:
 	var hip := Vector3(0.19, -0.16, -0.4)
 	# Lines the optic (or the pistol's irons) up with the centre of the screen.
 	var ads := Vector3(0.0, -0.0723 if gun().id != "sidearm" else -0.045, -0.24)
+	var fp: AnimationPlayer = _fp_players[gun_index] if gun_index < _fp_players.size() else null
+	if fp != null:
+		ads = _ads_points[gun_index]
 	var lower := 0.0
 	if _swap_left > 0.0:
 		lower = sin(_swap_left / SWAP_TIME * PI)
-	elif gun().is_reloading():
+	elif gun().is_reloading() and fp == null:
 		lower = sin(gun().reload_progress() * PI) * 0.7
 	elif heal_left > 0.0:
 		lower = 1.0
@@ -536,6 +551,8 @@ func _process(delta: float) -> void:
 	var showing := gun_index if _swap_left < SWAP_TIME * 0.5 else -1
 	for i in _view_models.size():
 		_view_models[i].visible = i == showing or (showing == -1 and i != gun_index and _view_models.size() > 1)
+	if fp != null:
+		_fp_animate(fp, showing)
 	# Reloading drops the magazine out and brings a fresh one up.
 	var reload := gun().reload_progress()
 	_mags[gun_index].position.y = -0.3 * clampf(sin(clampf((reload - 0.12) / 0.6, 0.0, 1.0) * PI) * 1.6, 0.0, 1.0)
@@ -543,6 +560,8 @@ func _process(delta: float) -> void:
 		_flash.visible = false
 	var length: float = def["length"]
 	_flash.position = Vector3(0.0, 0.0, -0.1 - length)
+	if fp != null:
+		_flash.position = _muzzles[gun_index]
 
 # Death pulls the camera out of Kestrel's head to watch it fall: the full
 # character replaces the first-person body, topples, and the camera settles
@@ -583,7 +602,100 @@ func _unhandled_input(event: InputEvent) -> void:
 		_sway = (_sway + Vector2(-relative.x, relative.y) * 0.00006).limit_length(0.03)
 
 func _muzzle_position() -> Vector3:
+	if gun_index < _muzzles.size() and _muzzles[gun_index] != null:
+		return _view.global_transform * (_muzzles[gun_index] as Vector3)
 	return _view.global_transform * Vector3(0.0, 0.0, -0.1 - float(gun().def["length"]))
+
+# First-person models with Kestrel's gloved hands and forearms, made outside
+# this repo (assets/viewmodels; see its README): [file id, where it sits under
+# the camera at the hip]. Each has Idle, Reload, Holster and Equip clips.
+const FP_MODELS: Dictionary = {
+	"rifle": ["k27_carbine", Vector3(0.22, -0.241, -0.69)],
+	"smg": ["sable_smg", Vector3(0.22, -0.241, -0.69)],
+	"dmr": ["longwatch_dmr", Vector3(0.22, -0.241, -0.69)],
+	"shotgun": ["breach_shotgun", Vector3(0.205, -0.22, -0.565)],
+	"sidearm": ["relay_pistol", Vector3(0.155, -0.171, -0.48)],
+}
+const VIEW_HIP := Vector3(0.19, -0.16, -0.4)   # _view's place at the hip (see _process)
+const VIEW_SCALE: float = 0.85
+# The models are made for a narrower view than ours: smaller, a little nearer,
+# so they take up about the share of the screen the old guns did.
+const FP_SIZE: float = 0.65
+const FP_PLACE := Vector3(0.82, 0.79, 0.87)
+
+# Puts a first-person model in `model` so that, with _view at the hip, it sits
+# exactly where its maker placed it, and works out its sight and muzzle.
+func _fp_view(model: Node3D, id: String) -> void:
+	var spec: Array = FP_MODELS[id]
+	var made: Node3D = (load("res://assets/viewmodels/%s_fp.glb" % spec[0]) as PackedScene).instantiate()
+	made.rotation.y = PI   # the files face +z
+	model.add_child(made)
+	model.position = ((spec[1] as Vector3) * FP_PLACE - VIEW_HIP) / VIEW_SCALE
+	model.scale = Vector3.ONE * FP_SIZE / VIEW_SCALE
+	for node in made.find_children("*", "MeshInstance3D", true, false):
+		(node as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var player := made.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
+	player.get_animation("Idle").loop_mode = Animation.LOOP_LINEAR
+	player.play("Idle")
+	# The gun's bounds, in the file's own axes (forward is +z). Gloves and gun
+	# are one skinned mesh, so the gun is the vertices that ride its WeaponRoot bone.
+	var box := AABB()
+	for node in made.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh.skin == null:
+			continue
+		var gun_binds: Dictionary = {}
+		for b in mesh.skin.get_bind_count():
+			if mesh.skin.get_bind_name(b) == "WeaponRoot":
+				gun_binds[b] = true
+		for surface in mesh.mesh.get_surface_count():
+			var arrays := mesh.mesh.surface_get_arrays(surface)
+			var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var bones = arrays[Mesh.ARRAY_BONES]
+			var weights = arrays[Mesh.ARRAY_WEIGHTS]
+			if bones == null or weights == null or points.is_empty():
+				continue
+			var per: int = (bones as Array).size() / points.size() if bones is Array else (bones as PackedInt32Array).size() / points.size()
+			for v in points.size():
+				var best := 0
+				for k in range(1, per):
+					if weights[v * per + k] > weights[v * per + best]:
+						best = k
+				if gun_binds.has(int(bones[v * per + best])):
+					var at := points[v]
+					box = AABB(at, Vector3.ZERO) if box.size == Vector3.ZERO and box.position == Vector3.ZERO else box.expand(at)
+	if box.size == Vector3.ZERO:
+		box = AABB(Vector3(-0.03, -0.05, -0.3), Vector3(0.06, 0.12, 0.6))
+	# Aim line: just over the top of the gun, so aiming brings it up under the
+	# middle of the screen without the gun ever covering it. Muzzle: the front,
+	# high on the gun.
+	var sight := Vector3(box.get_center().x, box.end.y + 0.015, box.position.z + box.size.z * 0.33)
+	var muzzle := Vector3(box.get_center().x, box.end.y - box.size.y * 0.3, box.end.z)
+	var to_view := model.transform * made.transform
+	var sight_view := to_view * sight
+	_muzzles.append(to_view * muzzle)
+	# Aiming moves _view so the sight lands in the middle of the screen.
+	_ads_points.append(Vector3(-sight_view.x * VIEW_SCALE, -sight_view.y * VIEW_SCALE, VIEW_HIP.z + 0.04))
+	_fp_players.append(player)
+
+# Plays the right clip on the current gun's first-person model: Equip as it
+# comes up after a swap, Reload timed to the gun's own reload, Idle otherwise.
+func _fp_animate(fp: AnimationPlayer, showing: int) -> void:
+	if showing == gun_index and _fp_shown != gun_index:
+		_fp_shown = gun_index
+		_fp_reloading = false
+		fp.play("Equip", 0.0, 2.2)
+	elif showing != gun_index:
+		_fp_shown = -1
+	var reloading := gun().is_reloading()
+	if reloading and not _fp_reloading:
+		var takes := float(gun().def["reload"]) * gun().reload_mult
+		fp.play("Reload", 0.08, fp.get_animation("Reload").length / maxf(takes, 0.2))
+	elif not reloading and _fp_reloading and fp.current_animation == "Reload":
+		fp.play("Idle", 0.15)
+	_fp_reloading = reloading
+	if not fp.is_playing():
+		fp.play("Idle", 0.15)
 
 # Guns with a real model (made outside this repo, in vesper_reach/art/weapons).
 # The rest are built in code below.
@@ -625,6 +737,15 @@ func _build_view_models() -> void:
 		var model := Node3D.new()
 		_view.add_child(model)
 		_view_models.append(model)
+		if FP_MODELS.has(g.id):
+			_fp_view(model, g.id)
+			var empty := Node3D.new()
+			model.add_child(empty)
+			_mags.append(empty)
+			continue
+		_fp_players.append(null)
+		_ads_points.append(null)
+		_muzzles.append(null)
 		var length: float = g.def["length"]
 		var long := g.id != "sidearm"
 		var body := 0.3 if long else length          # receiver length
