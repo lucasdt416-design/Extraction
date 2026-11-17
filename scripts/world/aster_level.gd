@@ -48,6 +48,12 @@ const DEPOT := Rect2(20.0, 26.0, 26.0, 48.0)
 const TOWERS: Array[Vector2] = [Vector2(-66.0, -62.0), Vector2(66.0, -62.0), Vector2(-33.0, -31.0), Vector2(-66.0, 62.0), Vector2(66.0, 62.0),
 	Vector2(33.0, -93.0), Vector2(-33.0, 93.0)]
 
+# The kit's blocks and the colony buildings that stand in their place.
+const NEW_BUILDING: Dictionary = {"habitat": "aster_habitat", "clinic": "aster_clinic", "workshop": "aster_workshop", "residential_tower": "aster_tower"}
+# The four lots whose flat roofs carry the roof routes and the glass bridges:
+# they keep the kit's own blocks, and with them the doors, shelving and roof gear.
+const ROOF_LOTS: Array[Vector2] = [Vector2(-66.0, -31.0), Vector2(66.0, -31.0), Vector2(-66.0, 31.0), Vector2(66.0, 31.0)]
+
 var kit: VesperKit
 var _islands: Array[AABB] = []       # one island of navmesh each: the city, then every site
 var _starts: Array[Array] = []       # [position, yaw] of each place a raid can begin
@@ -116,7 +122,12 @@ func bake() -> void:
 
 # --- What the kit's manifest gets wrong for this game -------------------------
 
-func _leave_out(asset: String, at: Vector3, _placement: Dictionary) -> bool:
+func _leave_out(asset: String, at: Vector3, placement: Dictionary) -> bool:
+	# The colony buildings in place of the kit's blocks, everywhere but the roof lots
+	# and the depot's ground.
+	if NEW_BUILDING.has(asset) and not ROOF_LOTS.has(Vector2(roundf(at.x), roundf(at.z))) and not DEPOT.grow(3.0).has_point(Vector2(at.x, at.z)):
+		kit.add(NEW_BUILDING[asset], at, float(placement["rotation_y"]))
+		return true
 	# Loot and exits are this game's own objects.
 	if asset in ["loot_crate", "extraction_pad"]:
 		return true
@@ -393,7 +404,7 @@ func _doors() -> void:
 	var n := 0
 	for column in COLUMNS:
 		for row in ROWS:
-			if DEPOT.grow(3.0).has_point(Vector2(column, row)):
+			if DEPOT.grow(3.0).has_point(Vector2(column, row)) or not ROOF_LOTS.has(Vector2(column, row)):
 				continue
 			n += 1
 			var front := 1.0 if row < 0.0 else -1.0   # which way the doorway faces
@@ -513,6 +524,9 @@ func _interiors() -> void:
 			n += 1
 			var tower := TOWERS.has(Vector2(column, row))
 			var back := -1.0 if row < 0.0 else 1.0   # which way the back wall is
+			if not ROOF_LOTS.has(Vector2(column, row)):
+				_colony_room(column, row, back, n)
+				continue
 			var half_x := 8.3 if tower else 6.3
 			var half_z := 7.5 if tower else 5.5
 			var tint := LIGHT_WARM if n % 2 == 0 else LIGHT_COOL
@@ -535,6 +549,22 @@ func _interiors() -> void:
 			_box(Vector3(column + half_x - 0.5, 1.03, row + back * 2.2), Vector3(0.8, 0.04, 3.0), Mats.glow(tint, 0.7), false)
 			_box(Vector3(column, 0.012, row - back * (half_z - 1.2)), Vector3(half_x * 1.7, 0.02, 0.22), Mats.surface(OCHRE, "plain", 0.8), false)
 			_mark(Vector3(column + 4.0 * back, 0.0, row + (half_z - 0.6) * back), "locker" if n % 3 == 0 else "crate", 0.0 if back < 0.0 else PI)
+
+# Inside one of the colony buildings: it has its own benches and an open
+# front, so it only needs light and something to search against the back wall.
+func _colony_room(column: float, row: float, back: float, n: int) -> void:
+	var tint := LIGHT_WARM if n % 2 == 0 else LIGHT_COOL
+	var light := OmniLight3D.new()
+	light.position = origin + Vector3(column, 3.6, row)
+	light.light_color = tint
+	light.light_energy = 3.5
+	light.omni_range = 11.0
+	light.omni_attenuation = 0.8
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = 70.0
+	light.distance_fade_length = 20.0
+	add_child(light)
+	_mark(Vector3(column + 3.0 * back, 0.0, row + 4.4 * back), "locker" if n % 3 == 0 else "crate", 0.0 if back < 0.0 else PI)
 
 func _squads_and_exits() -> void:
 	squads.append({"members": ["trooper", "trooper", "lobber"], "points": [
@@ -598,7 +628,7 @@ func _site(index: int) -> void:
 		if kinds.is_empty() or not free.call(slot.x, slot.y, 12.0):
 			continue
 		built += 1
-		kit.add(kinds[i % kinds.size()], middle + Vector3(slot.x, 0.0, slot.y), 0.0 if slot.z > 0.0 else PI)
+		kit.add(NEW_BUILDING[kinds[i % kinds.size()]], middle + Vector3(slot.x, 0.0, slot.y), 0.0 if slot.z > 0.0 else PI)
 		_fit(slot.x, slot.y, slot.z, index * 7 + i, "vault" if built == 2 and index % 2 == 0 else ("locker" if i % 2 == 0 else "crate"))
 		taken.append(Vector3(slot.x, slot.y, 10.0))
 		if built == 1:
@@ -652,32 +682,22 @@ func _site(index: int) -> void:
 	else:
 		squads.append({"members": ["marksman", "trooper"], "points": [base + Vector3(-10.0, 0.0, 10.0), base + Vector3(12.0, 0.0, 14.0), base + Vector3(0.0, 0.0, 24.0)]})
 
-# One added building made usable: its door and buttons, a lit ceiling strip,
-# shelving down one side, a bench, and a container against the back wall.
+# One added colony building made usable: it has an open front and its own
+# benches, so it gets a light and a container against the back wall.
 # (x, z) is its middle about the site's; `front` is +1 when its door faces south.
 func _fit(x: float, z: float, front: float, n: int, kind: String) -> void:
-	var door := _door(Vector3(x, 0.0, z + front * 5.61), 0.0, Vector3(2.56, 3.34, 0.12), Vector3(-2.5, 0.0, 0.0), n % 3 == 1)
-	_switch(Vector3(x + 1.8, 1.25, z + front * 6.08), 0.0 if front > 0.0 else PI, [door])
-	_switch(Vector3(x + 1.8, 1.25, z + front * 5.68), PI if front > 0.0 else 0.0, [door])
 	var back := -front
-	var tint := LIGHT_WARM if n % 2 == 0 else LIGHT_COOL
-	for offset: float in [-0.45, 0.45]:
-		_box(Vector3(x + offset * 6.3, 4.86, z), Vector3(0.3, 0.06, 7.1), Mats.glow(tint, 1.4), false)
 	var light := OmniLight3D.new()
-	light.position = origin + Vector3(x, 4.2, z)
-	light.light_color = tint
-	light.light_energy = 4.5
+	light.position = origin + Vector3(x, 3.6, z)
+	light.light_color = LIGHT_WARM if n % 2 == 0 else LIGHT_COOL
+	light.light_energy = 3.5
 	light.omni_range = 11.0
 	light.omni_attenuation = 0.8
 	light.distance_fade_enabled = true
 	light.distance_fade_begin = 70.0
 	light.distance_fade_length = 20.0
 	add_child(light)
-	for i in 3:
-		_rack(x - 6.0, z + back * (0.6 + i * 1.3), PI * 0.5)
-	_box(Vector3(x + 5.8, 0.5, z + back * 2.2), Vector3(1.0, 1.0, 3.2), Mats.surface(Color(0.88, 0.88, 0.87), "plain", 0.4, 0.1), true, true, 0.0, 0.04)
-	_box(Vector3(x + 5.8, 1.03, z + back * 2.2), Vector3(0.8, 0.04, 3.0), Mats.glow(tint, 0.7), false)
-	_mark(Vector3(x + 4.0 * back, 0.0, z + 4.9 * back), kind, 0.0 if back < 0.0 else PI)
+	_mark(Vector3(x + 3.0 * back, 0.0, z + 4.4 * back), kind, 0.0 if back < 0.0 else PI)
 
 # --- A colony, not a housing estate ---------------------------------------------
 # What the kit's blocks lack is anything on them. Every building in the town
@@ -692,7 +712,8 @@ func _colony_gear() -> void:
 	var n := 0
 	for column in COLUMNS:
 		for row in ROWS:
-			if DEPOT.grow(3.0).has_point(Vector2(column, row)):
+			# The colony buildings bring their own shape; only the old roof lots need dressing.
+			if DEPOT.grow(3.0).has_point(Vector2(column, row)) or not ROOF_LOTS.has(Vector2(column, row)):
 				continue
 			n += 1
 			var back := -1.0 if row < 0.0 else 1.0
