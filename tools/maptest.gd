@@ -23,7 +23,7 @@ const HIGH_PLACES: Dictionary = {
 # A shut door to walk into, and a second one further on, per map:
 # [what, from, the z it must stop short of, the z it must pass once opened].
 const SHUT: Dictionary = {
-	"aster_city": [["a shut door", Vector3(-33.0, 0.3, 16.0), 25.6, 27.0], ["the shut south gate", Vector3(-2.0, 0.3, 70.0), 80.0, 86.0], ["the shut road gate", Vector3(4.0, 0.3, 102.0), 112.0, 118.0]],
+	"aster_city": [["a shut door", Vector3(-66.0, 0.3, 16.0), 25.6, 27.0], ["the shut south gate", Vector3(-2.0, 0.3, 70.0), 80.0, 86.0], ["the shut road gate", Vector3(4.0, 0.3, 102.0), 112.0, 118.0]],
 	"cairn_divide": [["a shut front door", Vector3(0.0, 0.3, -14.0), -8.2, -7.0]],
 }
 

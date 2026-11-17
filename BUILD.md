@@ -138,6 +138,17 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
 ## Playtest log
 
+**2026-11-16, colony buildings.** ChatGPT's Aster replacements (`vesper_reach/art/
+architecture_v3/`: a rounded habitat, an angled clinic, a sawtooth workshop and a tapered
+twin tower, all with walk-in fronts and solid by their own mesh) now stand in for the
+kit's blocks across the town and at the island sites (`AsterLevel.NEW_BUILDING`, swapped
+in `_leave_out`; `VesperKit.COLONY_BUILDINGS` adds them to the catalog). The four lots
+whose flat roofs carry the roof routes and glass bridges keep the old blocks
+(`ROOF_LOTS`), and only those keep the code-built doors, shelving and roof gear. Every
+other building gets a light and a container against its back wall (`_colony_room`,
+`_fit`). The skybridge module is in the catalog but not placed. About 2.0 M triangles a
+frame from the town start, down from 2.4 M.
+
 **2026-11-16, first-person arms and guns.** All five guns in first person are now
 ChatGPT's view models (`assets/viewmodels/`, its README): Kestrel's gloved hands and
 forearms on one skeleton with the gun, and Idle, Reload, Holster and Equip clips. Rifle
@@ -390,8 +401,9 @@ Give this to whoever or whatever makes models:
 ## Known gaps (the honest list)
 
 - Played once by an outside tester; the balance changes made in response are untested by a person.
-- Aster City has not been played by a person. Its buildings have one door each, so the
-  rooms are dead ends; upper floors of the towers are skyline only.
+- Aster City has not been played by a person. Most buildings are the new colony models
+  with open fronts and no doors; only the four roof lots have doors. Rooms are dead ends,
+  and the towers' upper floors are skyline only.
 - Cairn Divide has not been played by a person. Unknown: whether fights across the open
   shelves are fair with this little cover, whether guards cope with stairs and the upper
   walkways in a real fight, how the houses' glass walls play (glass stops shots), whether

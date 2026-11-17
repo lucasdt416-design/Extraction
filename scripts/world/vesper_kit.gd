@@ -39,9 +39,15 @@ var _batches: Dictionary = {}
 var _terrain_material: ShaderMaterial
 var _heights: Dictionary = {}   # Vector2i (terrain grid, kit coordinates) -> y
 
+# The colony buildings ChatGPT made to replace the kit's blocks
+# (art/architecture_v3): solid by their own mesh, with walk-in entrances.
+const COLONY_BUILDINGS: Array[String] = ["aster_habitat", "aster_clinic", "aster_workshop", "aster_tower", "aster_skybridge"]
+
 func load_data() -> void:
 	manifest = JSON.parse_string(FileAccess.get_file_as_string(ROOT + "data/world_manifest.json"))
 	catalog = JSON.parse_string(FileAccess.get_file_as_string(ROOT + "data/asset_catalog.json"))
+	for id in COLONY_BUILDINGS:
+		catalog[id] = {"path": "art/architecture_v3/%s.glb" % id, "colliders": [], "trimesh": true}
 
 func build(centre: Vector3, half: Vector2, scenery_radius: float) -> void:
 	_centre = centre
