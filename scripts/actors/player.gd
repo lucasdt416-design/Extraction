@@ -615,6 +615,7 @@ const FP_MODELS: Dictionary = {
 	"dmr": ["longwatch_dmr", Vector3(0.22, -0.241, -0.69)],
 	"shotgun": ["breach_shotgun", Vector3(0.205, -0.22, -0.565)],
 	"sidearm": ["relay_pistol", Vector3(0.155, -0.171, -0.48)],
+	"arc": ["arc_carbine", Vector3(0.19, -0.205, -0.49)],
 }
 const VIEW_HIP := Vector3(0.19, -0.16, -0.4)   # _view's place at the hip (see _process)
 const VIEW_SCALE: float = 0.85

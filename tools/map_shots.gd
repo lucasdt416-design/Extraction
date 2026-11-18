@@ -70,6 +70,18 @@ func _ready() -> void:
 		player.set("_pitch", deg_to_rad(views[i][2]))
 		await get_tree().create_timer(1.2).timeout
 		_save(out, "view_%02d" % i)
+	# --place <name>: also a view from the middle of that named place, looking north and up.
+	var named := args.find("--place")
+	if named >= 0:
+		for place: Dictionary in raid.level.places:
+			if (place["name"] as String).begins_with(args[named + 1]):
+				var at: Vector3 = place["position"]
+				player.global_position = Vector3(at.x - 16.5, at.y + 0.5, at.z + 4.0)
+				player.velocity = Vector3.ZERO
+				player.set("_yaw", 0.0)
+				player.set("_pitch", deg_to_rad(22.0))
+				await get_tree().create_timer(2.0).timeout
+				_save(out, "place")
 	var rid := get_viewport().get_viewport_rid()
 	print("MAP fps %d" % Performance.get_monitor(Performance.TIME_FPS))
 	await get_tree().create_timer(1.0).timeout

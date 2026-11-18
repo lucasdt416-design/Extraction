@@ -138,6 +138,14 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
 ## Playtest log
 
+**2026-11-17, Arc Carbine and skybridges.** A sixth gun, the Arc Carbine (`arc` in
+`Catalog`): automatic, 31 damage at 480 rpm, 24-round magazine, ChatGPT's `arc_carbine`
+view model. Sold by the trader for 2600 and rare in vaults and elite drops. Two towers
+standing 30-34 m apart in a line get the kit's skybridge between them at 15 m, with lit
+rails and a light (`AsterLevel._skybridges`); today that is one pair, at Saltglass
+Terraces, which now has towers. Every colony building at an island site has a lit strip
+under its front eave. `map_shots.tscn ... --place <name>` adds a view from a named place.
+
 **2026-11-16, colony buildings.** ChatGPT's Aster replacements (`vesper_reach/art/
 architecture_v3/`: a rounded habitat, an angled clinic, a sawtooth workshop and a tapered
 twin tower, all with walk-in fronts and solid by their own mesh) now stand in for the
@@ -146,7 +154,7 @@ in `_leave_out`; `VesperKit.COLONY_BUILDINGS` adds them to the catalog). The fou
 whose flat roofs carry the roof routes and glass bridges keep the old blocks
 (`ROOF_LOTS`), and only those keep the code-built doors, shelving and roof gear. Every
 other building gets a light and a container against its back wall (`_colony_room`,
-`_fit`). The skybridge module is in the catalog but not placed. About 2.0 M triangles a
+`_fit`). About 2.0 M triangles a
 frame from the town start, down from 2.4 M.
 
 **2026-11-16, first-person arms and guns.** All five guns in first person are now

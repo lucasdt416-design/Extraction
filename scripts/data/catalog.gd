@@ -36,6 +36,8 @@ const ITEMS: Dictionary = {
 		"desc": "Nine pellets. Decides arguments in doorways."},
 	"dmr": {"name": "Longwatch DMR", "kind": "weapon", "value": 2100, "rarity": 2,
 		"desc": "Heavy single shots. Rewards a steady head-level aim."},
+	"arc": {"name": "Arc Carbine", "kind": "weapon", "value": 2600, "rarity": 2,
+		"desc": "Colony prototype. Hits hard, fires steady, short magazine."},
 	# --- Armor: adds shield ---
 	"armor_light": {"name": "Mesh vest", "kind": "armor", "value": 700, "rarity": 1, "shield": 25,
 		"desc": "+25 shield."},
@@ -68,6 +70,8 @@ const WEAPONS: Dictionary = {
 		"recoil": 4.5, "range": 60.0, "falloff": [7.0, 20.0], "auto": false, "ads_fov": 64.0, "length": 0.58, "noise": 30.0},
 	"dmr": {"damage": 62.0, "rpm": 190.0, "mag": 10, "reload": 2.4, "spread": 2.2, "ads": 0.05, "pellets": 1,
 		"recoil": 3.2, "range": 300.0, "falloff": [60.0, 120.0], "auto": false, "ads_fov": 36.0, "length": 0.78, "noise": 30.0},
+	"arc": {"damage": 31.0, "rpm": 480.0, "mag": 24, "reload": 2.0, "spread": 1.4, "ads": 0.18, "pellets": 1,
+		"recoil": 1.35, "range": 220.0, "falloff": [38.0, 80.0], "auto": true, "ads_fov": 52.0, "length": 0.6, "noise": 27.0},
 }
 const MIN_FALLOFF: float = 0.45
 const HEADSHOT_MULT: float = 1.75
@@ -136,13 +140,13 @@ const LOOT_TABLES: Dictionary = {
 	"crate": [["copper_spool", 30], ["coolant_cell", 26], ["servo_motor", 20], ["optic_lens", 12], ["data_shard", 8], ["medkit", 10], ["fusion_cap", 3]],
 	"locker": [["medkit", 30], ["servo_motor", 14], ["optic_lens", 16], ["data_shard", 14], ["armor_light", 4], ["implant_satchel", 3], ["smg", 3]],
 	"vault": [["fusion_cap", 28], ["encrypted_drive", 24], ["data_shard", 18], ["prototype_core", 6], ["implant_servo", 5], ["implant_capacitor", 5],
-		["implant_loader", 5], ["implant_damper", 5], ["rifle", 4], ["dmr", 3], ["armor_heavy", 3]],
+		["implant_loader", 5], ["implant_damper", 5], ["rifle", 4], ["dmr", 3], ["arc", 2], ["armor_heavy", 3]],
 	"body": [["copper_spool", 22], ["coolant_cell", 20], ["servo_motor", 16], ["medkit", 14], ["optic_lens", 8], ["data_shard", 5]],
-	"elite": [["encrypted_drive", 30], ["fusion_cap", 30], ["prototype_core", 10], ["implant_capacitor", 8], ["implant_servo", 8], ["shotgun", 6], ["dmr", 6]],
+	"elite": [["encrypted_drive", 30], ["fusion_cap", 30], ["prototype_core", 10], ["implant_capacitor", 8], ["implant_servo", 8], ["shotgun", 6], ["dmr", 6], ["arc", 5]],
 }
 
 const TRADER_STOCK: Array[String] = [
-	"medkit", "smg", "shotgun", "rifle", "dmr", "armor_light", "armor_heavy",
+	"medkit", "smg", "shotgun", "rifle", "dmr", "arc", "armor_light", "armor_heavy",
 	"implant_satchel", "implant_loader", "implant_damper", "implant_servo", "implant_capacitor",
 ]
 
