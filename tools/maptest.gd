@@ -185,9 +185,25 @@ func _ready() -> void:
 		var enemy := node as Enemy
 		if enemy.global_position.distance_to(before[node]) > 1.0:
 			moved += 1
-		if enemy.global_position.y < -40.0:
+		# Dropped well below where it stood: through the floor, or off the island.
+		if enemy.global_position.y < (before[node] as Vector3).y - 15.0:
 			fell += 1
+			print("      fell: from ", before[node], " now ", enemy.global_position)
 	check("squads patrol", moved >= before.size() * 0.6, "%d of %d moved" % [moved, before.size()])
+	if raid.level is CairnLevel:
+		# The roaming squads, out on the open hill, walk too.
+		var roamers := 0
+		var walked := 0
+		for node: Node in before:
+			if not is_instance_valid(node):
+				continue
+			var from: Vector3 = before[node]
+			for middle in CairnLevel.ROAMS:
+				if absf(from.x - middle.x) < CairnLevel.ROAM_HALF and absf(from.z - middle.y) < CairnLevel.ROAM_HALF:
+					roamers += 1
+					if (node as Enemy).global_position.distance_to(from) > 3.0:
+						walked += 1
+		check("roaming squads walk the hills", roamers >= 7 and walked >= roamers - 1, "%d of %d" % [walked, roamers])
 	check("nobody fell through the world", fell == 0, str(fell))
 	for node in get_tree().get_nodes_in_group("enemy"):
 		node.queue_free()
