@@ -26,6 +26,7 @@ const LIGHT_WARM := Color(1.0, 0.78, 0.55)
 
 var player_spawn := Vector3(-39.0, 0.1, 30.0)
 var player_yaw: float = deg_to_rad(-50.0)
+var drop_floor: float = -INF          # supply drops never land below this (the sea)
 var extracts: Array[Dictionary] = []     # {"position": Vector3, "name": String, "drone": scene path for a drone pad}
 var containers: Array[Dictionary] = []   # {"position": Vector3, "kind": String, "yaw": float}
 var squads: Array[Dictionary] = []       # {"members": Array[String], "points": Array[Vector3]}

@@ -9,6 +9,7 @@ const SPECS: Dictionary = {
 	"crate": {"size": Vector3(1.1, 0.75, 0.7), "time": 1.0, "items": [1, 3], "color": Color(0.90, 0.91, 0.89), "label": "Search crate"},
 	"locker": {"size": Vector3(0.75, 1.9, 0.55), "time": 1.4, "items": [1, 2], "color": Color(0.90, 0.91, 0.89), "label": "Search locker"},
 	"vault": {"size": Vector3(1.3, 1.15, 0.9), "time": 3.5, "items": [3, 4], "color": Color(0.12, 0.12, 0.14), "label": "Crack vault (loud)"},
+	"drop": {"size": Vector3(1.5, 0.9, 1.0), "time": 2.5, "items": [3, 5], "color": Color(0.93, 0.92, 0.88), "label": "Open supply drop (loud)"},
 }
 
 var kind: String = "crate"
@@ -42,7 +43,7 @@ func _ready() -> void:
 	# Nothing else on the map is chalk white with a lit band round it: that is
 	# what says "this one opens". The band, the strip on the lid and the pool of
 	# light on the floor all go out once it has been searched.
-	var color := Level.RUST if kind == "vault" else Level.TEAL.lightened(0.2)
+	var color := Level.RUST if kind == "vault" else (UiKit.CORAL if kind == "drop" else Level.TEAL.lightened(0.2))
 	var lit := Mats.glow(color, 3.5)
 	_lit.append(_add(Vector3(0.0, size.y * 0.6, 0.0), size * Vector3(1.02, 0.0, 1.02) + Vector3(0.0, 0.05, 0.0), lit))
 	_lit.append(_add(Vector3(0.0, size.y + 0.006, 0.0), Vector3(size.x * 0.5, 0.012, 0.05), lit))
@@ -88,6 +89,11 @@ func interact(player: Player) -> void:
 	for i in drops.size():
 		var offset := toward * 0.95 + side * (i - (drops.size() - 1) * 0.5) * 0.5
 		Pickup.drop(get_parent(), drops[i], Vector3(global_position.x, player.global_position.y, global_position.z) + offset)
+	if kind == "drop":
+		# Prying a drop open carries a long way, but trips no alarm.
+		Sfx.play_at("alert", global_position, 4.0, 0.9, 70.0)
+		get_tree().call_group("enemy", "hear", global_position, 60.0, player)
+		player.notice.emit("Supply drop opened")
 	if kind == "vault":
 		# Cracking a vault trips its alarm: everyone within earshot comes to look.
 		Sfx.play_at("alert", global_position, 8.0, 0.7, 80.0)

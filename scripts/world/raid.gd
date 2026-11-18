@@ -17,6 +17,9 @@ var elapsed: float = 0.0
 var over: bool = false
 var extract_points: Array[ExtractPoint] = []
 var _squads: Array[Squad] = []
+var drops: Array[SupplyDrop] = []
+# When supply drops are called, as shares of the raid gone. Only on the big maps.
+const DROPS_AT: Array[float] = [0.2, 0.55]
 # Escalation: see _escalate.
 # Seconds of fighting near the player (FIGHT_NEAR) before a squad is sent in.
 const HEAT_FOR_WAVE: float = 100.0
@@ -112,9 +115,35 @@ func _physics_process(delta: float) -> void:
 	for squad in _squads:
 		squad.tick(delta)
 	_escalate(delta)
+	if level.minimap != null and drops.size() < DROPS_AT.size() and elapsed > raid_length * DROPS_AT[drops.size()]:
+		_call_drop()
 	if time_left <= 0.0:
 		# The station locks down. Whatever you were carrying stays here.
 		_end("lost")
+
+# --- Supply drops ------------------------------------------------------------
+# A crate of good kit comes down somewhere in the open 110-240 m from the
+# player: bare ground, not too steep, above the sea. Seeded like the loot.
+
+func _call_drop() -> void:
+	var rng := GameManager.rng
+	var space := get_world_3d().direct_space_state
+	for attempt in 60:
+		var angle := rng.randf() * TAU
+		var reach := rng.randf_range(110.0, 240.0)
+		var at := player.global_position + Vector3(cos(angle), 0.0, sin(angle)) * reach
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(at.x, 700.0, at.z), Vector3(at.x, -400.0, at.z), Layers.WORLD))
+		if hit.is_empty() or not (hit["collider"] as Node).has_meta("soil") or (hit["normal"] as Vector3).y < 0.88 or (hit["position"] as Vector3).y < level.drop_floor:
+			continue
+		var drop := SupplyDrop.new()
+		drop.setup(rng)
+		drop.position = hit["position"]
+		add_child(drop)
+		drops.append(drop)
+		hud.show_alert("SUPPLY DROP INBOUND")
+		return
+	# Nowhere fit this time: count it as called so the next one still comes.
+	drops.append(null)
 
 # --- Escalation --------------------------------------------------------------
 # A raid gets harder the longer and louder it goes. "Heat" builds while a squad
