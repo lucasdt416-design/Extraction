@@ -97,6 +97,21 @@ func _ready() -> void:
 		var path := NavigationServer3D.map_get_path(map, start, target[1], true)
 		var end: Vector3 = path[path.size() - 1] if path.size() > 0 else Vector3.INF
 		check("walkable: " + str(target[0]), end.distance_to(target[1]) < 1.6, "ends %.1f m away" % end.distance_to(target[1]))
+	# Drone pads: stepping on calls the drone, and once it is down the hold counts.
+	for point in raid.extract_points:
+		if point.drone_scene == null:
+			continue
+		var was := player.global_position
+		player.global_position = point.global_position + Vector3.UP * 0.6
+		player.velocity = Vector3.ZERO
+		await get_tree().create_timer(0.6).timeout
+		check("drone called: " + point.label, point.eta > 0.0, "eta %.1f, on floor %s at %s" % [point.eta, player.is_on_floor(), player.global_position])
+		point.eta = 0.05
+		await get_tree().create_timer(0.5).timeout
+		check("drone lands and the hold counts: " + point.label, point.eta == 0.0 and point.progress > 0.1, "progress %.2f" % point.progress)
+		player.global_position = was
+		player.velocity = Vector3.ZERO
+		await get_tree().create_timer(0.3).timeout
 	var unreachable := 0
 	for mark: Dictionary in raid.level.containers:
 		var at: Vector3 = mark["position"]

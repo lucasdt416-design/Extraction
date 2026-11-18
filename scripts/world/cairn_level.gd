@@ -41,6 +41,11 @@ const POSTS: Array[Array] = [
 	["Bridge post", Vector2(252.0, -172.0), true], ["South crossing", Vector2(80.0, 96.0), false],
 	["Post 5", Vector2(498.0, -100.0), true], ["High post", Vector2(-486.0, 150.0), false],
 ]
+# Drone outposts out on the far slopes, where you can call a drone to fly you
+# out: [name, (x, z) to look near].
+const OUTPOSTS: Array[Array] = [
+	["North drone pad", Vector2(-40.0, -600.0)], ["East drone pad", Vector2(620.0, 120.0)], ["West drone pad", Vector2(-600.0, -160.0)],
+]
 # Rock shelters in the hills: (x, z).
 const SHELTERS: Array[Vector2] = [Vector2(-96.0, 138.0), Vector2(-66.0, -118.0), Vector2(440.0, 132.0), Vector2(-190.0, 20.0)]
 
@@ -49,6 +54,7 @@ var zones: Array[Dictionary] = []   # {"rect": Rect2, "ground": float}: one isla
 var _houses: Array[Vector3] = []    # every house, in level coordinates
 var _vaults: int = 0
 var _sites: Array[Vector2] = []     # where each post ended up
+var _pads: Array[Vector3] = []      # where each drone outpost ended up (middle of the deck)
 
 func build() -> void:
 	separate_regions = true
@@ -73,6 +79,14 @@ func build() -> void:
 		_sites.append(site)
 		if post[2]:
 			rects.append(Rect2(site - Vector2(20.0, 20.0), Vector2(40.0, 40.0)))
+	for outpost: Array in OUTPOSTS:
+		var site := _level_site(outpost[1], 13.0, 72)
+		var top := -INF
+		for dx in range(-13, 14, 13):
+			for dz in range(-13, 14, 13):
+				top = maxf(top, kit.height(site.x + dx, site.y + dz))
+		_pads.append(Vector3(site.x, top + 0.3, site.y))
+		rects.append(Rect2(site - Vector2(30.0, 30.0), Vector2(60.0, 60.0)))
 	kit.skip = _leave_out
 	kit.populate(rects)
 	for placement: Dictionary in kit.manifest["placements"]:
@@ -89,6 +103,8 @@ func build() -> void:
 		_post(i)
 	for i in SHELTERS.size():
 		_shelter(i)
+	for i in OUTPOSTS.size():
+		_outpost(i)
 	_grass()
 	kit.flush()
 	_squads_and_exits()
@@ -120,18 +136,23 @@ func _leave_out(asset: String, at: Vector3, _placement: Dictionary) -> bool:
 	for site in _sites:
 		if Vector2(at.x, at.z).distance_to(site) < 10.0:
 			return true
+	for pad in _pads:
+		if absf(at.x - pad.x) < 24.0 and absf(at.z - pad.z + 8.0) < 32.0:
+			return true
 	return false
 
 # The most level patch of ground within 28 m of a point, for a post's deck.
-func _level_site(near: Vector2) -> Vector2:
+func _level_site(near: Vector2, half: float = 7.0, search: int = 28) -> Vector2:
 	var best := near
 	var least := INF
-	for dx in range(-28, 29, 4):
-		for dz in range(-28, 29, 4):
+	var step := 4 if search <= 28 else 8
+	var deep := half * 6.0 / 7.0
+	for dx in range(-search, search + 1, step):
+		for dz in range(-search, search + 1, step):
 			var at := near + Vector2(dx, dz)
 			var low := INF
 			var high := -INF
-			for corner: Vector2 in [Vector2(-7, -6), Vector2(7, -6), Vector2(-7, 6), Vector2(7, 6), Vector2.ZERO, Vector2(0, -6), Vector2(0, 6)]:
+			for corner: Vector2 in [Vector2(-half, -deep), Vector2(half, -deep), Vector2(-half, deep), Vector2(half, deep), Vector2.ZERO, Vector2(0, -deep), Vector2(0, deep)]:
 				var h := kit.height(at.x + corner.x, at.y + corner.y)
 				low = minf(low, h)
 				high = maxf(high, h)
@@ -362,6 +383,37 @@ func _post(index: int) -> void:
 	places.append({"name": POSTS[index][0], "position": origin})
 	origin = Vector3.ZERO
 
+# --- Drone outposts ------------------------------------------------------------
+# A landing deck on a concrete footing cut into the slope, a crew shelter beside
+# it, barriers, two lamps and a squad. The deck is a way out: step on it to call
+# the drone (see ExtractPoint).
+
+func _outpost(index: int) -> void:
+	var deck := _pads[index]
+	origin = deck
+	var slab := Mats.wall(HULL, HULL_DARK, 0.0, 1.5, 0.7)
+	# Footing under the deck and the shelter's yard, down into the hill.
+	_box(Vector3(0.0, -6.15, 0.0), Vector3(27.0, 12.0, 27.0), slab)
+	_box(Vector3(0.0, -6.15, -21.5), Vector3(19.0, 12.0, 16.0), slab)
+	kit.add("frontier_pad", deck, 0.0)
+	kit.add("frontier_shelter", deck + Vector3(0.0, 0.0, -21.5), PI)
+	if index != 1:
+		# A spare drone parked on the yard.
+		kit.add("frontier_drone", deck + Vector3(7.0, 0.0, -24.5), 0.4 + index)
+	for spot: Array in [[-9.0, -14.0, 0.0], [9.0, -14.5, 0.1], [-15.0, 4.0, PI * 0.5], [15.0, -4.0, PI * 0.5]]:
+		kit.add("frontier_barrier", deck + Vector3(spot[0], 0.0, spot[1]), spot[2])
+	_mast(-11.5, -11.5)
+	_mast(11.5, 11.5)
+	_mark(Vector3(-4.0, 0.15, -22.5), "vault" if index == 0 else "locker", PI)
+	_mark(Vector3(4.0, 0.15, -22.5), "crate", PI)
+	_sign((OUTPOSTS[index][0] as String).to_upper(), Vector3(0.0, 4.2, -16.2), 0.0, 0.4, HULL, true)
+	zones.append({"rect": Rect2(Vector2(deck.x, deck.z) - Vector2(30.0, 30.0), Vector2(60.0, 60.0)), "ground": deck.y})
+	squads.append({"members": ["trooper", "marksman", "trooper"] if index != 1 else ["bulwark", "trooper", "rusher"],
+		"points": [deck + Vector3(-8.0, 0.05, 6.0), deck + Vector3(8.0, 0.05, -6.0), deck + Vector3(0.0, 0.05, -18.0)]})
+	extracts.append({"position": deck + Vector3(0.0, 0.05, 0.0), "name": OUTPOSTS[index][0], "drone": CairnKit.ROOT + "art/detail/frontier_drone.glb"})
+	places.append({"name": OUTPOSTS[index][0], "position": deck})
+	origin = Vector3.ZERO
+
 # --- Rock shelters --------------------------------------------------------------
 # A ring of the kit's boulders, grown to the size of a house, leaning over a
 # hollow with a gap to walk in by. Dark inside but for what glows.
@@ -508,6 +560,8 @@ func _wilds() -> void:
 		wild.avoid.append(Rect2(site - Vector2(12.0, 12.0), Vector2(24.0, 24.0)))
 	for shelter in SHELTERS:
 		wild.avoid.append(Rect2(shelter - Vector2(13.0, 13.0), Vector2(26.0, 26.0)))
+	for pad in _pads:
+		wild.avoid.append(Rect2(pad.x - 32.0, pad.z - 40.0, 64.0, 74.0))
 	wild.keep_clear.append(player_spawn)
 	for spot: Dictionary in extracts:
 		wild.keep_clear.append(spot["position"])

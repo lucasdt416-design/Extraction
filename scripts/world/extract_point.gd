@@ -4,6 +4,11 @@ extends Area3D
 # Stand inside for hold_time seconds to leave with what you're carrying.
 # Stepping out resets the count. It reports completion with a signal; what
 # extraction means is GameManager's business.
+#
+# A drone pad works the same, but first you have to call the drone: stepping on
+# the pad calls it, and it takes DRONE_FLIGHT seconds to come in, loud enough
+# that guards nearby hear it every few seconds. Once it has landed the hold is
+# short. You can leave the pad while it flies in.
 
 signal extracted(player: Player)
 
@@ -13,6 +18,14 @@ var progress: float = 0.0
 var occupant: Player = null
 var _ring: MeshInstance3D
 var _tick_at: int = 0
+
+const DRONE_FLIGHT: float = 35.0
+const DRONE_HEARD: float = 70.0      # how far the drone's noise carries
+var drone_scene: PackedScene = null  # set for a drone pad
+var eta: float = -1.0                # -1 not called, then seconds to landing, 0 landed
+var _drone: Node3D
+var _from := Vector3.ZERO
+var _next_noise: float = 0.0
 
 func _ready() -> void:
 	collision_layer = 0
@@ -74,7 +87,12 @@ func _ready() -> void:
 	add_child(light)
 
 func _physics_process(delta: float) -> void:
+	if drone_scene != null:
+		_fly(delta)
 	if occupant == null or occupant.is_dead:
+		return
+	if drone_scene != null and eta != 0.0:
+		progress = 0.0
 		return
 	progress += delta
 	if int(progress) != _tick_at:
@@ -87,3 +105,42 @@ func _physics_process(delta: float) -> void:
 
 func _process(_delta: float) -> void:
 	_ring.scale = Vector3.ONE * (1.0 - (progress / hold_time) * 0.5 if occupant != null else 1.0)
+
+# What the HUD should say about this pad, or "" when nothing is happening.
+func status() -> String:
+	if drone_scene == null or eta < 0.0:
+		return ""
+	if eta > 0.0:
+		return "DRONE INBOUND   %d" % ceili(eta)
+	return "DRONE DOWN"
+
+func _fly(delta: float) -> void:
+	if eta < 0.0:
+		if occupant == null or occupant.is_dead:
+			return
+		eta = DRONE_FLIGHT
+		hold_time = 4.0
+		# It comes in from wherever is farthest from the player's way in.
+		var away := Vector3(global_position.x, 0.0, global_position.z).normalized()
+		if away.length() < 0.1:
+			away = Vector3.FORWARD
+		_from = away * 320.0 + Vector3(0.0, 160.0, 0.0)
+		_drone = drone_scene.instantiate()
+		add_child(_drone)
+		Sfx.play("alert", -4.0, 0.7)
+	if eta > 0.0:
+		eta = maxf(eta - delta, 0.0)
+		_next_noise -= delta
+		if _next_noise <= 0.0:
+			_next_noise = 5.0
+			get_tree().call_group("enemy", "hear", global_position, DRONE_HEARD, self)
+	# Fast and high, then slowing and dropping onto the pad.
+	var t := 1.0 - eta / DRONE_FLIGHT
+	var glide := 1.0 - pow(1.0 - t, 3.0)
+	var at := _from.lerp(Vector3.ZERO, glide)
+	at.y = lerpf(_from.y, 0.15, clampf((t - 0.35) / 0.65, 0.0, 1.0) ** 0.6)
+	_drone.position = at
+	if eta > 0.0:
+		var ahead := -_from
+		_drone.rotation.y = atan2(ahead.x, ahead.z)
+		_drone.rotation.z = sin(t * 9.0) * 0.03

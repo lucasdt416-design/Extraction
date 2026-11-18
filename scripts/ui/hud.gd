@@ -197,8 +197,13 @@ func _process(delta: float) -> void:
 
 	var prompt := ""
 	for point in _raid.extract_points:
-		if point.occupant != null:
+		var called: String = point.status()
+		if called != "" and (point.occupant != null or point.global_position.distance_to(_player.global_position) < 80.0):
+			prompt = called
+		if point.occupant != null and (point.drone_scene == null or point.eta == 0.0):
 			prompt = "EXTRACTING   %.1f" % maxf(point.hold_time - point.progress, 0.0)
+		elif point.occupant != null and point.drone_scene != null and point.eta < 0.0:
+			prompt = "CALLING DRONE"
 	if prompt == "" and _player.interact_label != "":
 		prompt = "[ F ]   " + _player.interact_label.to_upper()
 	_prompt.text = prompt

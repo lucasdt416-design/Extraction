@@ -8682,5 +8682,297 @@
     ],
     "trimesh": false,
     "notes": "V2 layered geometry / native PBR materials."
+  },
+  "frontier_pad": {
+    "path": "art/detail/frontier_pad.glb",
+    "triangles": 10308,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          -0.3
+        ],
+        "size": [
+          25,
+          25,
+          0.65
+        ]
+      },
+      {
+        "position": [
+          0,
+          0,
+          0.07
+        ],
+        "size": [
+          24.6,
+          24.6,
+          0.16
+        ]
+      },
+      {
+        "position": [
+          -12.35,
+          0,
+          0.65
+        ],
+        "size": [
+          0.1,
+          23,
+          1.0
+        ]
+      },
+      {
+        "position": [
+          12.35,
+          0,
+          0.65
+        ],
+        "size": [
+          0.1,
+          23,
+          1.0
+        ]
+      },
+      {
+        "vertices": [
+          [
+            -2,
+            -15,
+            -0.15
+          ],
+          [
+            2,
+            -15,
+            -0.15
+          ],
+          [
+            2,
+            -12,
+            -0.15
+          ],
+          [
+            -2,
+            -12,
+            -0.15
+          ],
+          [
+            -2,
+            -15,
+            -0.035
+          ],
+          [
+            2,
+            -15,
+            -0.035
+          ],
+          [
+            2,
+            -12,
+            0.15
+          ],
+          [
+            -2,
+            -12,
+            0.15
+          ]
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "frontier_drone": {
+    "path": "art/detail/frontier_drone.glb",
+    "triangles": 5964,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          1.12
+        ],
+        "size": [
+          2.35,
+          3.55,
+          1.05
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "frontier_shelter": {
+    "path": "art/detail/frontier_shelter.glb",
+    "triangles": 4824,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.12
+        ],
+        "size": [
+          15,
+          10,
+          0.24
+        ]
+      },
+      {
+        "position": [
+          -7,
+          0,
+          1.82
+        ],
+        "size": [
+          0.35,
+          9.75,
+          3.65
+        ]
+      },
+      {
+        "position": [
+          7,
+          0,
+          1.82
+        ],
+        "size": [
+          0.35,
+          9.75,
+          3.65
+        ]
+      },
+      {
+        "position": [
+          0,
+          4.8,
+          1.85
+        ],
+        "size": [
+          14,
+          0.32,
+          3.7
+        ]
+      },
+      {
+        "position": [
+          0,
+          -0.55,
+          3.83
+        ],
+        "size": [
+          15.2,
+          11.45,
+          0.32
+        ]
+      },
+      {
+        "position": [
+          -5.1,
+          -4.6,
+          1.55
+        ],
+        "size": [
+          2.7,
+          0.38,
+          3.1
+        ]
+      },
+      {
+        "position": [
+          -5.1,
+          2.8,
+          1.05
+        ],
+        "size": [
+          2.8,
+          0.8,
+          0.16
+        ]
+      },
+      {
+        "position": [
+          -5.1,
+          -5.65,
+          0.47
+        ],
+        "size": [
+          0.24,
+          0.24,
+          0.9
+        ]
+      },
+      {
+        "position": [
+          5.1,
+          -4.6,
+          1.55
+        ],
+        "size": [
+          2.7,
+          0.38,
+          3.1
+        ]
+      },
+      {
+        "position": [
+          5.1,
+          2.8,
+          1.05
+        ],
+        "size": [
+          2.8,
+          0.8,
+          0.16
+        ]
+      },
+      {
+        "position": [
+          5.1,
+          -5.65,
+          0.47
+        ],
+        "size": [
+          0.24,
+          0.24,
+          0.9
+        ]
+      },
+      {
+        "position": [
+          0,
+          -5.4,
+          0.12
+        ],
+        "size": [
+          3.6,
+          1.4,
+          0.22
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
+  },
+  "frontier_barrier": {
+    "path": "art/detail/frontier_barrier.glb",
+    "triangles": 432,
+    "colliders": [
+      {
+        "position": [
+          0,
+          0,
+          0.46
+        ],
+        "size": [
+          2.5,
+          0.95,
+          0.92
+        ]
+      }
+    ],
+    "trimesh": false,
+    "notes": "V2 layered geometry / native PBR materials."
   }
 }
