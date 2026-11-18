@@ -34,6 +34,8 @@ func _ready() -> void:
 	print("MAP navmesh polygons %d, containers %d, squads %d" % [nav.get_polygon_count(), raid.level.containers.size(), raid.level.squads.size()])
 	await get_tree().create_timer(4.0).timeout
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# A stray key while the window is in the background must not pause the shots.
+	raid.hud.set_process_unhandled_input(false)
 	var player := raid.player
 	player.max_shield = 1.0e9
 	player.shield = 1.0e9
@@ -76,12 +78,30 @@ func _ready() -> void:
 		for place: Dictionary in raid.level.places:
 			if (place["name"] as String).begins_with(args[named + 1]):
 				var at: Vector3 = place["position"]
-				player.global_position = Vector3(at.x - 16.5, at.y + 0.5, at.z + 4.0)
+				var pad := (place["name"] as String).ends_with("pad")
+				var stand := Vector3(at.x + 4.0, at.y + 0.5, at.z + 11.0) if pad else Vector3(at.x - 16.5, at.y + 0.5, at.z + 4.0)
+				player.global_position = stand
 				player.velocity = Vector3.ZERO
 				player.set("_yaw", 0.0)
-				player.set("_pitch", deg_to_rad(22.0))
+				player.set("_pitch", deg_to_rad(6.0 if pad else 22.0))
 				await get_tree().create_timer(2.0).timeout
 				_save(out, "place")
+				for point in raid.extract_points:
+					if point.drone_scene == null or point.global_position.distance_to(at) > 5.0:
+						continue
+					# Call the drone, step back off, and catch it coming in and on the deck.
+					player.global_position = point.global_position + Vector3.UP * 0.6
+					await get_tree().create_timer(0.4).timeout
+					player.global_position = stand
+					player.velocity = Vector3.ZERO
+					point.eta = 6.0
+					player.set("_pitch", deg_to_rad(12.0))
+					await get_tree().create_timer(2.0).timeout
+					_save(out, "place_inbound")
+					point.eta = 0.01
+					player.set("_pitch", deg_to_rad(4.0))
+					await get_tree().create_timer(1.0).timeout
+					_save(out, "place_landed")
 	var rid := get_viewport().get_viewport_rid()
 	print("MAP fps %d" % Performance.get_monitor(Performance.TIME_FPS))
 	await get_tree().create_timer(1.0).timeout

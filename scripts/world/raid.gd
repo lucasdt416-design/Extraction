@@ -61,6 +61,8 @@ func _ready() -> void:
 		var point := ExtractPoint.new()
 		point.label = spot["name"]
 		point.position = spot["position"]
+		if spot.has("drone"):
+			point.drone_scene = load(spot["drone"])
 		add_child(point)
 		point.extracted.connect(_on_extracted)
 		extract_points.append(point)

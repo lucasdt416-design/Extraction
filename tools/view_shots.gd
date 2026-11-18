@@ -19,6 +19,8 @@ func _ready() -> void:
 	add_child(raid)
 	await get_tree().create_timer(4.0).timeout
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# A stray key while the window is in the background must not pause the shots.
+	raid.hud.set_process_unhandled_input(false)
 	for node in get_tree().get_nodes_in_group("enemy"):
 		node.queue_free()
 	var player := raid.player

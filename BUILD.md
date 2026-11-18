@@ -138,6 +138,17 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
 ## Playtest log
 
+**2026-11-17, drone outposts.** Cairn Divide has three drone outposts on the far
+slopes (`CairnLevel.OUTPOSTS`, `_outpost`): a landing deck from ChatGPT's newer Cairn kit
+(`frontier_pad`) on a concrete footing, its crew shelter, barriers, a parked drone,
+lamps, a vault or locker and a three-man squad, each on its own island of navmesh. The
+deck is an exit of a new kind: stepping on it calls the drone (`ExtractPoint.drone_scene`,
+`eta`), which takes 35 s to fly in and is heard by guards within 70 m every 5 s; once
+it is down, a 4 s hold takes you out. You may leave the deck while it comes in. The HUD
+says DRONE INBOUND with the seconds, then DRONE DOWN. Only the models came from the
+newer kit; its larger layout was left out because parts of it were drawn from another
+game's map. `maptest` calls each drone and checks the hold counts after landing.
+
 **2026-11-17, Arc Carbine and skybridges.** A sixth gun, the Arc Carbine (`arc` in
 `Catalog`): automatic, 31 damage at 480 rpm, 24-round magazine, ChatGPT's `arc_carbine`
 view model. Sold by the trader for 2600 and rare in vaults and elite drops. Two towers
