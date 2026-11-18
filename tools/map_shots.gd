@@ -27,6 +27,8 @@ func _ready() -> void:
 	var started := Time.get_ticks_msec()
 	var raid: Raid = load("res://scenes/raid.tscn").instantiate()
 	add_child(raid)
+	# A stray key while the window is in the background must not pause the shots.
+	raid.hud.set_process_unhandled_input(false)
 	print("MAP built and baked in %d ms" % (Time.get_ticks_msec() - started))
 	var nav := raid.level.navigation_mesh
 	if raid.level is CairnLevel:
@@ -34,8 +36,8 @@ func _ready() -> void:
 	print("MAP navmesh polygons %d, containers %d, squads %d" % [nav.get_polygon_count(), raid.level.containers.size(), raid.level.squads.size()])
 	await get_tree().create_timer(4.0).timeout
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	# A stray key while the window is in the background must not pause the shots.
-	raid.hud.set_process_unhandled_input(false)
+	raid.hud._resume()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var player := raid.player
 	player.max_shield = 1.0e9
 	player.shield = 1.0e9
@@ -72,6 +74,25 @@ func _ready() -> void:
 		player.set("_pitch", deg_to_rad(views[i][2]))
 		await get_tree().create_timer(1.2).timeout
 		_save(out, "view_%02d" % i)
+	# --drop: call a supply drop and watch it come in, then from beside the crate.
+	if args.has("--drop"):
+		raid._call_drop()
+		var drop: SupplyDrop = raid.drops[raid.drops.size() - 1]
+		if drop != null:
+			var to := drop.global_position - player.global_position
+			player.set("_yaw", atan2(-to.x, -to.z))
+			player.set("_pitch", deg_to_rad(8.0))
+			drop.eta = 9.0
+			await get_tree().create_timer(2.0).timeout
+			_save(out, "drop_inbound")
+			drop.eta = 0.01
+			await get_tree().create_timer(0.5).timeout
+			var flat := Vector3(to.x, 0.0, to.z).normalized()
+			player.global_position = drop.global_position - flat * 7.0 + Vector3.UP * 1.0
+			player.velocity = Vector3.ZERO
+			player.set("_pitch", deg_to_rad(-6.0))
+			await get_tree().create_timer(2.0).timeout
+			_save(out, "drop_landed")
 	# --place <name>: also a view from the middle of that named place, looking north and up.
 	var named := args.find("--place")
 	if named >= 0:

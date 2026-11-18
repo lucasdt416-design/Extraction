@@ -142,6 +142,8 @@ const LOOT_TABLES: Dictionary = {
 	"vault": [["fusion_cap", 28], ["encrypted_drive", 24], ["data_shard", 18], ["prototype_core", 6], ["implant_servo", 5], ["implant_capacitor", 5],
 		["implant_loader", 5], ["implant_damper", 5], ["rifle", 4], ["dmr", 3], ["arc", 2], ["armor_heavy", 3]],
 	"body": [["copper_spool", 22], ["coolant_cell", 20], ["servo_motor", 16], ["medkit", 14], ["optic_lens", 8], ["data_shard", 5]],
+	"drop": [["prototype_core", 14], ["fusion_cap", 20], ["encrypted_drive", 20], ["arc", 10], ["dmr", 8], ["armor_heavy", 10],
+		["implant_servo", 6], ["implant_capacitor", 6], ["implant_loader", 6], ["medkit", 14]],
 	"elite": [["encrypted_drive", 30], ["fusion_cap", 30], ["prototype_core", 10], ["implant_capacitor", 8], ["implant_servo", 8], ["shotgun", 6], ["dmr", 6], ["arc", 5]],
 }
 

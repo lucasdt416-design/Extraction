@@ -836,6 +836,7 @@ func _wilds() -> void:
 	# The island, in level coordinates: the kit's 2 km square, less the sea.
 	wild.area = Rect2(-CENTRE.x - 980.0, -CENTRE.z - 980.0, 1960.0, 1960.0)
 	wild.lowest = -CENTRE.y + 1.5
+	drop_floor = wild.lowest + 1.0
 	wild.step = 9.0
 	wild.seed_value = 23
 	wild.avoid.append(Rect2(-HALF, HALF * 2.0).grow(12.0))

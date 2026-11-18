@@ -112,6 +112,21 @@ func _ready() -> void:
 		player.global_position = was
 		player.velocity = Vector3.ZERO
 		await get_tree().create_timer(0.3).timeout
+	# Supply drops: one is called, lands on bare ground, and its crate opens.
+	if raid.level.minimap != null:
+		raid._call_drop()
+		var drop: SupplyDrop = raid.drops[raid.drops.size() - 1]
+		check("supply drop found a place", drop != null)
+		if drop != null:
+			var off := drop.global_position.distance_to(player.global_position)
+			drop.eta = 0.05
+			await get_tree().create_timer(0.4).timeout
+			check("supply drop lands its crate", drop.crate != null and drop.crate.is_inside_tree(), "%.0f m from the player, at %s" % [off, drop.global_position])
+			if drop.crate != null:
+				drop.crate.interact(player)
+				await get_tree().create_timer(0.2).timeout
+				var spilled := drop.find_children("*", "Pickup", false, false).size()
+				check("supply drop opens and spills its kit", drop.is_open() and spilled >= 3, "%d items" % spilled)
 	var unreachable := 0
 	for mark: Dictionary in raid.level.containers:
 		var at: Vector3 = mark["position"]
@@ -127,7 +142,8 @@ func _ready() -> void:
 			unreachable += 1
 			print("      container out of reach: ", at, " ", mark["kind"])
 	check("every container can be reached", unreachable == 0, "%d of %d out of reach" % [unreachable, raid.level.containers.size()])
-	var stops: Array = AsterLevel.DEPOT_STOPS if raid.level is AsterLevel else CairnLevel.DEPOT_STOPS
+	# Roadside supply stops are only on the two big maps.
+	var stops: Array = AsterLevel.DEPOT_STOPS if raid.level is AsterLevel else (CairnLevel.DEPOT_STOPS if raid.level is CairnLevel else [])
 	var space := raid.get_world_3d().direct_space_state
 	for stop: Array in stops:
 		var found := false

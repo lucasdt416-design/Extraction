@@ -138,6 +138,16 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
 ## Playtest log
 
+**2026-11-17, supply drops.** On the big maps a supply drone is called at 20% and 55%
+of the raid (`Raid.DROPS_AT`, `_call_drop`): it picks bare, gentle ground 110-240 m from
+the player (above the sea on Aster), flies in over 30 s and sets down a crate
+(`SupplyDrop`, `LootContainer` kind "drop": 3-5 items from the "drop" table, which has
+prototype cores, the Arc Carbine, plate carriers and implants). The HUD calls it out,
+marks it in coral in the view and on the corner map with the seconds to landing, and a
+tall coral column stands over it until it is opened. Opening takes 2.5 s and is heard
+60 m away, without the vault's alarm. `maptest` calls one, lands it and opens it;
+`map_shots ... --drop` photographs one. The shot tools no longer get paused by a stray key.
+
 **2026-11-17, drone outposts.** Cairn Divide has three drone outposts on the far
 slopes (`CairnLevel.OUTPOSTS`, `_outpost`): a landing deck from ChatGPT's newer Cairn kit
 (`frontier_pad`) on a concrete footing, its crew shelter, barriers, a parked drone,
@@ -430,8 +440,8 @@ Give this to whoever or whatever makes models:
   river gorge (its sides are steep and nothing lifts you out).
 - Cairn Divide's guard posts and rock shelters were placed by rule and only two were looked
   at. A post on a slope stands on a tall concrete block; a shelter's way in may be tight.
-- Guards never leave their colony or post, so nothing hunts you on the trails yet. Drone
-  drops and roaming patrols are the planned next step.
+- Guards never leave their colony or post, so nothing hunts you on the trails yet. Supply
+  drops (2026-11-17) give a reason to cross open ground; roaming patrols are still to do.
 - Relay Station has no corner map.
 - Aster's outer sites were laid out by rule. Not checked by eye: Saltglass, Northwatch,
   Southshore; whether an added building ever blocks a road; whether the cover in each

@@ -393,6 +393,21 @@ func _draw_overlay() -> void:
 			var distance := int(point.global_position.distance_to(_player.global_position))
 			_canvas.draw_arc(screen, 6.0, 0.0, TAU, 16, TEAL, 1.5, true)
 			_canvas.draw_string(_font, screen + Vector2(-100, 24), "%s  %dm" % [point.label, distance], HORIZONTAL_ALIGNMENT_CENTER, 200, 13, Color(TEAL, 0.9))
+		# Supply drops until they are opened, in coral, with the time to landing.
+		for drop in _raid.drops:
+			if drop == null or drop.is_open():
+				continue
+			var world: Vector3 = drop.global_position + Vector3.UP * 2.0
+			var screen := camera.unproject_position(world)
+			if camera.is_position_behind(world):
+				screen = center + (center - screen).normalized() * 4000.0
+			screen = screen.clamp(Vector2(140, 130), size - Vector2(140, 240))
+			if _raid.level.minimap != null and screen.x > size.x - MARGIN - MAP_SIZE - 110.0:
+				screen.y = maxf(screen.y, MARGIN + MAP_SIZE + 24.0)
+			var distance := int(drop.global_position.distance_to(_player.global_position))
+			var when := "  lands in %ds" % ceili(drop.eta) if drop.eta > 0.0 else ""
+			_canvas.draw_rect(Rect2(screen - Vector2(5, 5), Vector2(10, 10)), UiKit.CORAL, false, 1.5)
+			_canvas.draw_string(_font, screen + Vector2(-120, 24), "Supply drop  %dm%s" % [distance, when], HORIZONTAL_ALIGNMENT_CENTER, 240, 13, Color(UiKit.CORAL, 0.95))
 
 # The corner map: a north-up window on the level's picture, centred on the
 # player, with the exits and the named places marked.
@@ -459,6 +474,14 @@ func _draw_map(size: Vector2) -> void:
 		var spot := middle + offset
 		var diamond := PackedVector2Array([spot + Vector2(0, -5), spot + Vector2(5, 0), spot + Vector2(0, 5), spot + Vector2(-5, 0)])
 		_canvas.draw_colored_polygon(diamond, Color(TEAL, 0.55 if edge else 1.0))
+	for drop in _raid.drops:
+		if drop == null or drop.is_open():
+			continue
+		var offset := (Vector2(drop.global_position.x, drop.global_position.z) - here) * scale
+		var limit := MAP_SIZE * 0.5 - 7.0
+		if absf(offset.x) > limit or absf(offset.y) > limit:
+			offset *= limit / maxf(absf(offset.x), absf(offset.y))
+		_canvas.draw_rect(Rect2(middle + offset - Vector2(4, 4), Vector2(8, 8)), UiKit.CORAL)
 	var yaw := _player.rotation.y
 	var ahead := Vector2(-sin(yaw), -cos(yaw))
 	var side := Vector2(-ahead.y, ahead.x)
