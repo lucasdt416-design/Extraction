@@ -51,7 +51,7 @@ func _ready() -> void:
 	level.tune(_env, _sun)
 	for mark in level.containers:
 		var container := LootContainer.new()
-		container.setup(mark["kind"], GameManager.rng)
+		container.setup(mark["kind"], GameManager.rng, mark.get("supply", ""), level.separate_regions)
 		container.position = mark["position"]
 		container.rotation.y = mark["yaw"]
 		level.add_child(container)

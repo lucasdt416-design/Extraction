@@ -46,6 +46,11 @@ const POSTS: Array[Array] = [
 const OUTPOSTS: Array[Array] = [
 	["North drone pad", Vector2(-40.0, -600.0)], ["East drone pad", Vector2(620.0, 120.0)], ["West drone pad", Vector2(-600.0, -160.0)],
 ]
+const DEPOT_STOPS: Array[Array] = [
+	["Lichen Field Hospital", Vector2(-197, -172), Color(0.38, 0.88, 0.80), "medkit", false],
+	["Quarry Transfer", Vector2(499, 52), Color(1.0, 0.57, 0.28), "shotgun", true],
+	["Crown Survey Store", Vector2(-243, 214), Color(0.55, 0.75, 1.0), "implant_satchel", false],
+]
 # Rock shelters in the hills: (x, z).
 const SHELTERS: Array[Vector2] = [Vector2(-96.0, 138.0), Vector2(-66.0, -118.0), Vector2(440.0, 132.0), Vector2(-190.0, 20.0)]
 
@@ -54,6 +59,7 @@ var zones: Array[Dictionary] = []   # {"rect": Rect2, "ground": float}: one isla
 var _houses: Array[Vector3] = []    # every house, in level coordinates
 var _vaults: int = 0
 var _sites: Array[Vector2] = []     # where each post ended up
+var _depot_sites: Array[Vector2] = []
 var _pads: Array[Vector3] = []      # where each drone outpost ended up (middle of the deck)
 
 func build() -> void:
@@ -79,6 +85,10 @@ func build() -> void:
 		_sites.append(site)
 		if post[2]:
 			rects.append(Rect2(site - Vector2(20.0, 20.0), Vector2(40.0, 40.0)))
+	for stop in DEPOT_STOPS:
+		var site := _level_site(stop[1], 7.0, 16)
+		_depot_sites.append(site)
+		rects.append(Rect2(site - Vector2(17, 17), Vector2(34, 34)))
 	for outpost: Array in OUTPOSTS:
 		var site := _level_site(outpost[1], 13.0, 72)
 		var top := -INF
@@ -105,6 +115,12 @@ func build() -> void:
 		_shelter(i)
 	for i in OUTPOSTS.size():
 		_outpost(i)
+	for i in DEPOT_STOPS.size():
+		var stop := DEPOT_STOPS[i]
+		var site := _depot_sites[i]
+		var deck := _roadside_depot(stop[0], site, kit.height, stop[2], stop[3], stop[4])
+		if stop[4]:
+			zones.append({"rect": Rect2(site - Vector2(15, 15), Vector2(30, 30)), "ground": deck.y})
 	_grass()
 	kit.flush()
 	_squads_and_exits()
@@ -130,6 +146,10 @@ func bake() -> void:
 	_bake_islands(boxes)
 
 func _leave_out(asset: String, at: Vector3, _placement: Dictionary) -> bool:
+	if asset.begins_with("boulder") or asset in ["fern", "alpine_fir", "meadow"]:
+		for site in _depot_sites:
+			if Rect2(site - Vector2(10, 14), Vector2(20, 28)).has_point(Vector2(at.x, at.z)):
+				return true
 	# Nothing grows through a post's deck.
 	if asset != "fern" and asset != "alpine_fir":
 		return false
@@ -321,6 +341,8 @@ func _camp(index: int) -> void:
 	_mark(Vector3(12.0 * flip, 0.0, 19.9), "crate", 0.3)
 	_mark(Vector3(-28.0 * flip, 0.0, -23.9), "crate", -0.2)
 	_mark(Vector3(34.0 * flip + 3.4, 0.0, -22.0), "locker", PI * 0.5 + 0.1)
+	_mark(Vector3(-8.0 * flip, 0.0, 30.0), "crate")
+	_mark(Vector3(-50.0 * flip, 0.0, 13.8), "locker")
 	_litter(Vector2(0.0, 14.0), 56.0, 20 + index * 7)
 	origin = Vector3.ZERO
 
@@ -370,7 +392,7 @@ func _post(index: int) -> void:
 	if manned:
 		_box(Vector3(-2.0, 2.62, -0.5), Vector3(4.6, 0.06, 0.2), Mats.glow(LIGHT_WARM, 2.2), false)
 	_mark(Vector3(-3.6, 0.0, -3.9), "locker" if index % 2 == 0 else "crate", 0.0)
-	_crate(-0.4, -3.6, Vector3(1.1, 1.1, 1.1), OCHRE, 0.2)
+	_mark(Vector3(-0.4, 0.0, -3.6), "crate", 0.2)
 	_barrier(3.6, 3.4, 3.2)
 	_barrier(-4.0, 4.2, 3.2, 0.15)
 	_barrier(5.6, -1.5, 3.0, PI * 0.5)
@@ -446,8 +468,16 @@ func _shelter(index: int) -> void:
 	light.distance_fade_begin = 70.0
 	light.distance_fade_length = 20.0
 	add_child(light)
-	_mark(Vector3(0.6, 0.15, -0.4), "vault" if index == 3 else "locker", gap)
-	_crate(-1.6, 0.9, Vector3(0.9, 0.7, 0.9), RUST, 0.4, 0.1)
+	var footing := Mats.surface(HULL_DARK, "metal", 0.74, 0.25)
+	for spot: Array in [[Vector2(0.6, -0.4), "vault" if index == 3 else "locker", gap], [Vector2(-1.6, 0.9), "crate", 0.4]]:
+		var local: Vector2 = spot[0]
+		var top := -INF
+		for dx: float in [-0.8, 0.0, 0.8]:
+			for dz: float in [-0.8, 0.0, 0.8]:
+				top = maxf(top, kit.height(at.x + local.x + dx, at.y + local.y + dz) - floor_y)
+		top += 0.18
+		_box(Vector3(local.x, top - 0.8, local.y), Vector3(1.55, 1.6, 1.55), footing)
+		_mark(Vector3(local.x, top, local.y), spot[1], spot[2])
 	places.append({"name": "Shelter", "position": origin})
 	origin = Vector3.ZERO
 
@@ -558,6 +588,8 @@ func _wilds() -> void:
 		wild.avoid.append((zone["rect"] as Rect2).grow(4.0))
 	for site in _sites:
 		wild.avoid.append(Rect2(site - Vector2(12.0, 12.0), Vector2(24.0, 24.0)))
+	for site in _depot_sites:
+		wild.avoid.append(Rect2(site - Vector2(14, 16), Vector2(28, 32)))
 	for shelter in SHELTERS:
 		wild.avoid.append(Rect2(shelter - Vector2(13.0, 13.0), Vector2(26.0, 26.0)))
 	for pad in _pads:

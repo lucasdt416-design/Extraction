@@ -140,6 +140,71 @@ func _ready() -> void:
 	await wait(0.5)
 	check("found weapon is equipped", GameManager.loadout["primary"] == "smg" and player.guns.size() == 2 and player.gun().id == "smg")
 
+	# Exercise the live backpack and round-trip a used weapon through the floor.
+	var tab := InputEventKey.new()
+	tab.physical_keycode = KEY_TAB
+	tab.pressed = true
+	get_viewport().push_input(tab)
+	check("Tab opens the live backpack", raid.hud.get("_inventory") != null and not get_tree().paused)
+	get_viewport().push_input(tab)
+	check("Tab closes the backpack", raid.hud.get("_inventory") == null)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	var used_gun := player.gun()
+	used_gun.mag = 3
+	used_gun.reserve = 7
+	GameManager.add_to_backpack("dmr")
+	check("swap primary in raid", player.equip_packed(GameManager.backpack.find("dmr"), "primary")
+		and player.gun().id == "dmr" and player.guns.size() == 2)
+	check("drop old primary", player.drop_packed(GameManager.backpack.find("smg")) and not GameManager.backpack.has("smg"))
+	var dropped: Pickup
+	for child in raid.get_children():
+		if child is Pickup and child.weapon == used_gun:
+			dropped = child
+			break
+	check("dropped weapon exists in the raid", dropped != null)
+	if dropped != null:
+		dropped.interact(player)
+	check("swap back preserves loaded and reserve ammo",
+		player.equip_packed(GameManager.backpack.find("smg"), "primary")
+		and player.gun() == used_gun and used_gun.mag == 3 and used_gun.reserve == 7)
+	check("equip secondary from pack", player.equip_packed(GameManager.backpack.find("dmr"), "secondary")
+		and player.gun().id == "dmr" and player.guns.size() == 2)
+	check("stow secondary restores issued sidearm", player.stow_equipped("secondary")
+		and player.gun().id == "sidearm" and player.gun().infinite_reserve)
+	GameManager.remove_packed(GameManager.backpack.find("dmr"))
+
+	GameManager.add_to_backpack("armor_heavy")
+	check("armor swap updates shield cap and stores old vest",
+		player.equip_packed(GameManager.backpack.find("armor_heavy"), "armor")
+		and player.max_shield == shield_cap + 60 and GameManager.backpack.has("armor_light"))
+	GameManager.remove_packed(GameManager.backpack.find("armor_light"))
+	GameManager.add_to_backpack("implant_satchel")
+	check("satchel grants pack space", player.equip_packed(GameManager.backpack.find("implant_satchel"), "implant_a")
+		and GameManager.capacity() == GameManager.BASE_CAPACITY + 4)
+	GameManager.add_to_backpack("implant_loader")
+	while GameManager.add_to_backpack("copper_spool"):
+		pass
+	check("capacity loss rejects an overflowing swap",
+		not player.equip_packed(GameManager.backpack.find("implant_loader"), "implant_a")
+		and GameManager.loadout["implant_a"] == "implant_satchel")
+	while GameManager.backpack.has("copper_spool"):
+		GameManager.remove_packed(GameManager.backpack.find("copper_spool"))
+	check("implant swap updates all reload multipliers",
+		player.equip_packed(GameManager.backpack.find("implant_loader"), "implant_a")
+		and is_equal_approx(player.guns[0].reload_mult, 0.8) and is_equal_approx(player.guns[1].reload_mult, 0.8))
+	GameManager.remove_packed(GameManager.backpack.find("implant_satchel"))
+
+	GameManager.add_to_backpack("medkit")
+	player.health = 50.0
+	player.heal_left = 0.0
+	var med_count := GameManager.backpack.count("medkit")
+	check("backpack medkit uses the normal healing channel", player.use_medkit(GameManager.backpack.find("medkit"))
+		and player.heal_is_medkit and GameManager.backpack.count("medkit") == med_count - 1)
+	await wait(0.18)
+	check("backpack medkit restores health over time", player.health > 50.0)
+	player.heal_left = 0.0
+
 	# Reinforcements arrive out of sight and head for the trouble.
 	var count_before := get_tree().get_nodes_in_group("enemy").size()
 	raid.set("_wave_cooldown", 0.0)

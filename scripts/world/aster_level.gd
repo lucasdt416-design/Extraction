@@ -34,6 +34,12 @@ const SITES: Array[Array] = [
 	["Northwatch", Vector3(-90.0, 98.0, -735.0), 40.0, []],
 	["Southshore Ferry", Vector3(-20.0, 10.0, 770.0), 40.0, []],
 ]
+# Road shoulders in island coordinates, just off the main district routes.
+const DEPOT_STOPS: Array[Array] = [
+	["Switchyard Clinic", Vector2(-76, -215), Color(0.38, 0.88, 0.80), "medkit", false],
+	["Ashline Freight", Vector2(-416, 238), Color(1.0, 0.57, 0.28), "smg", true],
+	["South Causeway Supply", Vector2(153, 571), Color(0.55, 0.75, 1.0), "armor_light", false],
+]
 # Where a building may be added on a site, about its middle: (x, z, which way its door faces).
 const SLOTS: Array[Vector3] = [Vector3(-33.0, -31.0, 1.0), Vector3(0.0, -31.0, 1.0), Vector3(33.0, -31.0, 1.0),
 	Vector3(-33.0, 31.0, -1.0), Vector3(0.0, 31.0, -1.0), Vector3(33.0, 31.0, -1.0)]
@@ -77,6 +83,9 @@ func build() -> void:
 		var middle := kit.to_level(site[1])
 		var reach: float = site[2]
 		kit.zones.append(Rect2(middle.x - reach, middle.z - reach, reach * 2.0, reach * 2.0))
+	for stop in DEPOT_STOPS:
+		var at: Vector2 = stop[1] - Vector2(CENTRE.x, CENTRE.z)
+		kit.zones.append(Rect2(at - Vector2(17, 17), Vector2(34, 34)))
 	kit.solid_radius = 230.0   # the rest of the city, outside the cordon, is solid too
 	separate_regions = true
 	reinforce_range = 170.0
@@ -99,6 +108,11 @@ func build() -> void:
 	_colony_gear()
 	for i in SITES.size():
 		_site(i)
+	for stop in DEPOT_STOPS:
+		var at: Vector2 = stop[1] - Vector2(CENTRE.x, CENTRE.z)
+		var deck := _roadside_depot(stop[0], at, kit.height, stop[2], stop[3], stop[4])
+		if stop[4]:
+			_islands.append(AABB(deck - Vector3(13, 6, 14), Vector3(26, 13, 28)))
 	_skybridges()
 	_grass()
 	kit.flush()
@@ -124,6 +138,11 @@ func bake() -> void:
 # --- What the kit's manifest gets wrong for this game -------------------------
 
 func _leave_out(asset: String, at: Vector3, placement: Dictionary) -> bool:
+	if asset.begins_with("canopy") or asset in SCENERY_ONLY:
+		var island_at := Vector2(at.x + CENTRE.x, at.z + CENTRE.z)
+		for stop in DEPOT_STOPS:
+			if Rect2((stop[1] as Vector2) - Vector2(10, 14), Vector2(20, 28)).has_point(island_at):
+				return true
 	# The colony buildings in place of the kit's blocks, everywhere but the roof lots
 	# and the depot's ground.
 	if NEW_BUILDING.has(asset) and not ROOF_LOTS.has(Vector2(roundf(at.x), roundf(at.z))) and not DEPOT.grow(3.0).has_point(Vector2(at.x, at.z)):
@@ -195,29 +214,6 @@ func _roof_access() -> void:
 
 # A walkable incline whose top surface runs from one point to the other.
 # With no material it is collision only (it lies over a modelled staircase).
-func _slope(from: Vector3, to: Vector3, width: float, mat: Material, thick: float = 0.3) -> void:
-	var along := to - from
-	var forward := along.normalized()
-	var side := Vector3.UP.cross(forward).normalized()
-	var up := forward.cross(side)
-	var body := StaticBody3D.new()
-	body.collision_layer = Layers.WORLD | NAV_SOURCE
-	body.collision_mask = 0
-	body.transform = Transform3D(Basis(side, up, forward), (from + to) * 0.5 - up * thick * 0.5)
-	var shape := BoxShape3D.new()
-	shape.size = Vector3(width, thick, along.length())
-	var collider := CollisionShape3D.new()
-	collider.shape = shape
-	body.add_child(collider)
-	if mat != null:
-		var visual := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = shape.size
-		visual.mesh = mesh
-		visual.material_override = mat
-		body.add_child(visual)
-	add_child(body)
-
 # --- The relay spire ------------------------------------------------------------
 # On the crossroads: a concrete core with a deck round it at roof height, a
 # ramp up from each side of the avenue, and a mast that marks the middle of the
@@ -568,6 +564,9 @@ func _colony_room(column: float, row: float, back: float, n: int) -> void:
 	light.distance_fade_length = 20.0
 	add_child(light)
 	_mark(Vector3(column + 3.0 * back, 0.0, row + 4.4 * back), "locker" if n % 3 == 0 else "crate", 0.0 if back < 0.0 else PI)
+	if n % 2 == 0:
+		_mark(Vector3(column - 3.2 * back, 0.0, row + 2.35 * back), "crate")
+
 
 func _squads_and_exits() -> void:
 	squads.append({"members": ["trooper", "trooper", "lobber"], "points": [
@@ -655,6 +654,16 @@ func _site(index: int) -> void:
 			_lamp(Vector3(x, 5.2, 0.0), LIGHT_WARM if index % 2 == 0 else LIGHT_COOL, 2.0, 13.0, false, false)
 			_box(Vector3(x, 2.6, 0.0), Vector3(0.14, 5.2, 0.14), Mats.surface(Color(0.16, 0.17, 0.19), "metal", 0.5, 0.6))
 	origin = Vector3.ZERO
+	# Outdoor resupply gives teams a reason to move between the buildings.
+	var caches := 0
+	for spot: Vector2 in [Vector2(-14, -10), Vector2(11, 10), Vector2(19, -15),
+			Vector2(-21, 18), Vector2(-34, -17), Vector2(34, 17), Vector2(0, 24)]:
+		if free.call(spot.x, spot.y, 3.0):
+			_mark(middle + Vector3(spot.x, 0.0, spot.y), "locker" if caches == 0 else "crate")
+			taken.append(Vector3(spot.x, spot.y, 2.0))
+			caches += 1
+			if caches == 3:
+				break
 	# The kit's own loot cases, wherever they are not now inside a building.
 	for spec: Dictionary in kit.manifest["loot"]:
 		var at := kit.to_level(VesperKit._v3(spec["position"]))
@@ -665,7 +674,7 @@ func _site(index: int) -> void:
 		for slot in SLOTS:
 			if not kinds.is_empty() and absf(local.x - slot.x) < 8.5 and absf(local.z - slot.y) < 8.0:
 				clear = false
-		if clear:
+		if clear and free.call(local.x, local.z, 0.8):
 			_mark(Vector3(at.x, middle.y, at.z), "crate", local.x * 0.3)
 	# Who holds it.
 	var base := middle + Vector3(0.0, 0.05, 0.0)
@@ -755,6 +764,7 @@ func _fit(x: float, z: float, front: float, n: int, kind: String) -> void:
 	strip.position = origin + Vector3(x, 3.75, z + front * 6.45)
 	add_child(strip)
 	_mark(Vector3(x + 3.0 * back, 0.0, z + 4.4 * back), kind, 0.0 if back < 0.0 else PI)
+	_mark(Vector3(x - 3.2 * back, 0.0, z + 2.35 * back), "crate")
 
 # --- A colony, not a housing estate ---------------------------------------------
 # What the kit's blocks lack is anything on them. Every building in the town

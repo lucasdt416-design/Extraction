@@ -8,14 +8,32 @@ extends StaticBody3D
 const AMMO: String = "ammo"
 
 var item_id: String = ""
+var weapon: Gun
+var _taken: bool = false
 var _spin: Node3D
 
-static func drop(parent: Node, id: String, at: Vector3) -> Pickup:
+static func drop(parent: Node, id: String, at: Vector3, carried_weapon: Gun = null) -> Pickup:
 	var pickup := Pickup.new()
 	pickup.item_id = id
+	pickup.weapon = carried_weapon
 	parent.add_child(pickup)
 	pickup.global_position = at
 	return pickup
+
+# A floor point with space for the pickup body and its use sphere.
+static func clear_floor(space: PhysicsDirectSpaceState3D, from: Vector3, depth: float) -> Vector3:
+	var ray := PhysicsRayQueryParameters3D.create(from, from - Vector3.UP * depth, Layers.WORLD)
+	var hit := space.intersect_ray(ray)
+	if hit.is_empty() or (hit["normal"] as Vector3).y < 0.65:
+		return Vector3.INF
+	var ground: Vector3 = hit["position"]
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.4
+	var probe := PhysicsShapeQueryParameters3D.new()
+	probe.shape = sphere
+	probe.transform.origin = ground + Vector3.UP * 0.43
+	probe.collision_mask = Layers.WORLD | Layers.INTERACT
+	return ground if space.intersect_shape(probe, 1).is_empty() else Vector3.INF
 
 func _ready() -> void:
 	collision_layer = Layers.INTERACT
@@ -60,7 +78,7 @@ func _process(delta: float) -> void:
 	_spin.position.y = 0.32 + sin(Time.get_ticks_msec() * 0.003 + position.x) * 0.04
 
 func can_interact() -> bool:
-	return true
+	return not _taken
 
 func interact_label() -> String:
 	if item_id == AMMO:
@@ -75,20 +93,23 @@ func interact_time() -> float:
 	return 0.0
 
 func interact(player: Player) -> void:
+	if _taken:
+		return
 	if item_id == AMMO:
 		player.add_ammo(1)
 		Sfx.play("pickup", -6.0, 0.8)
 	elif GameManager.wield_found(item_id):
-		player.add_gun(item_id)
+		player.add_gun(item_id, weapon)
 		player.notice.emit("Equipped %s" % Catalog.item_name(item_id))
 		Sfx.play("rare", -6.0)
 	elif GameManager.wear_found(item_id):
 		player.refresh_build()
 		player.notice.emit("Wearing %s" % Catalog.item_name(item_id))
 		Sfx.play("rare", -6.0)
-	elif GameManager.add_to_backpack(item_id):
+	elif GameManager.add_to_backpack(item_id, weapon):
 		Sfx.play("rare" if int(Catalog.item(item_id).get("rarity", 0)) >= 2 else "pickup", -6.0)
 	else:
-		player.notice.emit("Backpack full")
+		player.notice.emit("Backpack full  ·  TAB to manage")
 		return
+	_taken = true
 	queue_free()
