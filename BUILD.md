@@ -138,6 +138,18 @@ side of a river gorge. `CairnKit` (`world/cairn_kit.gd`) loads it.
 
 ## Playtest log
 
+**2026-11-18, roaming patrols and a teammate's merge.** Three squads now walk loops
+over open hillside on Cairn Divide (`CairnLevel.ROAMS`, `_roam`): a meadow west of Hearth,
+the flat south of it, and the slope east of the gorge. Each has its own 110 m island of
+navmesh baked over the terrain; firs inside it are cut out of the bake, and no other
+scenery is planted there, so each reads as an open meadow. They are not marked on the map.
+`maptest` checks they walk, and its fall check is now "dropped 15 m below where it
+stood" instead of a fixed height, since the gorge floor is 50 m below Hearth.
+A teammate's Codex commit (live Tab backpack, roadside supply stops, scope) landed on
+main directly; it was merged with the supply drops, and its supply-stop check now runs
+only on the big maps (it failed on Relay Station). The Tab backpack was checked for a
+leak while open: the node count holds steady.
+
 **2026-11-17, supply drops.** On the big maps a supply drone is called at 20% and 55%
 of the raid (`Raid.DROPS_AT`, `_call_drop`): it picks bare, gentle ground 110-240 m from
 the player (above the sea on Aster), flies in over 30 s and sets down a crate
@@ -441,7 +453,7 @@ Give this to whoever or whatever makes models:
 - Cairn Divide's guard posts and rock shelters were placed by rule and only two were looked
   at. A post on a slope stands on a tall concrete block; a shelter's way in may be tight.
 - Guards never leave their colony or post, so nothing hunts you on the trails yet. Supply
-  drops (2026-11-17) give a reason to cross open ground; roaming patrols are still to do.
+  drops (2026-11-17) give a reason to cross open ground; roaming patrols walk three hills on Cairn (2026-11-18).
 - Relay Station has no corner map.
 - Aster's outer sites were laid out by rule. Not checked by eye: Saltglass, Northwatch,
   Southshore; whether an added building ever blocks a road; whether the cover in each

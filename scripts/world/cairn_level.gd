@@ -51,6 +51,10 @@ const DEPOT_STOPS: Array[Array] = [
 	["Quarry Transfer", Vector2(499, 52), Color(1.0, 0.57, 0.28), "shotgun", true],
 	["Crown Survey Store", Vector2(-243, 214), Color(0.55, 0.75, 1.0), "implant_satchel", false],
 ]
+# Open hillside between Hearth and the outer colonies where a squad walks a loop,
+# so the trails are not safe just because they are outside a colony: middle (x, z).
+const ROAMS: Array[Vector2] = [Vector2(-120.0, -230.0), Vector2(40.0, 250.0), Vector2(360.0, -130.0)]
+const ROAM_HALF: float = 55.0
 # Rock shelters in the hills: (x, z).
 const SHELTERS: Array[Vector2] = [Vector2(-96.0, 138.0), Vector2(-66.0, -118.0), Vector2(440.0, 132.0), Vector2(-190.0, 20.0)]
 
@@ -61,6 +65,7 @@ var _vaults: int = 0
 var _sites: Array[Vector2] = []     # where each post ended up
 var _depot_sites: Array[Vector2] = []
 var _pads: Array[Vector3] = []      # where each drone outpost ended up (middle of the deck)
+var _roam_boxes: Array[AABB] = []   # navmesh for the roaming squads, over the bare hill
 
 func build() -> void:
 	separate_regions = true
@@ -97,6 +102,9 @@ func build() -> void:
 				top = maxf(top, kit.height(site.x + dx, site.y + dz))
 		_pads.append(Vector3(site.x, top + 0.3, site.y))
 		rects.append(Rect2(site - Vector2(30.0, 30.0), Vector2(60.0, 60.0)))
+	for middle in ROAMS:
+		# Firs inside are marked for the bake, so the patrol walks round them.
+		rects.append(Rect2(middle - Vector2.ONE * ROAM_HALF, Vector2.ONE * ROAM_HALF * 2.0))
 	kit.skip = _leave_out
 	kit.populate(rects)
 	for placement: Dictionary in kit.manifest["placements"]:
@@ -121,6 +129,8 @@ func build() -> void:
 		var deck := _roadside_depot(stop[0], site, kit.height, stop[2], stop[3], stop[4])
 		if stop[4]:
 			zones.append({"rect": Rect2(site - Vector2(15, 15), Vector2(30, 30)), "ground": deck.y})
+	for i in ROAMS.size():
+		_roam(i)
 	_grass()
 	kit.flush()
 	_squads_and_exits()
@@ -143,6 +153,7 @@ func bake() -> void:
 		var ground: float = zone["ground"]
 		# The top stops under the roofs, which nobody can reach.
 		boxes.append(AABB(Vector3(rect.position.x, ground - 8.0, rect.position.y), Vector3(rect.size.x, 17.0, rect.size.y)))
+	boxes.append_array(_roam_boxes)
 	_bake_islands(boxes)
 
 func _leave_out(asset: String, at: Vector3, _placement: Dictionary) -> bool:
@@ -405,6 +416,26 @@ func _post(index: int) -> void:
 	places.append({"name": POSTS[index][0], "position": origin})
 	origin = Vector3.ZERO
 
+# --- Roaming patrols -----------------------------------------------------------
+# A squad walking a loop of four points over open hillside. Its navmesh island
+# is the hill itself, from the lowest ground in the square to the highest.
+
+func _roam(index: int) -> void:
+	var middle := ROAMS[index]
+	var low := INF
+	var high := -INF
+	for dx in range(-int(ROAM_HALF), int(ROAM_HALF) + 1, 10):
+		for dz in range(-int(ROAM_HALF), int(ROAM_HALF) + 1, 10):
+			var h := kit.height(middle.x + dx, middle.y + dz)
+			low = minf(low, h)
+			high = maxf(high, h)
+	_roam_boxes.append(AABB(Vector3(middle.x - ROAM_HALF, low - 4.0, middle.y - ROAM_HALF), Vector3(ROAM_HALF * 2.0, high - low + 8.0, ROAM_HALF * 2.0)))
+	var points: Array = []
+	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -0.6), Vector2(0.7, 1), Vector2(-0.8, 0.6)]:
+		var at := middle + corner * (ROAM_HALF - 14.0)
+		points.append(Vector3(at.x, kit.height(at.x, at.y) + 0.1, at.y))
+	squads.append({"members": ["trooper", "trooper", "marksman"] if index != 1 else ["rusher", "trooper"], "points": points})
+
 # --- Drone outposts ------------------------------------------------------------
 # A landing deck on a concrete footing cut into the slope, a crew shelter beside
 # it, barriers, two lamps and a squad. The deck is a way out: step on it to call
@@ -588,6 +619,9 @@ func _wilds() -> void:
 		wild.avoid.append((zone["rect"] as Rect2).grow(4.0))
 	for site in _sites:
 		wild.avoid.append(Rect2(site - Vector2(12.0, 12.0), Vector2(24.0, 24.0)))
+	# Scenery is planted after the bake, so the patrols' hills are left as open meadow.
+	for middle in ROAMS:
+		wild.avoid.append(Rect2(middle - Vector2.ONE * ROAM_HALF, Vector2.ONE * ROAM_HALF * 2.0))
 	for site in _depot_sites:
 		wild.avoid.append(Rect2(site - Vector2(14, 16), Vector2(28, 32)))
 	for shelter in SHELTERS:
