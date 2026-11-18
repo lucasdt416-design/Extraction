@@ -19,10 +19,15 @@ var _has_ammo: bool = false
 var _lit: Array[MeshInstance3D] = []
 var _glow: OmniLight3D
 
-func setup(container_kind: String, rng: RandomNumberGenerator) -> void:
+func setup(container_kind: String, rng: RandomNumberGenerator, supply: String = "", generous: bool = false) -> void:
 	kind = container_kind
 	var spec: Dictionary = SPECS[kind]
 	var count := rng.randi_range(spec["items"][0], spec["items"][1])
+	if generous and kind != "vault":
+		count += 1
+	if not supply.is_empty():
+		_contents.append(supply)
+		count -= 1
 	for i in count:
 		_contents.append(Catalog.roll(kind, rng))
 	_has_ammo = rng.randf() < 0.6
@@ -73,6 +78,8 @@ func interact_time() -> float:
 	return SPECS[kind]["time"]
 
 func interact(player: Player) -> void:
+	if opened:
+		return
 	opened = true
 	for part in _lit:
 		part.material_override = Mats.surface(Color(0.05, 0.05, 0.05), "plain", 0.5)
@@ -86,9 +93,27 @@ func interact(player: Player) -> void:
 	var drops: Array[String] = _contents.duplicate()
 	if _has_ammo:
 		drops.append(Pickup.AMMO)
-	for i in drops.size():
-		var offset := toward * 0.95 + side * (i - (drops.size() - 1) * 0.5) * 0.5
-		Pickup.drop(get_parent(), drops[i], Vector3(global_position.x, player.global_position.y, global_position.z) + offset)
+	var space := get_world_3d().direct_space_state
+	var base := global_position + Vector3.UP * 0.65
+	var placed := 0
+	for row: float in [1.0, 1.85, 2.7]:
+		for across: float in [0.0, -0.83, 0.83, -1.66, 1.66]:
+			if placed == drops.size():
+				break
+			var target := base + toward * row + side * across
+			# Test from just in front of our own collision box.
+			var path := PhysicsRayQueryParameters3D.create(base, target, Layers.WORLD, [get_rid()])
+			if not space.intersect_ray(path).is_empty():
+				continue
+			var ground := Pickup.clear_floor(space, target, 1.9)
+			if ground != Vector3.INF:
+				Pickup.drop(get_parent(), drops[placed], ground)
+				placed += 1
+	# Small rooms can have no open fan. Keep the overflow on the lid.
+	for i in range(placed, drops.size()):
+		var offset := side * (i - placed - (drops.size() - placed - 1) * 0.5) * 0.18
+		var height: float = SPECS[kind]["size"].y
+		Pickup.drop(get_parent(), drops[i], global_position + Vector3.UP * (height + 0.03) + offset)
 	if kind == "drop":
 		# Prying a drop open carries a long way, but trips no alarm.
 		Sfx.play_at("alert", global_position, 4.0, 0.9, 70.0)

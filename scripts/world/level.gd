@@ -376,8 +376,73 @@ func _switch(at: Vector3, yaw: float, doors: Array[Door]) -> void:
 	button.doors = doors
 	add_child(button)
 
-func _mark(position: Vector3, kind: String, yaw: float = 0.0) -> void:
-	containers.append({"position": position + origin, "kind": kind, "yaw": yaw})
+func _mark(position: Vector3, kind: String, yaw: float = 0.0, supply: String = "") -> void:
+	containers.append({"position": position + origin, "kind": kind, "yaw": yaw, "supply": supply})
+
+# Small resupply stops between major settlements. Use the terrain at the
+# frontage for a ramp, with cover between the approach and the search cases.
+func _roadside_depot(title: String, site: Vector2, height_at: Callable, accent: Color,
+		supply: String, guarded: bool) -> Vector3:
+	var top := -INF
+	for x: float in [-7.0, 0.0, 7.0]:
+		for z: float in [-5.0, 0.0, 5.0]:
+			top = maxf(top, height_at.call(site.x + x, site.y + z))
+	top += 0.16
+	origin = Vector3(site.x, top, site.y)
+	var slab := Mats.wall(HULL_DARK, accent, 0.0, 1.1, 0.7)
+	var panel := Mats.wall(HULL, accent, 0.5, 1.3, 0.6)
+	var steel := Mats.surface(Color(0.13, 0.17, 0.19), "metal", 0.6, 0.5)
+	_box(Vector3(0, -4, 0), Vector3(14, 8, 10), slab)
+	# Fit the entry to whichever side of the terrain meets the deck best.
+	for sign_z: float in [-1.0, 1.0]:
+		var edge := origin + Vector3(3, 0, sign_z * 5.0)
+		var foot := origin + Vector3(3, 0, sign_z * 12.0)
+		foot.y = height_at.call(foot.x, foot.z) - 0.14
+		_slope(foot, edge, 3.2, steel)
+	_box(Vector3(-2, 1.4, -4.55), Vector3(7.6, 2.8, 0.25), panel)
+	_box(Vector3(-5.75, 1.4, -2.35), Vector3(0.25, 2.8, 4.4), panel)
+	_box(Vector3(-2, 2.82, -2.45), Vector3(8.2, 0.2, 4.65), steel, true, false)
+	_box(Vector3(-2, 2.63, -0.25), Vector3(7.3, 0.09, 0.12), Mats.glow(accent, 2.0), false)
+	_box(Vector3(5.8, 3.5, -3.9), Vector3(0.19, 7.0, 0.19), steel, false)
+	_box(Vector3(5.8, 6.8, -3.9), Vector3(0.55, 0.4, 0.55), Mats.glow(accent, 3.0), false)
+	_sign(title.to_upper(), Vector3(-2, 2.35, -0.15), 0.0, 0.32, HULL, true)
+	_lamp(Vector3(-2, 2.55, -1.25), accent, 2.4, 9.0, false, false)
+	_barrier(-4.8, 3.0, 2.4, 0.12)
+	_mark(Vector3(-4.6, 0, -3.2), "locker", 0.0, supply)
+	_mark(Vector3(-1.2, 0, -3.2), "crate")
+	_mark(Vector3(5.5, 0, 1.5), "crate", PI * 0.5)
+	if guarded:
+		_mark(Vector3(0.5, 0, 3.85), "vault", PI)
+		squads.append({"members": ["trooper", "rusher"], "points": [
+			origin + Vector3(1.6, 0.05, -1.7), origin + Vector3(-2.8, 0.05, 2.8),
+			origin + Vector3(4.25, 0.05, 3.7)]})
+	var deck := origin
+	places.append({"name": title, "position": deck})
+	origin = Vector3.ZERO
+	return deck
+
+func _slope(from: Vector3, to: Vector3, width: float, mat: Material, thick: float = 0.3) -> void:
+	var along := to - from
+	var forward := along.normalized()
+	var side := Vector3.UP.cross(forward).normalized()
+	var up := forward.cross(side)
+	var body := StaticBody3D.new()
+	body.collision_layer = Layers.WORLD | NAV_SOURCE
+	body.collision_mask = 0
+	body.transform = Transform3D(Basis(side, up, forward), (from + to) * 0.5 - up * thick * 0.5)
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(width, thick, along.length())
+	var collider := CollisionShape3D.new()
+	collider.shape = shape
+	body.add_child(collider)
+	if mat != null:
+		var visual := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = shape.size
+		visual.mesh = mesh
+		visual.material_override = mat
+		body.add_child(visual)
+	add_child(body)
 
 # --- Areas -------------------------------------------------------------------
 

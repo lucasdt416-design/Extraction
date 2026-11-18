@@ -31,6 +31,15 @@ var _notice: Label
 var _comms: Label
 var _overlay: Control
 var _paused_panel: Control
+var _inventory: Control
+var _inventory_rows: VBoxContainer
+var _inventory_slots: VBoxContainer
+var _inventory_actions: HBoxContainer
+var _inventory_heading: Label
+var _inventory_detail: Label
+var _inventory_message: Label
+var _inventory_index: int = -1
+var _inventory_slot: String = ""
 
 var _hit_time: float = 0.0
 var _hit_kind: int = 0
@@ -104,6 +113,8 @@ func _on_backpack_changed() -> void:
 		if _toasts.size() > 4:
 			_toasts.pop_front()
 	_pack_size = size
+	if _inventory != null:
+		_refresh_inventory.call_deferred()
 
 # The first seconds of a raid: up from black, with the map's name on a card.
 func _play_intro() -> void:
@@ -221,6 +232,10 @@ func _draw_overlay() -> void:
 	var center := size * 0.5
 	var camera := get_viewport().get_camera_3d()
 
+	var sight := _player.sight_blend() if _inventory == null else 0.0
+	var scoped := _player.gun().id == "dmr" and sight > 0.0
+	if scoped:
+		_draw_scope(size, sight)
 	# Edge tint: red when hurt or low, blue when the shield took it.
 	var low := clampf(1.0 - _player.health / (_player.max_health * 0.45), 0.0, 1.0) * 0.5
 	_edge_tint(size, Color(DANGER.r, 0.1, 0.08, maxf(_hurt_flash * 0.2, low * (0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.006)))))
@@ -256,7 +271,7 @@ func _draw_overlay() -> void:
 	var capacity := GameManager.capacity()
 	for i in capacity:
 		_canvas.draw_rect(Rect2(slots + Vector2(i * 13, 0), Vector2(9, 9)), (acid if carried >= capacity else INK) if i < carried else Color(1, 1, 1, 0.18))
-	_canvas.draw_string(mono, slots + Vector2(capacity * 13 + 10, 9), "%d CR" % GameManager.backpack_value(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+	_canvas.draw_string(mono, slots + Vector2(capacity * 13 + 10, 9), "%d CR   [TAB] PACK" % GameManager.backpack_value(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
 
 	# Bottom right, above the ammo: the two abilities, each with its key and a
 	# bar that fills as it comes off cooldown.
@@ -279,10 +294,17 @@ func _draw_overlay() -> void:
 	var def := _player.gun().def
 	var spread: float = float(def["spread"]) * (float(def["ads"]) if _player.is_aiming else 1.0) + _player.bloom
 	var gap := 5.0 + spread * 5.0 + Vector2(_player.velocity.x, _player.velocity.z).length() * 0.9
-	var cross := Color(INK, 0.9 if not _player.is_aiming or float(def["ads"]) > 0.3 else 0.35)
-	for dir: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
-		_canvas.draw_line(center + dir * gap, center + dir * (gap + 7.0), cross, 1.5, true)
-	_canvas.draw_circle(center, 1.2, cross)
+	if _inventory == null and not scoped:
+		var cross := Color(INK, 0.9 * (1.0 - sight))
+		for dir: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+			_canvas.draw_line(center + dir * gap, center + dir * (gap + 7.0), cross, 1.5, true)
+		_canvas.draw_circle(center, 1.2, cross)
+		if sight > 0.0:
+			var color := Color(TEAL, sight)
+			_canvas.draw_circle(center, 3.1, Color(Color.BLACK, sight * 0.8))
+			_canvas.draw_circle(center, 1.65, color)
+			if _player.gun().id == "shotgun":
+				_canvas.draw_arc(center, gap * 0.75, 0.0, TAU, 40, Color(INK, sight * 0.55), 1.5, true)
 	if _hit_time > 0.0:
 		var color := DANGER if _hit_kind >= 2 else INK
 		var reach := 9.0 + (0.22 - _hit_time) * 30.0 + (4.0 if _hit_kind == 3 else 0.0)
@@ -389,6 +411,40 @@ func _draw_overlay() -> void:
 
 # The corner map: a north-up window on the level's picture, centred on the
 # player, with the exits and the named places marked.
+func _draw_scope(size: Vector2, amount: float) -> void:
+	var center := size * 0.5
+	var radius := minf(size.x, size.y) * lerpf(0.46, 0.32, amount)
+	var outside := PackedVector2Array()
+	var inside := PackedVector2Array()
+	var angles: Array[float] = []
+	for i in 64:
+		angles.append(-PI + TAU * i / 64.0)
+	# Include the screen corners so each outside edge follows the rectangle.
+	for corner: Vector2 in [center, Vector2(-center.x, center.y), -center, Vector2(center.x, -center.y)]:
+		angles.append(corner.angle())
+	angles.sort()
+	for angle in angles:
+		var dir := Vector2.from_angle(angle)
+		var edge := minf(center.x / maxf(absf(dir.x), 0.0001), center.y / maxf(absf(dir.y), 0.0001))
+		outside.append(center + dir * edge)
+		inside.append(center + dir * radius)
+	for i in angles.size():
+		var next := (i + 1) % angles.size()
+		if inside[i].distance_squared_to(inside[next]) > 0.01:
+			_canvas.draw_colored_polygon(PackedVector2Array([inside[i], outside[i], outside[next], inside[next]]),
+				Color(0.015, 0.02, 0.024, amount * 0.9))
+	_canvas.draw_arc(center, radius, 0.0, TAU, 96, Color(0.03, 0.04, 0.045, amount), 9.0, true)
+	_canvas.draw_arc(center, radius - 6.0, 0.0, TAU, 96, Color(TEAL, amount * 0.42), 1.5, true)
+	for dir: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.DOWN]:
+		_canvas.draw_line(center + dir * 7.0, center + dir * radius * 0.67, Color(Color.BLACK, amount * 0.85), 3.5, true)
+		_canvas.draw_line(center + dir * 7.0, center + dir * radius * 0.67, Color(INK, amount * 0.75), 1.1, true)
+		for i in range(1, 5):
+			var at := center + dir * radius * i * 0.1
+			var tick := dir.orthogonal() * (5.0 if i % 2 == 0 else 3.0)
+			_canvas.draw_line(at - tick, at + tick, Color(INK, amount * 0.75), 1.5, true)
+	_canvas.draw_circle(center, 3.5, Color(Color.BLACK, amount * 0.8))
+	_canvas.draw_circle(center, 1.8, Color(TEAL, amount))
+
 func _draw_map(size: Vector2) -> void:
 	var level := _raid.level
 	if level.minimap == null:
@@ -455,6 +511,7 @@ func _edge_tint(size: Vector2, color: Color) -> void:
 
 # The moment the raid ends: the play HUD clears and the frame goes widescreen.
 func begin_ending() -> void:
+	_close_inventory(false)
 	_canvas.visible = false
 	for top: bool in [true, false]:
 		var bar := ColorRect.new()
@@ -584,8 +641,26 @@ func _line(text: String, size: int, color: Color, face: Font) -> Label:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
 
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("inventory"):
+		_toggle_inventory(event)
+
+func _toggle_inventory(event: InputEvent) -> void:
+	if _raid == null or _raid.over or event.is_echo():
+		return
+	if event.is_action_pressed("inventory") and _paused_panel == null:
+		get_viewport().set_input_as_handled()
+		if _inventory == null:
+			_open_inventory()
+		else:
+			_close_inventory()
+
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("pause") or _raid == null or _raid.over:
+	if _raid == null or _raid.over or event.is_echo() or not event.is_action_pressed("pause"):
+		return
+	if _inventory != null:
+		get_viewport().set_input_as_handled()
+		_close_inventory()
 		return
 	if _paused_panel != null:
 		_resume()
@@ -600,6 +675,150 @@ func _unhandled_input(event: InputEvent) -> void:
 			_paused_panel = null
 			_raid._end("died")],
 	], 0.78, true)
+
+func _open_inventory() -> void:
+	var shade := ColorRect.new()
+	shade.color = Color(0.018, 0.024, 0.029, 0.58)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(shade)
+	_inventory = shade
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.offset_left = -350.0
+	panel.offset_top = -278.0
+	panel.offset_right = 350.0
+	panel.offset_bottom = 278.0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.055, 0.075, 0.085, 0.98)
+	style.border_color = TEAL
+	style.border_width_top = 3
+	for side: Side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		style.set_content_margin(side, 20.0)
+	panel.add_theme_stylebox_override("panel", style)
+	shade.add_child(panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	panel.add_child(column)
+	var header := HBoxContainer.new()
+	column.add_child(header)
+	_inventory_heading = UiKit.text("", 28, INK)
+	_inventory_heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_inventory_heading)
+	var close := UiKit.button("Close  [Tab]", false, true)
+	close.pressed.connect(_close_inventory)
+	header.add_child(close)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 20)
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(columns)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	columns.add_child(scroll)
+	_inventory_rows = VBoxContainer.new()
+	_inventory_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_inventory_rows)
+	_inventory_slots = VBoxContainer.new()
+	_inventory_slots.custom_minimum_size.x = 245
+	_inventory_slots.add_theme_constant_override("separation", 10)
+	columns.add_child(_inventory_slots)
+	_inventory_detail = UiKit.text("", 14, DIM, true)
+	_inventory_detail.custom_minimum_size.y = 38
+	column.add_child(_inventory_detail)
+	_inventory_actions = HBoxContainer.new()
+	_inventory_actions.custom_minimum_size.y = 34
+	column.add_child(_inventory_actions)
+	_inventory_message = UiKit.text("Raid is live while your pack is open.", 13, TEAL)
+	column.add_child(_inventory_message)
+	_inventory_index = -1
+	_inventory_slot = ""
+	_refresh_inventory()
+
+func _close_inventory(capture: bool = true) -> void:
+	if _inventory == null:
+		return
+	_inventory.hide()
+	_inventory.queue_free()
+	_inventory = null
+	if capture:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _refresh_inventory() -> void:
+	if _inventory == null:
+		return
+	var items := GameManager.backpack
+	_inventory_heading.text = "BACKPACK   %d / %d" % [items.size(), GameManager.capacity()]
+	for section in [_inventory_rows, _inventory_slots, _inventory_actions]:
+		for child in section.get_children():
+			section.remove_child(child)
+			child.queue_free()
+	for slot in GameManager.EQUIP_SLOTS:
+		var id: String = GameManager.loadout[slot]
+		var name := "Issued sidearm" if slot == "secondary" else "Empty"
+		if not id.is_empty():
+			name = Catalog.item_name(id)
+		_inventory_slots.add_child(UiKit.text(GameManager.SLOT_LABELS[slot].to_upper(), 11, TEAL))
+		if id.is_empty():
+			_inventory_slots.add_child(UiKit.text(name, 16, DIM))
+		else:
+			var equipped := UiKit.button(name, _inventory_slot == slot, true)
+			equipped.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			equipped.pressed.connect(func() -> void:
+				_inventory_slot = slot
+				_inventory_index = -1
+				_inventory_message.text = "Raid is live while your pack is open."
+				_refresh_inventory.call_deferred())
+			_inventory_slots.add_child(equipped)
+	if items.is_empty():
+		_inventory_rows.add_child(UiKit.text("Backpack empty", 16, DIM))
+	for index in items.size():
+		var id := items[index]
+		var row := UiKit.button("%s   ·   %d CR" % [Catalog.item_name(id), Catalog.sell_price(id)], index == _inventory_index, true)
+		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		if index != _inventory_index:
+			row.add_theme_color_override("font_color", Catalog.rarity_color(id))
+		row.pressed.connect(func() -> void:
+			_inventory_index = index
+			_inventory_slot = ""
+			_inventory_message.text = "Raid is live while your pack is open."
+			_refresh_inventory.call_deferred())
+		_inventory_rows.add_child(row)
+	_inventory_detail.text = "Select a carried or equipped item."
+	if not _inventory_slot.is_empty():
+		var equipped: String = GameManager.loadout[_inventory_slot]
+		_inventory_detail.text = Catalog.item(equipped).get("desc", "")
+		_inventory_action("Stow in backpack", _player.stow_equipped.bind(_inventory_slot),
+			"Make room in your backpack before stowing this item.", true)
+		return
+	if _inventory_index < 0 or _inventory_index >= items.size():
+		return
+	var selected := items[_inventory_index]
+	var item := Catalog.item(selected)
+	_inventory_detail.text = item.get("desc", "%s salvage" % Catalog.RARITY_NAMES[item["rarity"]])
+	var packed := GameManager.packed_gun(_inventory_index)
+	if packed != null:
+		_inventory_detail.text += "   ·   %d loaded / %d reserve" % [packed.mag, packed.reserve]
+	for slot in GameManager.EQUIP_SLOTS:
+		if item["kind"] == GameManager.SLOT_KINDS[slot]:
+			_inventory_action("Equip " + GameManager.SLOT_LABELS[slot], _player.equip_packed.bind(_inventory_index, slot),
+				"Make room in your backpack before replacing that implant.", true)
+	if selected == "medkit":
+		_inventory_action("Use medkit", _player.use_medkit.bind(_inventory_index),
+			"Medkits require missing health and an idle healing channel.", true)
+	_inventory_action("Drop", _player.drop_packed.bind(_inventory_index), "Find solid ground to drop this item.")
+
+func _inventory_action(label: String, action: Callable, failure: String, primary: bool = false) -> void:
+	var button := UiKit.button(label, primary, true)
+	button.pressed.connect(func() -> void:
+		if action.call():
+			_inventory_index = -1
+			_inventory_slot = ""
+			_inventory_message.text = "Raid is live while your pack is open."
+		else:
+			_inventory_message.text = failure)
+	_inventory_actions.add_child(button)
 
 func _resume() -> void:
 	if _paused_panel != null:

@@ -19,6 +19,10 @@ const MENU_SCENE: String = "res://scenes/menu.tscn"
 const RAID_SCENE: String = "res://scenes/raid.tscn"
 const BASE_CAPACITY: int = 10
 const MAX_MEDKITS: int = 3
+const SLOT_LABELS := {"primary": "Primary", "secondary": "Secondary", "armor": "Armor",
+	"implant_a": "Implant A", "implant_b": "Implant B"}
+const SLOT_KINDS := {"primary": "weapon", "secondary": "weapon", "armor": "armor",
+	"implant_a": "implant", "implant_b": "implant"}
 const EQUIP_SLOTS: Array[String] = ["primary", "secondary", "armor", "implant_a", "implant_b"]
 
 # --- Saved profile -----------------------------------------------------------
@@ -45,6 +49,9 @@ var settings: Dictionary = {"sensitivity": 1.0, "fov": 82.0, "volume": 0.8, "qua
 # --- Raid in progress --------------------------------------------------------
 var in_raid: bool = false
 var backpack: Array[String] = []
+# Only weapons that have already been used need an entry here. Keys follow
+# backpack indices so two copies of the same gun retain their individual ammo.
+var _packed_guns: Dictionary = {}
 var raid_kills: int = 0
 var last_result: Dictionary = {}
 
@@ -106,7 +113,9 @@ func _apply_volume() -> void:
 # --- Derived player stats ----------------------------------------------------
 
 # What the frame, armor and implants add up to. Read by Player at spawn.
-func player_stats() -> Dictionary:
+func player_stats(kit: Dictionary = {}) -> Dictionary:
+	if kit.is_empty():
+		kit = loadout
 	var frame: Dictionary = Catalog.FRAMES[frame_id]
 	var out := {
 		"health": 100.0 + float(frame.get("health", 0)),
@@ -119,7 +128,7 @@ func player_stats() -> Dictionary:
 		"stealth": float(frame.get("stealth", 1.0)),
 	}
 	for slot: String in ["armor", "implant_a", "implant_b"]:
-		var id: String = loadout[slot]
+		var id: String = kit[slot]
 		if id == "":
 			continue
 		var it := Catalog.item(id)
@@ -215,6 +224,7 @@ func set_frame(id: String) -> void:
 func start_raid() -> void:
 	seed_run(randi())
 	backpack.clear()
+	_packed_guns.clear()
 	# Up to three medkits ride along. They leave the stash now: they're at risk.
 	for i in MAX_MEDKITS:
 		var at := stash.find("medkit")
@@ -230,9 +240,11 @@ func start_raid() -> void:
 	get_tree().change_scene_to_file(Catalog.MAPS[map_id]["scene"])
 
 # The one place the backpack grows. False means it was full.
-func add_to_backpack(id: String) -> bool:
+func add_to_backpack(id: String, weapon: Gun = null) -> bool:
 	if backpack.size() >= capacity():
 		return false
+	if weapon != null:
+		_packed_guns[backpack.size()] = weapon
 	backpack.append(id)
 	backpack_changed.emit()
 	return true
@@ -254,13 +266,59 @@ func wield_found(id: String) -> bool:
 	backpack_changed.emit()
 	return true
 
-func take_from_backpack(id: String) -> bool:
-	var at := backpack.find(id)
-	if at < 0:
+func packed_gun(index: int) -> Gun:
+	return _packed_guns.get(index)
+
+func remove_packed(index: int) -> String:
+	if not in_raid or index < 0 or index >= backpack.size():
+		return ""
+	var id := _remove_packed(index)
+	backpack_changed.emit()
+	return id
+
+func _remove_packed(index: int) -> String:
+	var id := backpack[index]
+	backpack.remove_at(index)
+	_packed_guns.erase(index)
+	for i in range(index + 1, backpack.size() + 1):
+		if _packed_guns.has(i):
+			_packed_guns[i - 1] = _packed_guns[i]
+			_packed_guns.erase(i)
+	return id
+
+# Validates the complete resulting kit before either item moves.
+func swap_packed(index: int, slot: String, outgoing: Gun = null) -> bool:
+	if not in_raid or index < 0 or index >= backpack.size():
 		return false
-	backpack.remove_at(at)
+	var incoming := backpack[index]
+	if Catalog.item(incoming)["kind"] != SLOT_KINDS.get(slot):
+		return false
+	var previous: String = loadout[slot]
+	var next_kit := loadout.duplicate()
+	next_kit[slot] = incoming
+	if backpack.size() - int(previous.is_empty()) > int(player_stats(next_kit)["capacity"]):
+		return false
+	loadout[slot] = incoming
+	if previous.is_empty():
+		_remove_packed(index)
+	else:
+		backpack[index] = previous
+		_packed_guns.erase(index)
+		if outgoing != null:
+			_packed_guns[index] = outgoing
 	backpack_changed.emit()
 	return true
+
+func stow_equipped(slot: String, weapon: Gun = null) -> bool:
+	var id: String = loadout.get(slot, "")
+	if not in_raid or id.is_empty():
+		return false
+	var next_kit := loadout.duplicate()
+	next_kit[slot] = ""
+	if backpack.size() + 1 > int(player_stats(next_kit)["capacity"]):
+		return false
+	loadout[slot] = ""
+	return add_to_backpack(id, weapon)
 
 func backpack_value() -> int:
 	var total := 0
@@ -298,6 +356,7 @@ func _finish(result: Dictionary) -> void:
 	result["kills"] = raid_kills
 	stats["kills"] += raid_kills
 	backpack.clear()
+	_packed_guns.clear()
 	last_result = result
 	save_profile()
 	profile_changed.emit()
@@ -376,7 +435,7 @@ func _bind_inputs() -> void:
 	var keys := {
 		"move_forward": KEY_W, "move_back": KEY_S, "move_left": KEY_A, "move_right": KEY_D,
 		"jump": KEY_SPACE, "sprint": KEY_SHIFT, "crouch": KEY_CTRL, "reload": KEY_R, "interact": KEY_F,
-		"tactical": KEY_Q, "prime": KEY_E, "heal": KEY_H, "weapon_1": KEY_1, "weapon_2": KEY_2, "pause": KEY_ESCAPE,
+		"tactical": KEY_Q, "prime": KEY_E, "heal": KEY_H, "weapon_1": KEY_1, "weapon_2": KEY_2, "pause": KEY_ESCAPE, "inventory": KEY_TAB,
 	}
 	for action: String in keys:
 		_add_action(action)

@@ -38,6 +38,7 @@ var is_dead: bool = false
 
 var guns: Array[Gun] = []
 var gun_index: int = 0
+var _issued_sidearm: Gun
 
 # Ability state. Cooldowns count down to zero; *_left are active durations.
 var tactical_cooldown: float = 0.0
@@ -150,6 +151,8 @@ func _ready() -> void:
 		var gun := Gun.new(id)
 		gun.reload_mult = build_stats["reload"]
 		gun.infinite_reserve = id == "sidearm"
+		if gun.infinite_reserve:
+			_issued_sidearm = gun
 		guns.append(gun)
 	_build_view_models()
 	_yaw = rotation.y
@@ -360,19 +363,26 @@ func _healing(frame: InputFrame, delta: float) -> void:
 		health = minf(health + _heal_rate * step, max_health)
 		heal_left -= step
 		return
-	if not frame.heal:
-		return
-	if health >= max_health:
-		return
-	if not GameManager.take_from_backpack("medkit"):
-		if Engine.get_physics_frames() % 60 == 0:
+	if frame.heal and health < max_health:
+		var index := GameManager.backpack.find("medkit")
+		if index >= 0:
+			use_medkit(index)
+		elif Engine.get_physics_frames() % 60 == 0:
 			notice.emit("No medkits")
-		return
+
+func use_medkit(index: int) -> bool:
+	if is_dead or heal_left > 0.0 or health >= max_health:
+		return false
+	if index < 0 or index >= GameManager.backpack.size() or GameManager.backpack[index] != "medkit":
+		return false
+	if GameManager.remove_packed(index).is_empty():
+		return false
 	var time := 2.0 / float(build_stats["med_speed"])
 	heal_left = time
 	heal_is_medkit = true
 	_heal_rate = float(Catalog.item("medkit")["heal"]) / time
 	Sfx.play("open", -6.0, 1.3)
+	return true
 
 func _interact(frame: InputFrame, delta: float) -> void:
 	var target := _find_interactable()
@@ -442,15 +452,96 @@ func refresh_build() -> void:
 	build_stats = GameManager.player_stats()
 	max_health = build_stats["health"]
 	max_shield = build_stats["shield"]
+	health = minf(health, max_health)
+	shield = minf(shield, max_shield)
 	_since_damage = 0.0
+	for weapon in guns:
+		if weapon.reload_mult != float(build_stats["reload"]):
+			weapon.cancel_reload()
+			weapon.reload_mult = build_stats["reload"]
 
-# A weapon picked up mid-raid becomes the primary and comes straight to hand.
-func add_gun(id: String) -> void:
-	var found := Gun.new(id)
+func equip_packed(index: int, slot: String) -> bool:
+	if is_dead or index < 0 or index >= GameManager.backpack.size():
+		return false
+	var weapon_slot := slot == "primary" or slot == "secondary"
+	var at := 0 if slot == "primary" or GameManager.loadout["primary"] == "" else 1
+	var previous: Gun = guns[at] if weapon_slot and not GameManager.loadout[slot].is_empty() else null
+	var incoming := GameManager.packed_gun(index)
+	if not GameManager.swap_packed(index, slot, previous):
+		return false
+	if weapon_slot:
+		_set_raid_gun(GameManager.loadout[slot], incoming, at, slot == "primary" and previous == null)
+	else:
+		refresh_build()
+	return true
+
+func stow_equipped(slot: String) -> bool:
+	if is_dead:
+		return false
+	var weapon_slot := slot == "primary" or slot == "secondary"
+	var at := 0 if slot == "primary" or GameManager.loadout["primary"] == "" else 1
+	var weapon: Gun = guns[at] if weapon_slot and not GameManager.loadout[slot].is_empty() else null
+	if not GameManager.stow_equipped(slot, weapon):
+		return false
+	if slot == "primary":
+		weapon.cancel_reload()
+		guns.remove_at(0)
+		_rebuild_view_models(0)
+	elif slot == "secondary":
+		if _issued_sidearm == null:
+			_issued_sidearm = Gun.new("sidearm")
+			_issued_sidearm.infinite_reserve = true
+		_set_raid_gun("sidearm", _issued_sidearm, at, false)
+	else:
+		refresh_build()
+	return true
+
+func drop_packed(index: int) -> bool:
+	if is_dead or not is_on_floor():
+		return false
+	var space := get_world_3d().direct_space_state
+	var forward := -global_basis.z
+	var across := global_basis.x
+	var from := global_position + Vector3.UP * 0.46
+	var at := Vector3.INF
+	for offset: Vector2 in [Vector2(0, 1.25), Vector2(0.85, 1.1), Vector2(-0.85, 1.1),
+			Vector2(1.5, 0.5), Vector2(-1.5, 0.5), Vector2(0, 0.65),
+			Vector2(1.1, -0.7), Vector2(-1.1, -0.7), Vector2(0, -1.3)]:
+		var target := from + across * offset.x + forward * offset.y
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(from, target, Layers.WORLD)).is_empty():
+			continue
+		at = Pickup.clear_floor(space, target, 1.45)
+		if at != Vector3.INF:
+			break
+	if at == Vector3.INF:
+		return false
+	var weapon := GameManager.packed_gun(index)
+	var id := GameManager.remove_packed(index)
+	if id.is_empty():
+		return false
+	Pickup.drop(get_parent(), id, at, weapon)
+	Sfx.play("pickup", -12.0, 0.7)
+	return true
+
+# An empty primary can be filled directly from the ground.
+func add_gun(id: String, weapon: Gun = null) -> void:
+	_set_raid_gun(id, weapon, 0, true)
+
+func _set_raid_gun(id: String, weapon: Gun, at: int, insert: bool) -> void:
+	var found := weapon if weapon != null else Gun.new(id)
 	found.reload_mult = build_stats["reload"]
+	found.rate_mult = gun().rate_mult if overcharge_left > 0.0 else 1.0
 	gun().cancel_reload()
-	guns.insert(0, found)
-	# The view models are built per gun, so rebuild the set.
+	if not insert:
+		guns[at].cancel_reload()
+	if insert:
+		guns.insert(at, found)
+	else:
+		guns[at] = found
+	_rebuild_view_models(at)
+
+func _rebuild_view_models(at: int) -> void:
+	_view.hide()
 	_view.queue_free()
 	_view_models.clear()
 	_mags.clear()
@@ -458,8 +549,9 @@ func add_gun(id: String) -> void:
 	_ads_points.clear()
 	_muzzles.clear()
 	_fp_shown = -1
+	_fp_reloading = false
 	_build_view_models()
-	gun_index = 0
+	gun_index = at
 	_swap_left = SWAP_TIME
 
 func add_ammo(mags: int) -> void:
@@ -498,6 +590,11 @@ func _make_noise(radius: float) -> void:
 
 # --- View (cosmetic) ---------------------------------------------------------
 
+func sight_blend() -> float:
+	if is_dead or _swap_left > 0.0 or heal_left > 0.0 or gun().is_reloading():
+		return 0.0
+	return smoothstep(0.2, 0.95, _aim_blend)
+
 func _process(delta: float) -> void:
 	# Recoil: the view kicks to a target that itself relaxes back to zero.
 	_kick_target = move_toward(_kick_target, 0.0, delta * 0.35 + _kick_target * delta * 5.0)
@@ -505,7 +602,7 @@ func _process(delta: float) -> void:
 	_shake = move_toward(_shake, 0.0, delta * 1.6)
 	_land_dip = move_toward(_land_dip, 0.0, delta * 0.6)
 	_view_kick = move_toward(_view_kick, 0.0, delta * 9.0)
-	_aim_blend = move_toward(_aim_blend, 1.0 if is_aiming else 0.0, delta * 9.0)
+	_aim_blend = move_toward(_aim_blend, 1.0 if is_aiming and _swap_left <= 0.0 and heal_left <= 0.0 and not gun().is_reloading() else 0.0, delta * 9.0)
 
 	var eye := _height - EYE_OFFSET - _land_dip
 	if is_dead:
@@ -537,6 +634,10 @@ func _process(delta: float) -> void:
 	var fp: AnimationPlayer = _fp_players[gun_index] if gun_index < _fp_players.size() else null
 	if fp != null:
 		ads = _ads_points[gun_index]
+	# The Longwatch uses a HUD scope over the zoomed world camera. Keep its
+	# imported optic and arms below the sight picture as the lens opens.
+	if gun().id == "dmr":
+		ads = Vector3(0.08, -0.43, -0.36)
 	var lower := 0.0
 	if _swap_left > 0.0:
 		lower = sin(_swap_left / SWAP_TIME * PI)
@@ -546,8 +647,10 @@ func _process(delta: float) -> void:
 		lower = 1.0
 	elif is_sprinting:
 		lower = 0.25
-	_view.position = hip.lerp(ads, _aim_blend) + bob + Vector3(_sway.x, _sway.y - lower * 0.22, _view_kick * 0.045 * (0.5 if is_aiming else 1.0))
-	_view.rotation = Vector3(_view_kick * 0.06 - lower * 0.8 + _sway.y * 1.5, _sway.x * -2.0 + (0.5 if is_sprinting and lower < 0.3 else 0.0) * (1.0 - _aim_blend), _sway.x * -1.5)
+	bob *= 1.0 - _aim_blend * 0.7
+	var sway := _sway * (1.0 - _aim_blend * 0.88)
+	_view.position = hip.lerp(ads, _aim_blend) + bob + Vector3(sway.x, sway.y - lower * 0.22, _view_kick * 0.045 * (0.5 if is_aiming else 1.0))
+	_view.rotation = Vector3(_view_kick * 0.06 - lower * 0.8 + sway.y * 1.5, sway.x * -2.0 + (0.5 if is_sprinting and lower < 0.3 else 0.0) * (1.0 - _aim_blend), sway.x * -1.5)
 	var showing := gun_index if _swap_left < SWAP_TIME * 0.5 else -1
 	for i in _view_models.size():
 		_view_models[i].visible = i == showing or (showing == -1 and i != gun_index and _view_models.size() > 1)

@@ -1,8 +1,6 @@
 # Extraction
 
-A first-person extraction shooter built in Godot 4.7. Deploy into Relay Station, loot it,
-fight or avoid the squads guarding it, and reach an extraction point before the station
-locks down. Die inside and you lose what you carried and what you wore.
+A first-person extraction shooter built in Godot 4.7. Deploy into Relay Station 07, Aster City, or Cairn Divide. Search for loot, fight or avoid the local squads, and reach an extraction point before the raid clock runs out. Die inside and you lose what you carried and what you wore.
 
 ## Run it
 
@@ -18,24 +16,24 @@ Open the folder in Godot 4.7 and press Play. The game starts at the base menu.
 | R | Reload |
 | F | Use: take items, search containers (hold) |
 | H | Medkit |
+| Tab | Backpack: use or drop items, equip gear, and stow equipped items |
 | Q / E | Frame abilities |
 | 1 / 2 / wheel | Switch weapon |
 | Esc | Pause |
 
 ## How a raid goes
 
-- You start in the south-west corner with twelve minutes on the clock.
-- Crates, lockers and the lab vault hold salvage, gear and medkits. The vault is loud.
-- Enemies work in squads. They react to what they see and hear, lose you when you break
-  line of sight, and search where they last had you. Their radio chatter shows top right.
-- Stand on either extraction pad for seven seconds to leave with your backpack.
-- Back at base, sell salvage, buy weapons, armor and implants, and pick a frame.
+- Search crates and lockers for supplies, gear, and salvage. Vaults hold higher-value loot and trigger an alarm.
+- Aster City and Cairn Divide have marked resupply stops between their larger settlements.
+- The raid keeps running while the backpack is open. Equip a replacement to move the old item into your pack, or drop an item on nearby ground to free a slot.
+- Squads react to what they see and hear and search where they last had you. Their radio chatter appears at the top right.
+- Hold an extraction point to secure your pack and equipped gear. Some points call a drone first.
+- Back at base, sell salvage, buy equipment, and pick a frame.
 
 ## Built with
 
-Godot 4.7 and GDScript. There are no imported assets: geometry is built from primitives
-in code, textures are generated, and sound is synthesized at startup.
+Godot 4.7 and GDScript, with code-built levels, imported environment and character kits, and sound synthesized at startup.
 
 The earlier 2D top-down prototype is on the `main` branch history.
 
-See `CLAUDE.md` for how the code is organised.
+See `AGENT.md` for the project architecture and test commands.

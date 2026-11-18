@@ -130,16 +130,46 @@ func _ready() -> void:
 	var unreachable := 0
 	for mark: Dictionary in raid.level.containers:
 		var at: Vector3 = mark["position"]
-		var path := NavigationServer3D.map_get_path(map, start, at, true)
-		var missed := path.is_empty() or path[path.size() - 1].distance_to(at) > 1.5
+		var missed: bool
 		if raid.level.separate_regions:
-			# Anything outside the guards' islands (a shelter in the hills) only has to stand on the ground.
-			var under := raid.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.6, at + Vector3.DOWN * 1.5, Layers.WORLD))
+			# Start below the case and confirm it rests on world geometry.
+			var under := raid.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.03, at + Vector3.DOWN * 1.5, Layers.WORLD))
 			missed = under.is_empty()
+		else:
+			var path := NavigationServer3D.map_get_path(map, start, at, true)
+			missed = path.is_empty() or path[path.size() - 1].distance_to(at) > 1.5
 		if missed:
 			unreachable += 1
 			print("      container out of reach: ", at, " ", mark["kind"])
 	check("every container can be reached", unreachable == 0, "%d of %d out of reach" % [unreachable, raid.level.containers.size()])
+	# Roadside supply stops are only on the two big maps.
+	var stops: Array = AsterLevel.DEPOT_STOPS if raid.level is AsterLevel else (CairnLevel.DEPOT_STOPS if raid.level is CairnLevel else [])
+	var space := raid.get_world_3d().direct_space_state
+	for stop: Array in stops:
+		var found := false
+		for place: Dictionary in raid.level.places:
+			if stop[0] != place["name"]:
+				continue
+			found = true
+			var deck: Vector3 = place["position"]
+			var stocked := 0
+			for mark: Dictionary in raid.level.containers:
+				if (mark["position"] as Vector3).distance_to(deck) < 7.0 and mark["supply"] == stop[3]:
+					stocked += 1
+			check("mapped and stocked: " + stop[0], stocked == 1)
+			var walkable_entry := false
+			for sign_z: float in [-1.0, 1.0]:
+				var rise: Array[float] = []
+				for distance: float in [5.0, 8.0, 11.0, 13.0]:
+					var sample := deck + Vector3(3.0, 0.0, distance * sign_z)
+					var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(sample + Vector3.UP, sample - Vector3.UP * 7.0, Layers.WORLD))
+					if not hit.is_empty():
+						rise.append((hit["position"] as Vector3).y)
+				if rise.size() == 4 and absf(rise[3] - rise[0]) < 4.5 and absf(rise[3] - rise[2]) < 1.25:
+					walkable_entry = true
+			check("terrain approach: " + stop[0], walkable_entry)
+		if not found:
+			check("mapped: " + stop[0], false)
 	for point: Vector3 in raid.level.reinforce_points:
 		var snapped := NavigationServer3D.map_get_closest_point(map, point)
 		if snapped.distance_to(point) > 1.5:
