@@ -28,7 +28,7 @@ const SCENERY_RADIUS: float = 1500.0
 const SITES: Array[Array] = [
 	["The Heliograph", Vector3(135.0, 65.0, -285.0), 68.0, ["workshop", "clinic", "workshop"]],
 	["Tideworks", Vector3(650.0, 9.0, -120.0), 72.0, ["workshop", "workshop", "habitat"]],
-	["Saltglass Terraces", Vector3(-650.0, 53.0, -310.0), 68.0, ["clinic", "habitat", "clinic"]],
+	["Saltglass Terraces", Vector3(-650.0, 53.0, -310.0), 68.0, ["residential_tower", "residential_tower", "clinic"]],
 	["Viridian Conservatory", Vector3(350.0, 29.0, 425.0), 72.0, ["habitat", "clinic", "habitat"]],
 	["Cinder Excavation", Vector3(-490.0, 59.0, 485.0), 68.0, ["workshop", "habitat", "workshop"]],
 	["Northwatch", Vector3(-90.0, 98.0, -735.0), 40.0, []],
@@ -99,6 +99,7 @@ func build() -> void:
 	_colony_gear()
 	for i in SITES.size():
 		_site(i)
+	_skybridges()
 	_grass()
 	kit.flush()
 	_squads_and_exits()
@@ -127,6 +128,8 @@ func _leave_out(asset: String, at: Vector3, placement: Dictionary) -> bool:
 	# and the depot's ground.
 	if NEW_BUILDING.has(asset) and not ROOF_LOTS.has(Vector2(roundf(at.x), roundf(at.z))) and not DEPOT.grow(3.0).has_point(Vector2(at.x, at.z)):
 		kit.add(NEW_BUILDING[asset], at, float(placement["rotation_y"]))
+		if asset == "residential_tower":
+			_towers.append(at)
 		return true
 	# Loot and exits are this game's own objects.
 	if asset in ["loot_crate", "extraction_pad"]:
@@ -628,6 +631,8 @@ func _site(index: int) -> void:
 		if kinds.is_empty() or not free.call(slot.x, slot.y, 12.0):
 			continue
 		built += 1
+		if kinds[i % kinds.size()] == "residential_tower":
+			_towers.append(middle + Vector3(slot.x, 0.0, slot.y))
 		kit.add(NEW_BUILDING[kinds[i % kinds.size()]], middle + Vector3(slot.x, 0.0, slot.y), 0.0 if slot.z > 0.0 else PI)
 		_fit(slot.x, slot.y, slot.z, index * 7 + i, "vault" if built == 2 and index % 2 == 0 else ("locker" if i % 2 == 0 else "crate"))
 		taken.append(Vector3(slot.x, slot.y, 10.0))
@@ -682,6 +687,49 @@ func _site(index: int) -> void:
 	else:
 		squads.append({"members": ["marksman", "trooper"], "points": [base + Vector3(-10.0, 0.0, 10.0), base + Vector3(12.0, 0.0, 14.0), base + Vector3(0.0, 0.0, 24.0)]})
 
+# Two towers standing close in a line are joined high up by the kit's skybridge
+# module (16 m long), lit along both rails. A tower is 18.3 m wide and 15.8 m
+# deep, so the module spans a gap between towers 30-34 m apart side to side,
+# or 26-31 m front to back.
+const BRIDGE_HEIGHT: float = 15.0
+var _towers: Array[Vector3] = []
+func _skybridges() -> void:
+	var made := 0
+	for a in _towers.size():
+		for b in range(a + 1, _towers.size()):
+			var gap := _towers[b] - _towers[a]
+			var along_x := absf(gap.z) < 1.0 and absf(gap.x) > 30.0 and absf(gap.x) < 34.5
+			var along_z := absf(gap.x) < 1.0 and absf(gap.z) > 26.0 and absf(gap.z) < 31.5
+			if not (along_x or along_z) or absf(gap.y) > 1.0:
+				continue
+			var at := (_towers[a] + _towers[b]) * 0.5 + Vector3(0.0, BRIDGE_HEIGHT, 0.0)
+			var yaw := PI * 0.5 if along_x else 0.0
+			kit.add("aster_skybridge", at, yaw)
+			var run := Basis(Vector3.UP, yaw)
+			for side: float in [-1.0, 1.0]:
+				var strip := MeshInstance3D.new()
+				var shape := BoxMesh.new()
+				shape.size = Vector3(0.05, 0.05, 14.0)
+				strip.mesh = shape
+				strip.material_override = Mats.glow(TEAL.lightened(0.45), 2.2)
+				strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				strip.basis = run
+				strip.position = at + run * Vector3(side * 1.75, 0.12, 0.0)
+				add_child(strip)
+			var light := OmniLight3D.new()
+			light.position = at + Vector3(0.0, -0.8, 0.0)
+			light.light_color = LIGHT_COOL
+			light.light_energy = 2.0
+			light.omni_range = 14.0
+			light.distance_fade_enabled = true
+			light.distance_fade_begin = 120.0
+			light.distance_fade_length = 30.0
+			add_child(light)
+			made += 1
+	print_verbose("Aster: %d towers, %d skybridges" % [_towers.size(), made])
+	if OS.get_cmdline_user_args().has("--bridges"):
+		print("BRIDGES %d towers %d made %s" % [_towers.size(), made, _towers])
+
 # One added colony building made usable: it has an open front and its own
 # benches, so it gets a light and a container against the back wall.
 # (x, z) is its middle about the site's; `front` is +1 when its door faces south.
@@ -697,6 +745,15 @@ func _fit(x: float, z: float, front: float, n: int, kind: String) -> void:
 	light.distance_fade_begin = 70.0
 	light.distance_fade_length = 20.0
 	add_child(light)
+	# A lit strip under the front eave, so a lived-in building reads from far off.
+	var strip := MeshInstance3D.new()
+	var shape := BoxMesh.new()
+	shape.size = Vector3(9.0, 0.07, 0.07)
+	strip.mesh = shape
+	strip.material_override = Mats.glow(LIGHT_WARM if n % 2 == 0 else TEAL.lightened(0.45), 2.6)
+	strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	strip.position = origin + Vector3(x, 3.75, z + front * 6.45)
+	add_child(strip)
 	_mark(Vector3(x + 3.0 * back, 0.0, z + 4.4 * back), kind, 0.0 if back < 0.0 else PI)
 
 # --- A colony, not a housing estate ---------------------------------------------

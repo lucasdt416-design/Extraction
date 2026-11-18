@@ -29,7 +29,7 @@ func _ready() -> void:
 	player.input_source = bot
 	player.global_position = Vector3(-12.0, 0.1, 8.0)
 	player.set("_yaw", deg_to_rad(-75.0))
-	for id: String in ["rifle", "smg", "dmr", "shotgun", "sidearm"]:
+	for id: String in ["rifle", "smg", "dmr", "shotgun", "sidearm", "arc"]:
 		player.add_gun(id)
 		bot.aim = false
 		await get_tree().create_timer(1.2).timeout
