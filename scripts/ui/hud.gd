@@ -31,6 +31,8 @@ var _notice: Label
 var _comms: Label
 var _overlay: Control
 var _paused_panel: Control
+const DevConsole = preload("res://scripts/ui/dev_console.gd")
+var _dev_console: DevConsole
 var _inventory: Control
 var _inventory_rows: VBoxContainer
 var _inventory_slots: VBoxContainer
@@ -54,6 +56,7 @@ var _kill_time: float = 0.0
 var _kills: int = 0
 var _alert_text: String = ""
 var _alert_left: float = 0.0
+var _tracked_exit := -1
 
 func _ready() -> void:
 	add_to_group("hud")
@@ -104,6 +107,10 @@ func bind(raid: Raid) -> void:
 	if raid.level.minimap != null:
 		_comms.position.y += MAP_SIZE + 26.0   # the comms feed moves down to make room
 	_play_intro()
+	if OS.is_debug_build():
+		_dev_console = DevConsole.new()
+		_dev_console.raid = raid
+		add_child(_dev_console)
 
 # Something new in the backpack: announce it on the right of the screen.
 func _on_backpack_changed() -> void:
@@ -239,9 +246,10 @@ func _draw_overlay() -> void:
 	var camera := get_viewport().get_camera_3d()
 
 	var sight := _player.sight_blend() if _inventory == null else 0.0
-	var scoped := _player.gun().id == "dmr" and sight > 0.0
+	var sight_type: String = _player.gun().def["sight"]
+	var scoped := _player.gun().has_scope() and sight > 0.0
 	if scoped:
-		_draw_scope(size, sight)
+		_draw_scope(size, sight, sight_type == "prism")
 	# Edge tint: red when hurt or low, blue when the shield took it.
 	var low := clampf(1.0 - _player.health / (_player.max_health * 0.45), 0.0, 1.0) * 0.5
 	_edge_tint(size, Color(DANGER.r, 0.1, 0.08, maxf(_hurt_flash * 0.2, low * (0.7 + 0.3 * sin(Time.get_ticks_msec() * 0.006)))))
@@ -269,6 +277,12 @@ func _draw_overlay() -> void:
 	for i in GameManager.MAX_MEDKITS:
 		_canvas.draw_rect(Rect2(bar + Vector2(32 + i * 14, 36), Vector2(9, 9)), INK if i < meds else Color(1, 1, 1, 0.18))
 	_canvas.draw_string(mono, bar + Vector2(84, 45), "HEALING" if _player.heal_left > 0.0 else "MEDKIT", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+	_keycap(bar + Vector2(145, 30), "G", _player.grenades > 0 or _player.dev_infinite_grenades)
+	var charges := "INF" if _player.dev_infinite_grenades else str(_player.grenades)
+	_canvas.draw_string(mono, bar + Vector2(176, 45), "%s BREACH" % charges, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+	if _player.dev_invulnerable:
+		_canvas.draw_string(mono, Vector2(center.x - 120.0, MARGIN + 12.0), "GOD MODE  /  CLOCK HELD",
+			HORIZONTAL_ALIGNMENT_CENTER, 240, 12, TEAL)
 
 	# Top left, under the clock: one square per backpack slot, then what it's worth.
 	var slots := Vector2(MARGIN, MARGIN + 44)
@@ -278,6 +292,26 @@ func _draw_overlay() -> void:
 	for i in capacity:
 		_canvas.draw_rect(Rect2(slots + Vector2(i * 13, 0), Vector2(9, 9)), (acid if carried >= capacity else INK) if i < carried else Color(1, 1, 1, 0.18))
 	_canvas.draw_string(mono, slots + Vector2(capacity * 13 + 10, 9), "%d CR   [TAB] PACK" % GameManager.backpack_value(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, DIM)
+
+	if Catalog.CONTRACTS.has(GameManager.active_contract):
+		var contract: Dictionary = Catalog.CONTRACTS[GameManager.active_contract]
+		var progress := GameManager.contract_progress()
+		var status := "READY TO EXTRACT" if progress >= contract["target"] else "%d/%d %s" % [progress, contract["target"], contract["unit"]]
+		_canvas.draw_string(mono, slots + Vector2(0, 33), "%s   /   %s" % [contract["name"].to_upper(), status.to_upper()],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, acid if progress >= contract["target"] else INK)
+	var navigation := "B  TRACK EXIT"
+	if _tracked_exit >= 0:
+		var exit_point := _raid.extract_points[_tracked_exit]
+		var distance := roundi(_player.global_position.distance_to(exit_point.global_position))
+		navigation = "B  %s  %d M" % [exit_point.label.to_upper(), distance]
+		if exit_point.drone_scene != null:
+			if exit_point.eta > 0.0:
+				navigation += "  /  DRONE %dS" % ceili(exit_point.eta)
+			elif exit_point.eta < 0.0:
+				navigation += "  /  CALL DRONE"
+			else:
+				navigation += "  /  DRONE READY"
+	_canvas.draw_string(mono, slots + Vector2(0, 52), navigation, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, TEAL)
 
 	# Bottom right, above the ammo: the two abilities, each with its key and a
 	# bar that fills as it comes off cooldown.
@@ -295,6 +329,18 @@ func _draw_overlay() -> void:
 
 	if _player.is_dead or (_raid != null and _raid.over):
 		return
+	if _inventory == null and _prompt.text.begins_with("[ F ]") and is_instance_valid(_player.aimed_pickup):
+		var pickup := _player.aimed_pickup
+		var id := pickup.item_id
+		var details := "RESTOCKS CARRIED WEAPONS"
+		var color := DIM
+		if id != Pickup.AMMO:
+			var rarity: int = Catalog.item(id)["rarity"]
+			color = Catalog.rarity_color(id)
+			details = "%s   /   %d CR SELL VALUE" % [Catalog.RARITY_NAMES[rarity].to_upper(), Catalog.sell_price(id)]
+			if pickup.weapon != null:
+				details += "   /   %d LOADED" % pickup.weapon.mag
+		_canvas.draw_string(mono, center + Vector2(-250, 100), details, HORIZONTAL_ALIGNMENT_CENTER, 500, 12, color)
 
 	# Crosshair: four ticks that open with the weapon's current spread.
 	var def := _player.gun().def
@@ -306,9 +352,9 @@ func _draw_overlay() -> void:
 			_canvas.draw_line(center + dir * gap, center + dir * (gap + 7.0), cross, 1.5, true)
 		_canvas.draw_circle(center, 1.2, cross)
 		if sight > 0.0:
-			var color := Color(TEAL, sight)
-			_canvas.draw_circle(center, 3.1, Color(Color.BLACK, sight * 0.8))
-			_canvas.draw_circle(center, 1.65, color)
+			var dot := Color(1.0, 0.32, 0.18, sight) if sight_type == "reflex" else Color(TEAL, sight)
+			_canvas.draw_circle(center, 3.1, Color(Color.BLACK, sight * 0.8), true, -1.0, true)
+			_canvas.draw_circle(center, 1.65, dot, true, -1.0, true)
 			if _player.gun().id == "shotgun":
 				_canvas.draw_arc(center, gap * 0.75, 0.0, TAU, 40, Color(INK, sight * 0.55), 1.5, true)
 	if _hit_time > 0.0:
@@ -386,29 +432,28 @@ func _draw_overlay() -> void:
 		# On a map with a corner map only the two nearest exits are marked in the
 		# view; the rest are on the map.
 		var marked: Array = _raid.extract_points.duplicate()
-		if _raid.level.minimap != null:
+		if _tracked_exit >= 0:
+			marked = [_raid.extract_points[_tracked_exit]]
+		elif _raid.level.minimap != null:
 			var from := _player.global_position
 			marked.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_squared_to(from) < b.global_position.distance_squared_to(from))
 			marked.resize(mini(marked.size(), 2))
 		for point: ExtractPoint in marked:
 			var world: Vector3 = point.global_position + Vector3.UP * 2.2
-			var screen := camera.unproject_position(world)
-			if camera.is_position_behind(world):
-				screen = center + (center - screen).normalized() * 4000.0
+			var screen := _marker_position(camera, world, center)
 			screen = screen.clamp(Vector2(140, 130), size - Vector2(140, 240))
 			if _raid.level.minimap != null and screen.x > size.x - MARGIN - MAP_SIZE - 110.0:
 				screen.y = maxf(screen.y, MARGIN + MAP_SIZE + 24.0)
 			var distance := int(point.global_position.distance_to(_player.global_position))
-			_canvas.draw_arc(screen, 6.0, 0.0, TAU, 16, TEAL, 1.5, true)
-			_canvas.draw_string(_font, screen + Vector2(-100, 24), "%s  %dm" % [point.label, distance], HORIZONTAL_ALIGNMENT_CENTER, 200, 13, Color(TEAL, 0.9))
+			var color := UiKit.ACID if _tracked_exit >= 0 else TEAL
+			_canvas.draw_arc(screen, 6.0, 0.0, TAU, 16, color, 1.5, true)
+			_canvas.draw_string(_font, screen + Vector2(-100, 24), "%s  %dm" % [point.label, distance], HORIZONTAL_ALIGNMENT_CENTER, 200, 13, Color(color, 0.9))
 		# Supply drops until they are opened, in coral, with the time to landing.
 		for drop in _raid.drops:
 			if drop == null or drop.is_open():
 				continue
 			var world: Vector3 = drop.global_position + Vector3.UP * 2.0
-			var screen := camera.unproject_position(world)
-			if camera.is_position_behind(world):
-				screen = center + (center - screen).normalized() * 4000.0
+			var screen := _marker_position(camera, world, center)
 			screen = screen.clamp(Vector2(140, 130), size - Vector2(140, 240))
 			if _raid.level.minimap != null and screen.x > size.x - MARGIN - MAP_SIZE - 110.0:
 				screen.y = maxf(screen.y, MARGIN + MAP_SIZE + 24.0)
@@ -417,11 +462,17 @@ func _draw_overlay() -> void:
 			_canvas.draw_rect(Rect2(screen - Vector2(5, 5), Vector2(10, 10)), UiKit.CORAL, false, 1.5)
 			_canvas.draw_string(_font, screen + Vector2(-120, 24), "Supply drop  %dm%s" % [distance, when], HORIZONTAL_ALIGNMENT_CENTER, 240, 13, Color(UiKit.CORAL, 0.95))
 
-# The corner map: a north-up window on the level's picture, centred on the
-# player, with the exits and the named places marked.
-func _draw_scope(size: Vector2, amount: float) -> void:
+# Project points in front and send the others to the corresponding edge.
+func _marker_position(camera: Camera3D, world: Vector3, center: Vector2) -> Vector2:
+	var local := camera.get_camera_transform().affine_inverse() * world
+	if local.z < -0.01:
+		return camera.unproject_position(world)
+	var direction := Vector2(local.x, -local.y)
+	return center + (Vector2.DOWN if direction.is_zero_approx() else direction.normalized()) * 4000.0
+
+func _draw_scope(size: Vector2, amount: float, prism: bool) -> void:
 	var center := size * 0.5
-	var radius := minf(size.x, size.y) * lerpf(0.46, 0.32, amount)
+	var radius := minf(size.x, size.y) * lerpf(0.46, 0.37 if prism else 0.32, amount)
 	var outside := PackedVector2Array()
 	var inside := PackedVector2Array()
 	var angles: Array[float] = []
@@ -450,9 +501,15 @@ func _draw_scope(size: Vector2, amount: float) -> void:
 			var at := center + dir * radius * i * 0.1
 			var tick := dir.orthogonal() * (5.0 if i % 2 == 0 else 3.0)
 			_canvas.draw_line(at - tick, at + tick, Color(INK, amount * 0.75), 1.5, true)
-	_canvas.draw_circle(center, 3.5, Color(Color.BLACK, amount * 0.8))
-	_canvas.draw_circle(center, 1.8, Color(TEAL, amount))
+	if prism:
+		var chevron := PackedVector2Array([center + Vector2(-7, 7), center, center + Vector2(7, 7)])
+		_canvas.draw_polyline(chevron, Color(Color.BLACK, amount), 4.0, true)
+		_canvas.draw_polyline(chevron, Color(1.0, 0.44, 0.22, amount), 1.7, true)
+	else:
+		_canvas.draw_circle(center, 3.5, Color(Color.BLACK, amount * 0.8))
+		_canvas.draw_circle(center, 1.8, Color(TEAL, amount))
 
+# The corner map: a north-up window centered on the player.
 func _draw_map(size: Vector2) -> void:
 	var level := _raid.level
 	if level.minimap == null:
@@ -481,7 +538,8 @@ func _draw_map(size: Vector2) -> void:
 			offset *= limit / maxf(absf(offset.x), absf(offset.y))
 		var spot := middle + offset
 		var diamond := PackedVector2Array([spot + Vector2(0, -5), spot + Vector2(5, 0), spot + Vector2(0, 5), spot + Vector2(-5, 0)])
-		_canvas.draw_colored_polygon(diamond, Color(TEAL, 0.55 if edge else 1.0))
+		var tracked := _tracked_exit >= 0 and point == _raid.extract_points[_tracked_exit]
+		_canvas.draw_colored_polygon(diamond, Color(UiKit.ACID if tracked else TEAL, 0.55 if edge and not tracked else 1.0))
 	for drop in _raid.drops:
 		if drop == null or drop.is_open():
 			continue
@@ -520,6 +578,8 @@ func _edge_tint(size: Vector2, color: Color) -> void:
 # The moment the raid ends: the play HUD clears and the frame goes widescreen.
 func begin_ending() -> void:
 	_close_inventory(false)
+	if _dev_console != null:
+		_dev_console.close(false)
 	_canvas.visible = false
 	for top: bool in [true, false]:
 		var bar := ColorRect.new()
@@ -545,6 +605,10 @@ func show_result(result: Dictionary) -> void:
 		detail = "Killed in the raid. What you carried and wore stays where you fell."
 	elif outcome == "lost":
 		detail = "The station sealed before you got out. Your kit stays inside."
+	var contract: Dictionary = result.get("contract", {})
+	if not contract.is_empty():
+		var summary := "+%d CR" % contract["paid"] if int(contract["paid"]) > 0 else "%d/%d · no payout" % [contract["progress"], contract["target"]]
+		detail += "\n%s  /  %s" % [contract["name"], summary]
 	var seconds := int(result.get("time", 0.0))
 
 	var shade := ColorRect.new()
@@ -650,8 +714,24 @@ func _line(text: String, size: int, color: Color, face: Font) -> Label:
 	return label
 
 func _input(event: InputEvent) -> void:
+	if _dev_console != null and _raid != null and not _raid.over:
+		if _dev_console.visible:
+			if not event.is_echo() and (event.is_action_pressed("dev_console") or event.is_action_pressed("pause")):
+				get_viewport().set_input_as_handled()
+				_dev_console.close()
+			return
+		if event.is_action_pressed("dev_console") and not event.is_echo() and _inventory == null and _paused_panel == null:
+			get_viewport().set_input_as_handled()
+			_dev_console.open()
+			return
 	if event.is_action_pressed("inventory"):
 		_toggle_inventory(event)
+	elif event.is_action_pressed("track_extract") and not event.is_echo() and _raid != null and not _raid.over:
+		if _inventory == null and _paused_panel == null and not _raid.extract_points.is_empty():
+			_tracked_exit += 1
+			if _tracked_exit == _raid.extract_points.size():
+				_tracked_exit = -1
+			get_viewport().set_input_as_handled()
 
 func _toggle_inventory(event: InputEvent) -> void:
 	if _raid == null or _raid.over or event.is_echo():
@@ -665,6 +745,8 @@ func _toggle_inventory(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _raid == null or _raid.over or event.is_echo() or not event.is_action_pressed("pause"):
+		return
+	if _dev_console != null and _dev_console.visible:
 		return
 	if _inventory != null:
 		get_viewport().set_input_as_handled()
@@ -768,11 +850,21 @@ func _refresh_inventory() -> void:
 		if not id.is_empty():
 			name = Catalog.item_name(id)
 		_inventory_slots.add_child(UiKit.text(GameManager.SLOT_LABELS[slot].to_upper(), 11, TEAL))
+		var gun: Gun
+		if slot == "primary" and not id.is_empty():
+			gun = _player.guns[0]
+		elif slot == "secondary":
+			gun = _player.guns[-1]
 		if id.is_empty():
-			_inventory_slots.add_child(UiKit.text(name, 16, DIM))
+			var label := UiKit.text(name, 16, DIM)
+			if gun != null:
+				label.mouse_filter = Control.MOUSE_FILTER_PASS
+				label.tooltip_text = UiKit.item_tooltip(gun.id, gun)
+			_inventory_slots.add_child(label)
 		else:
 			var equipped := UiKit.button(name, _inventory_slot == slot, true)
 			equipped.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			equipped.tooltip_text = UiKit.item_tooltip(id, gun)
 			equipped.pressed.connect(func() -> void:
 				_inventory_slot = slot
 				_inventory_index = -1
@@ -785,6 +877,7 @@ func _refresh_inventory() -> void:
 		var id := items[index]
 		var row := UiKit.button("%s   ·   %d CR" % [Catalog.item_name(id), Catalog.sell_price(id)], index == _inventory_index, true)
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.tooltip_text = UiKit.item_tooltip(id, GameManager.packed_gun(index))
 		if index != _inventory_index:
 			row.add_theme_color_override("font_color", Catalog.rarity_color(id))
 		row.pressed.connect(func() -> void:

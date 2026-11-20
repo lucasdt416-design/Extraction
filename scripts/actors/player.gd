@@ -25,6 +25,7 @@ const SHIELD_REGEN: float = 22.0
 const INTERACT_REACH: float = 3.2
 const SWAP_TIME: float = 0.32
 const SPRINT_FOV_KICK: float = 5.0
+const RAID_GRENADES := 2
 
 var input_source: PlayerInputSource
 var build_stats: Dictionary = {}
@@ -52,8 +53,13 @@ var heal_is_medkit: bool = false
 
 # Read by the HUD.
 var interact_label: String = ""
+var aimed_pickup: Pickup
 var interact_progress: float = 0.0
 var is_aiming: bool = false
+var grenades: int = RAID_GRENADES
+var dev_invulnerable := false
+var dev_infinite_grenades := false
+var _grenade_cooldown := 0.0
 var is_crouched: bool = false
 var is_sprinting: bool = false
 var bloom: float = 0.0
@@ -148,7 +154,7 @@ func _ready() -> void:
 	add_child(input_source)
 
 	for id in GameManager.raid_weapons():
-		var gun := Gun.new(id)
+		var gun := Gun.new(id, GameManager.weapon_presets.get(id, {}))
 		gun.reload_mult = build_stats["reload"]
 		gun.infinite_reserve = id == "sidearm"
 		if gun.infinite_reserve:
@@ -167,11 +173,14 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
 	_abilities(frame)
+	if frame.grenade:
+		throw_grenade()
 	_weapons(frame, delta)
 	_healing(frame, delta)
 	_interact(frame, delta)
 
 func _tick_timers(delta: float) -> void:
+	_grenade_cooldown = maxf(0.0, _grenade_cooldown - delta)
 	tactical_cooldown = maxf(tactical_cooldown - delta, 0.0)
 	prime_cooldown = maxf(prime_cooldown - delta, 0.0)
 	cloak_left = maxf(cloak_left - delta, 0.0)
@@ -357,6 +366,33 @@ func _weapons(frame: InputFrame, delta: float) -> void:
 	Fx.flash(self, _muzzle_position(), Color(1.0, 0.8, 0.5), 2.2, 0.05, 6.0)
 	_make_noise(float(def["noise"]))
 
+func throw_grenade() -> bool:
+	if is_dead or _grenade_cooldown > 0.0:
+		return false
+	if grenades <= 0 and not dev_infinite_grenades:
+		notice.emit("No breach grenades")
+		return false
+	var grenade := Grenade.new()
+	get_parent().add_child(grenade)
+	var aim := -global_basis.z * cos(_pitch) + Vector3.UP * sin(_pitch)
+	grenade.launch_charge(eye_position(), aim, self)
+	if not dev_infinite_grenades:
+		grenades -= 1
+	_grenade_cooldown = 0.6
+	if heal_is_medkit:
+		heal_left = 0.0
+	cloak_left = 0.0
+	Sfx.play("reload", -3.0, 1.22)
+	return true
+
+func dev_move_to(at: Vector3, look_toward: Vector3) -> void:
+	global_position = at
+	velocity = Vector3.ZERO
+	var direction := at.direction_to(look_toward)
+	_yaw = atan2(-direction.x, -direction.z)
+	_pitch = 0.0
+	rotation.y = _yaw
+
 func _healing(frame: InputFrame, delta: float) -> void:
 	if heal_left > 0.0:
 		var step := minf(delta, heal_left)
@@ -386,6 +422,7 @@ func use_medkit(index: int) -> bool:
 
 func _interact(frame: InputFrame, delta: float) -> void:
 	var target := _find_interactable()
+	aimed_pickup = target as Pickup
 	if target == null:
 		interact_label = ""
 		interact_progress = 0.0
@@ -421,7 +458,7 @@ func _find_interactable() -> Node:
 # The one place player health changes (rule 2). Returns 1 so shooters that
 # care get a hit confirmation; 3 on death.
 func take_damage(amount: float, from: Node = null, _position: Vector3 = Vector3.ZERO, _direction: Vector3 = Vector3.ZERO) -> int:
-	if is_dead:
+	if is_dead or dev_invulnerable:
 		return 0
 	if fortify_left > 0.0:
 		amount *= 0.5
@@ -489,7 +526,7 @@ func stow_equipped(slot: String) -> bool:
 		_rebuild_view_models(0)
 	elif slot == "secondary":
 		if _issued_sidearm == null:
-			_issued_sidearm = Gun.new("sidearm")
+			_issued_sidearm = Gun.new("sidearm", GameManager.weapon_presets.get("sidearm", {}))
 			_issued_sidearm.infinite_reserve = true
 		_set_raid_gun("sidearm", _issued_sidearm, at, false)
 	else:
@@ -602,7 +639,7 @@ func _process(delta: float) -> void:
 	_shake = move_toward(_shake, 0.0, delta * 1.6)
 	_land_dip = move_toward(_land_dip, 0.0, delta * 0.6)
 	_view_kick = move_toward(_view_kick, 0.0, delta * 9.0)
-	_aim_blend = move_toward(_aim_blend, 1.0 if is_aiming and _swap_left <= 0.0 and heal_left <= 0.0 and not gun().is_reloading() else 0.0, delta * 9.0)
+	_aim_blend = move_toward(_aim_blend, 1.0 if is_aiming and _swap_left <= 0.0 and heal_left <= 0.0 and not gun().is_reloading() else 0.0, delta * 9.0 * float(gun().def["aim_speed"]))
 
 	var eye := _height - EYE_OFFSET - _land_dip
 	if is_dead:
@@ -634,9 +671,8 @@ func _process(delta: float) -> void:
 	var fp: AnimationPlayer = _fp_players[gun_index] if gun_index < _fp_players.size() else null
 	if fp != null:
 		ads = _ads_points[gun_index]
-	# The Longwatch uses a HUD scope over the zoomed world camera. Keep its
-	# imported optic and arms below the sight picture as the lens opens.
-	if gun().id == "dmr":
+	# Lower the viewmodel as the scope fills the screen.
+	if gun().has_scope():
 		ads = Vector3(0.08, -0.43, -0.36)
 	var lower := 0.0
 	if _swap_left > 0.0:
@@ -729,8 +765,8 @@ const FP_PLACE := Vector3(0.82, 0.79, 0.87)
 
 # Puts a first-person model in `model` so that, with _view at the hip, it sits
 # exactly where its maker placed it, and works out its sight and muzzle.
-func _fp_view(model: Node3D, id: String) -> void:
-	var spec: Array = FP_MODELS[id]
+func _fp_view(model: Node3D, weapon: Gun) -> void:
+	var spec: Array = FP_MODELS[weapon.id]
 	var made: Node3D = (load("res://assets/viewmodels/%s_fp.glb" % spec[0]) as PackedScene).instantiate()
 	made.rotation.y = PI   # the files face +z
 	model.add_child(made)
@@ -744,14 +780,16 @@ func _fp_view(model: Node3D, id: String) -> void:
 	# The gun's bounds, in the file's own axes (forward is +z). Gloves and gun
 	# are one skinned mesh, so the gun is the vertices that ride its WeaponRoot bone.
 	var box := AABB()
+	var magazine_box := AABB()
 	for node in made.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
 		if mesh.skin == null:
 			continue
 		var gun_binds: Dictionary = {}
 		for b in mesh.skin.get_bind_count():
-			if mesh.skin.get_bind_name(b) == "WeaponRoot":
-				gun_binds[b] = true
+			var bind_name := mesh.skin.get_bind_name(b)
+			if bind_name == &"WeaponRoot" or (bind_name == &"Magazine" and weapon.attachments.has("magazine")):
+				gun_binds[b] = bind_name
 		for surface in mesh.mesh.get_surface_count():
 			var arrays := mesh.mesh.surface_get_arrays(surface)
 			var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -765,9 +803,11 @@ func _fp_view(model: Node3D, id: String) -> void:
 				for k in range(1, per):
 					if weights[v * per + k] > weights[v * per + best]:
 						best = k
-				if gun_binds.has(int(bones[v * per + best])):
-					var at := points[v]
-					box = AABB(at, Vector3.ZERO) if box.size == Vector3.ZERO and box.position == Vector3.ZERO else box.expand(at)
+				var bind_name: StringName = gun_binds.get(int(bones[v * per + best]), &"")
+				var at := points[v]
+				match bind_name:
+					&"WeaponRoot": box = AABB(at, Vector3.ZERO) if box == AABB() else box.expand(at)
+					&"Magazine": magazine_box = AABB(at, Vector3.ZERO) if magazine_box == AABB() else magazine_box.expand(at)
 	if box.size == Vector3.ZERO:
 		box = AABB(Vector3(-0.03, -0.05, -0.3), Vector3(0.06, 0.12, 0.6))
 	# Aim line: just over the top of the gun, so aiming brings it up under the
@@ -775,12 +815,71 @@ func _fp_view(model: Node3D, id: String) -> void:
 	# high on the gun.
 	var sight := Vector3(box.get_center().x, box.end.y + 0.015, box.position.z + box.size.z * 0.33)
 	var muzzle := Vector3(box.get_center().x, box.end.y - box.size.y * 0.3, box.end.z)
+	if not weapon.attachments.is_empty():
+		var skeleton := made.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+		var anchors := _fp_attachments(skeleton, weapon.attachments, box, magazine_box, sight, muzzle)
+		sight = anchors[0]
+		muzzle = anchors[1]
 	var to_view := model.transform * made.transform
 	var sight_view := to_view * sight
 	_muzzles.append(to_view * muzzle)
 	# Aiming moves _view so the sight lands in the middle of the screen.
 	_ads_points.append(Vector3(-sight_view.x * VIEW_SCALE, -sight_view.y * VIEW_SCALE, VIEW_HIP.z + 0.04))
 	_fp_players.append(player)
+
+# Mount parts to the same bones that drive the imported equip and reload clips.
+func _fp_attachments(skeleton: Skeleton3D, parts: Dictionary, box: AABB, magazine_box: AABB,
+		sight: Vector3, muzzle: Vector3) -> Array[Vector3]:
+	var metal := Mats.surface(Color(0.11, 0.14, 0.15), "plain", 0.4, 0.7)
+	var trim := Mats.surface(Color(0.58, 0.32, 0.14), "plain", 0.5, 0.45)
+	var mount := skeleton.get_node("WeaponRoot") as BoneAttachment3D
+	var bore := (mount.get_node("Muzzle") as Node3D).position
+
+	var barrel: String = parts.get("barrel", "")
+	if not barrel.is_empty():
+		muzzle = bore
+		var length := 0.1 if barrel == "dampened" else 0.074
+		var radius := 0.028 if barrel == "dampened" else 0.017
+		_tube(mount, muzzle + Vector3(0, 0, length * 0.4), radius, length, metal)
+		_tube(mount, muzzle + Vector3(0, 0, length * 0.65), radius + 0.002, 0.009, trim)
+		muzzle.z += length * 0.9
+
+	var stock: String = parts.get("stock", "")
+	if not stock.is_empty():
+		var reinforced := stock == "stabilized"
+		var pad := Vector3(bore.x, box.get_center().y, box.position.z)
+		_solid(mount, pad, Vector3(0.075 if reinforced else 0.051, 0.11 if reinforced else 0.086, 0.03), metal, 0.007)
+		_solid(mount, pad + Vector3(0, 0, -0.017), Vector3(0.056, 0.072, 0.01), trim, 0.003)
+
+	var magazine: String = parts.get("magazine", "")
+	if not magazine.is_empty():
+		var mag_mount := BoneAttachment3D.new()
+		mag_mount.bone_name = "Magazine"
+		skeleton.add_child(mag_mount)
+		var extended := magazine == "extended"
+		var height := 0.056 if extended else 0.018
+		var rest := skeleton.get_bone_global_rest(skeleton.find_bone("Magazine"))
+		var center := magazine_box.get_center()
+		var base := rest.affine_inverse() * Vector3(center.x, magazine_box.position.y, center.z)
+		var width := magazine_box.size.x
+		var depth := magazine_box.size.z
+		_solid(mag_mount, base - Vector3.UP * height * 0.4, Vector3(width, height, depth), metal, 0.006)
+		_solid(mag_mount, base - Vector3.UP * height * 0.9, Vector3(width + 0.004, 0.01, depth + 0.004), trim, 0.003)
+
+	var optic: String = parts.get("sight", "")
+	if not optic.is_empty():
+		var rail := Vector3(bore.x, box.end.y, sight.z)
+		sight.x = rail.x
+		_solid(mount, rail, Vector3(0.058, 0.022, 0.084), metal, 0.004)
+		if optic == "reflex":
+			sight.y = rail.y + 0.038
+			for side: float in [-1.0, 1.0]:
+				_solid(mount, rail + Vector3(side * 0.035, 0.037, 0), Vector3(0.008, 0.062, 0.022), metal, 0.003)
+			_solid(mount, rail + Vector3(0, 0.068, 0), Vector3(0.077, 0.008, 0.022), metal, 0.003)
+		else:
+			_tube(mount, rail + Vector3(0, 0.035, 0), 0.032, 0.1, metal)
+			_tube(mount, rail + Vector3(0, 0.035, 0.041), 0.034, 0.012, trim)
+	return [sight, muzzle]
 
 # Plays the right clip on the current gun's first-person model: Equip as it
 # comes up after a swap, Reload timed to the gun's own reload, Idle otherwise.
@@ -842,7 +941,7 @@ func _build_view_models() -> void:
 		_view.add_child(model)
 		_view_models.append(model)
 		if FP_MODELS.has(g.id):
-			_fp_view(model, g.id)
+			_fp_view(model, g)
 			var empty := Node3D.new()
 			model.add_child(empty)
 			_mags.append(empty)

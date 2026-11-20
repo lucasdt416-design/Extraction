@@ -11,6 +11,7 @@ signal reloaded
 
 var id: String = "sidearm"
 var def: Dictionary = {}
+var attachments: Dictionary = {}
 var mag: int = 0
 var reserve: int = 0
 # Multipliers the owner sets from its build (implants, abilities).
@@ -23,11 +24,15 @@ var infinite_reserve: bool = false
 var _cooldown: float = 0.0
 var _reload_left: float = 0.0
 
-func _init(weapon_id: String = "sidearm") -> void:
+func _init(weapon_id: String = "sidearm", parts: Dictionary = {}) -> void:
 	id = weapon_id
-	def = Catalog.WEAPONS[weapon_id]
+	attachments = Catalog.weapon_attachments(id, parts)
+	def = Catalog.weapon_build(id, attachments)
 	mag = def["mag"]
 	reserve = int(def["mag"]) * 4
+
+func has_scope() -> bool:
+	return def["sight"] in ["scope", "prism"]
 
 func tick(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)

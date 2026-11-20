@@ -28,6 +28,10 @@ const EQUIP_SLOTS: Array[String] = ["primary", "secondary", "armor", "implant_a"
 # --- Saved profile -----------------------------------------------------------
 var credits: int = 0
 var stash: Array[String] = []
+var weapon_presets: Dictionary = {}
+var selected_contract := ""
+var active_contract := ""
+var _containers_searched := 0
 var loadout: Dictionary = {"primary": "", "secondary": "", "armor": "", "implant_a": "", "implant_b": ""}
 var frame_id: String = "striker"
 var map_id: String = "aster_city"
@@ -152,6 +156,25 @@ func raid_weapons() -> Array[String]:
 	out.append(loadout["secondary"] if loadout["secondary"] != "" else "sidearm")
 	return out
 
+func set_attachment(weapon_id: String, slot: String, part_id: String) -> bool:
+	if in_raid or not Catalog.attachment_slots(weapon_id).has(slot):
+		return false
+	if part_id != "" and not Catalog.ATTACHMENTS[slot].has(part_id):
+		return false
+	var parts: Dictionary = weapon_presets.get(weapon_id, {}).duplicate()
+	if parts.get(slot, "") == part_id:
+		return true
+	if part_id.is_empty():
+		parts.erase(slot)
+	else:
+		parts[slot] = part_id
+	if parts.is_empty():
+		weapon_presets.erase(weapon_id)
+	else:
+		weapon_presets[weapon_id] = parts
+	save_profile()
+	return true
+
 func medkits_in_stash() -> int:
 	return stash.count("medkit")
 
@@ -223,6 +246,8 @@ func set_frame(id: String) -> void:
 
 func start_raid() -> void:
 	seed_run(randi())
+	active_contract = selected_contract
+	_containers_searched = 0
 	backpack.clear()
 	_packed_guns.clear()
 	# Up to three medkits ride along. They leave the stash now: they're at risk.
@@ -329,6 +354,28 @@ func backpack_value() -> int:
 func register_kill() -> void:
 	raid_kills += 1
 
+func select_contract(id: String) -> void:
+	if in_raid or (not id.is_empty() and not Catalog.CONTRACTS.has(id)):
+		return
+	selected_contract = id
+	_profile_dirty()
+
+func register_container_search() -> void:
+	if in_raid:
+		_containers_searched += 1
+
+func contract_progress() -> int:
+	match active_contract:
+		"survey": return _containers_searched
+		"security": return raid_kills
+		"recovery":
+			var carried := 0
+			for id in backpack:
+				if Catalog.item(id)["kind"] == "loot":
+					carried += 1
+			return carried
+	return 0
+
 func extract_success(time: float) -> void:
 	if not in_raid:
 		return
@@ -352,6 +399,15 @@ func raid_failed(outcome: String, time: float) -> void:
 	_finish({"outcome": outcome, "items": lost, "value": 0, "time": time})
 
 func _finish(result: Dictionary) -> void:
+	if Catalog.CONTRACTS.has(active_contract):
+		var contract: Dictionary = Catalog.CONTRACTS[active_contract]
+		var progress := contract_progress()
+		var paid: int = contract["reward"] if result["outcome"] == "extracted" and progress >= contract["target"] else 0
+		credits += paid
+		stats["earned"] += paid
+		result["contract"] = {"name": contract["name"], "progress": progress, "target": contract["target"], "paid": paid}
+	active_contract = ""
+	_containers_searched = 0
 	in_raid = false
 	result["kills"] = raid_kills
 	stats["kills"] += raid_kills
@@ -382,10 +438,12 @@ func save_profile() -> void:
 		return
 	file.store_string(JSON.stringify({
 		"version": 1, "credits": credits, "stash": stash, "loadout": loadout, "frame": frame_id, "stats": stats,
-		"settings": settings,
+		"settings": settings, "weapon_presets": weapon_presets, "contract": selected_contract,
 	}, "\t"))
 
 func load_profile() -> void:
+	weapon_presets.clear()
+	selected_contract = ""
 	var data: Variant = null
 	if FileAccess.file_exists(SAVE_PATH):
 		data = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
@@ -402,7 +460,16 @@ func load_profile() -> void:
 		credits = 1200
 		stash.assign(["medkit", "medkit"])
 		return
+	var saved_presets: Variant = data.get("weapon_presets")
+	if saved_presets is Dictionary:
+		for id: String in Catalog.WEAPONS:
+			var parts := Catalog.weapon_attachments(id, saved_presets.get(id))
+			if not parts.is_empty():
+				weapon_presets[id] = parts
 	credits = int(data.get("credits", 0))
+	var saved_contract: Variant = data.get("contract")
+	if saved_contract is String and Catalog.CONTRACTS.has(saved_contract):
+		selected_contract = saved_contract
 	stash.clear()
 	for id: Variant in data.get("stash", []):
 		if Catalog.ITEMS.has(id):
@@ -436,7 +503,11 @@ func _bind_inputs() -> void:
 		"move_forward": KEY_W, "move_back": KEY_S, "move_left": KEY_A, "move_right": KEY_D,
 		"jump": KEY_SPACE, "sprint": KEY_SHIFT, "crouch": KEY_CTRL, "reload": KEY_R, "interact": KEY_F,
 		"tactical": KEY_Q, "prime": KEY_E, "heal": KEY_H, "weapon_1": KEY_1, "weapon_2": KEY_2, "pause": KEY_ESCAPE, "inventory": KEY_TAB,
+		"grenade": KEY_G,
+		"track_extract": KEY_B,
 	}
+	if OS.is_debug_build():
+		keys["dev_console"] = KEY_QUOTELEFT
 	for action: String in keys:
 		_add_action(action)
 		var event := InputEventKey.new()

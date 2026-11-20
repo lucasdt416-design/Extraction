@@ -17,6 +17,8 @@ var elapsed: float = 0.0
 var over: bool = false
 var extract_points: Array[ExtractPoint] = []
 var _squads: Array[Squad] = []
+var _dev_aircraft: Array[Transport] = []
+var _dev_squads: Array[Squad] = []
 var drops: Array[SupplyDrop] = []
 # When supply drops are called, as shares of the raid gone. Only on the big maps.
 const DROPS_AT: Array[float] = [0.2, 0.55]
@@ -24,8 +26,8 @@ const DROPS_AT: Array[float] = [0.2, 0.55]
 # Seconds of fighting near the player (FIGHT_NEAR) before a squad is sent in.
 const HEAT_FOR_WAVE: float = 100.0
 const FIGHT_NEAR: float = 70.0
-# A fresh squad never appears closer than this, nor where the player can see it.
-const WAVE_MIN_DISTANCE: float = 80.0
+const WAVE_MIN_DISTANCE: float = 42.0
+const Transport = preload("res://scripts/actors/reinforcement_aircraft.gd")
 const MAX_WAVES: int = 2
 # With this fraction of the clock left, one wave comes regardless.
 const LATE_WAVE_AT: float = 0.3
@@ -93,7 +95,7 @@ func _spawn_squads() -> void:
 	for spec in level.squads:
 		_spawn_squad(spec["members"], spec["points"])
 
-func _spawn_squad(members: Array, points: Array) -> Squad:
+func _spawn_squad(members: Array, points: Array, insertion: Dictionary = {}) -> Squad:
 	var squad := Squad.new(points, GameManager.rng.randi())
 	for i in members.size():
 		var enemy := Enemy.new()
@@ -104,14 +106,17 @@ func _spawn_squad(members: Array, points: Array) -> Squad:
 		squad.members.append(enemy)
 		add_child(enemy)
 		enemy.died.connect(_on_enemy_died)
+		if not insertion.is_empty():
+			enemy.arrive_from_aircraft(insertion["origin"], point, i * 0.64, insertion["hover"])
 	_squads.append(squad)
 	return squad
 
 func _physics_process(delta: float) -> void:
 	if over:
 		return
-	elapsed += delta
-	time_left -= delta
+	if not player.dev_invulnerable:
+		elapsed += delta
+		time_left -= delta
 	for squad in _squads:
 		squad.tick(delta)
 	_escalate(delta)
@@ -149,9 +154,8 @@ func _call_drop() -> void:
 # A raid gets harder the longer and louder it goes. "Heat" builds while a squad
 # near the player is in a firefight and bleeds off in the quiet; a long fight
 # calls in a fresh squad. A vault alarm calls one too. One arrives in the last
-# 30% of the clock so a careful raid still tightens. Never in the first four
-# minutes, never twice in three minutes, never more than two, and always from
-# well out of sight: shooting one guard must not make three more appear.
+# 30% of the clock so a careful raid still tightens. Aircraft need a clear
+# approach corridor and a navigable place to offload the squad.
 
 func _escalate(delta: float) -> void:
 	_wave_cooldown = maxf(_wave_cooldown - delta, 0.0)
@@ -167,38 +171,191 @@ func _escalate(delta: float) -> void:
 func alarm(position: Vector3) -> void:
 	send_reinforcements(position)
 
-# Brings a squad in from whichever entry point is farthest from the player and
-# out of their sight, and sends it to search where the trouble was.
 func send_reinforcements(toward: Vector3) -> bool:
 	if over or waves_sent >= mini(MAX_WAVES, WAVES.size()) or _wave_cooldown > 0.0:
 		return false
-	var space := get_world_3d().direct_space_state
-	var eye := player.eye_position()
-	var best := Vector3.ZERO
-	var best_distance := -1.0
-	for point: Vector3 in level.reinforce_points:
-		var distance := point.distance_to(player.global_position)
-		# On a small compound "far" is 30 m; on the big maps it is WAVE_MIN_DISTANCE.
-		var closest := WAVE_MIN_DISTANCE if level.separate_regions else 30.0
-		if distance < closest or distance > maxf(level.reinforce_range, closest + 60.0):
-			continue
-		var query := PhysicsRayQueryParameters3D.create(eye, point + Vector3.UP * 1.2, Layers.WORLD)
-		# Seen from where the player stands: not an option, however far away.
-		if space.intersect_ray(query).is_empty():
-			continue
-		if distance > best_distance:
-			best_distance = distance
-			best = point
-	if best_distance < 0.0:
+	var helicopter := waves_sent % 2 == 0
+	var land_first := GameManager.map_id == "aster_city"
+	if GameManager.run_seed % 2 != 0:
+		land_first = not land_first
+	var lands := helicopter == land_first
+	var route := _aircraft_route(toward, lands)
+	if route.is_empty() and lands:
+		lands = false
+		route = _aircraft_route(toward, false)
+	if route.is_empty():
+		_wave_cooldown = 5.0
 		return false
-	var squad := _spawn_squad(WAVES[waves_sent], [best, best + Vector3(2.0, 0.0, 1.5), best + Vector3(-1.5, 0.0, 2.0)])
-	squad.respond_to(toward)
+	_deploy_aircraft(route, toward, helicopter, lands, WAVES[waves_sent])
 	waves_sent += 1
 	heat = 0.0
 	_wave_cooldown = 180.0
-	Sfx.play("alert", 2.0, 0.6)
-	hud.show_alert("REINFORCEMENTS INBOUND")
 	return true
+
+func _deploy_aircraft(route: Dictionary, toward: Vector3, helicopter: bool, lands: bool,
+		members: Array, dev: bool = false) -> Transport:
+	var craft := Transport.new()
+	craft.helicopter = helicopter
+	craft.lands = lands
+	craft.station = route["station"]
+	craft.heading = route["heading"]
+	craft.player = player
+	craft.unloading.connect(func(origin: Vector3) -> void:
+		if over:
+			return
+		var squad := _spawn_squad(members, route["points"], {"origin": origin, "hover": not lands})
+		if dev:
+			_dev_squads.append(squad)
+		squad.respond_to(toward))
+	craft.cannon_disabled.connect(func() -> void: hud.show_alert("HELICOPTER CANNON DISABLED"))
+	add_child(craft)
+	Sfx.play("alert", 2.0, 0.6)
+	var aircraft := "ARMED HELICOPTER" if helicopter else "DROPSHIP"
+	hud.show_alert("%s INBOUND   /   %s" % [aircraft, "LANDING" if lands else "HOVER DROP"])
+	return craft
+
+func dev_spawn_aircraft(helicopter: bool, lands: bool) -> Transport:
+	if over:
+		return null
+	var at := player.global_position
+	var forward := -player.global_basis.z
+	var space := get_world_3d().direct_space_state
+	var nav := get_world_3d().navigation_map
+	var route := {}
+	for angle: float in [0.0, PI * 0.25, -PI * 0.25, PI * 0.5, -PI * 0.5, PI]:
+		var direction := forward.rotated(Vector3.UP, angle)
+		for distance: float in [18.0, 26.0, 34.0]:
+			var ground := _aircraft_ground(space, at + direction * distance)
+			if ground.is_empty():
+				continue
+			var station: Vector3 = ground["position"]
+			if absf(station.y - at.y) > 5.0 or (ground["normal"] as Vector3).y < 0.8:
+				continue
+			route = _aircraft_corridor(space, nav, station, direction.cross(Vector3.UP), lands)
+			if not route.is_empty():
+				break
+		if not route.is_empty():
+			break
+	if route.is_empty():
+		route = _aircraft_route(at, lands)
+	if route.is_empty():
+		return null
+	var craft := _deploy_aircraft(route, at, helicopter, lands, WAVES[0 if helicopter else 1], true)
+	_dev_aircraft.append(craft)
+	return craft
+
+func dev_spawn_enemy(kind: String) -> Enemy:
+	if over or not Catalog.ENEMIES.has(kind):
+		return null
+	var at := player.global_position
+	var nav := get_world_3d().navigation_map
+	for angle: float in [0.0, PI * 0.25, -PI * 0.25, PI * 0.5, -PI * 0.5, PI]:
+		var ahead := at - player.global_basis.z.rotated(Vector3.UP, angle) * 7.0
+		var point := NavigationServer3D.map_get_closest_point(nav, ahead)
+		if point.distance_to(ahead) > 3.0 or point.distance_to(at) < 4.0:
+			continue
+		var squad := _spawn_squad([kind], [point + Vector3.UP * 0.1])
+		_dev_squads.append(squad)
+		squad.respond_to(at)
+		return squad.members[0]
+	return null
+
+func dev_clear_spawns() -> void:
+	for craft in _dev_aircraft:
+		if is_instance_valid(craft):
+			craft.queue_free()
+	_dev_aircraft.clear()
+	for squad in _dev_squads:
+		for enemy in squad.members:
+			if is_instance_valid(enemy):
+				enemy.queue_free()
+		_squads.erase(squad)
+		Squad.all.erase(squad)
+	_dev_squads.clear()
+
+func dev_go_to_aircraft() -> bool:
+	var nav := get_world_3d().navigation_map
+	for i in range(_dev_aircraft.size() - 1, -1, -1):
+		var craft := _dev_aircraft[i]
+		if not is_instance_valid(craft) or craft.is_queued_for_deletion():
+			continue
+		var across := craft.heading.cross(Vector3.UP)
+		for offset: Vector3 in [across * 10.0, -across * 10.0, -craft.heading * 8.0, craft.heading * 8.0]:
+			var candidate := craft.station + offset
+			var at := NavigationServer3D.map_get_closest_point(nav, candidate)
+			var distance := at.distance_to(craft.station)
+			if at.distance_to(candidate) < 5.0 and distance >= 5.5:
+				player.dev_move_to(at + Vector3.UP * 0.2, craft.station)
+				return true
+	return false
+
+func _aircraft_route(toward: Vector3, lands: bool) -> Dictionary:
+	var candidates := level.reinforce_points.duplicate()
+	candidates.sort_custom(func(a: Vector3, b: Vector3) -> bool:
+		return a.distance_squared_to(toward) < b.distance_squared_to(toward))
+	var space := get_world_3d().direct_space_state
+	var nav := get_world_3d().navigation_map
+	var closest := WAVE_MIN_DISTANCE if level.separate_regions else 25.0
+	for point: Vector3 in candidates:
+		var distance := point.distance_to(player.global_position)
+		if distance < closest or distance > maxf(level.reinforce_range, closest + 60.0):
+			continue
+		for offset: Vector3 in [Vector3.ZERO, Vector3(7, 0, 0), Vector3(-7, 0, 0), Vector3(0, 0, 7), Vector3(0, 0, -7)]:
+			var pad := point + offset
+			var ground := _aircraft_ground(space, pad)
+			if ground.is_empty():
+				continue
+			var station: Vector3 = ground["position"]
+			if absf(station.y - pad.y) > 4.0 or (ground["normal"] as Vector3).y < 0.8:
+				continue
+			if station.distance_to(player.global_position) < closest:
+				continue
+			var approach := station.direction_to(Vector3(player.position.x, station.y, player.position.z)).cross(Vector3.UP)
+			if approach.is_zero_approx():
+				continue
+			var route := _aircraft_corridor(space, nav, station, approach, lands)
+			if not route.is_empty():
+				return route
+	return {}
+
+func _aircraft_corridor(space: PhysicsDirectSpaceState3D, nav: RID, station: Vector3,
+		approach: Vector3, lands: bool) -> Dictionary:
+	for craft in get_tree().get_nodes_in_group("reinforcement_aircraft"):
+		if not craft.is_queued_for_deletion() and station.distance_to(craft.station) < 12.0:
+			return {}
+	for angle: float in [0.0, PI, PI * 0.5, -PI * 0.5]:
+		var heading := approach.rotated(Vector3.UP, angle)
+		var across := heading.cross(Vector3.UP)
+		var cruise := station + Vector3.UP * Transport.CRUISE_HEIGHT
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(cruise - heading * 112.0,
+				cruise + heading * 112.0, Layers.WORLD)).is_empty():
+			continue
+		var clear := true
+		for offset: Vector3 in [across * 4.0, -across * 4.0, heading * 3.4, -heading * 5.8]:
+			var ground := _aircraft_ground(space, station + offset)
+			if ground.is_empty():
+				clear = false
+				break
+			var rise := (ground["position"] as Vector3).y - station.y
+			if (lands and (absf(rise) > 0.65 or (ground["normal"] as Vector3).y < 0.84)) or rise > 1.2:
+				clear = false
+				break
+		if not clear:
+			continue
+		var points: Array[Vector3] = []
+		for i in 4:
+			var at := station - heading * (4.15 + i * 0.42) + across * (1.6 if i % 2 == 0 else -1.6)
+			var point := NavigationServer3D.map_get_closest_point(nav, at)
+			if point.distance_to(at) > 1.6:
+				break
+			points.append(point + Vector3.UP * 0.1)
+		if points.size() == 4:
+			return {"station": station, "heading": heading, "points": points}
+	return {}
+
+func _aircraft_ground(space: PhysicsDirectSpaceState3D, at: Vector3) -> Dictionary:
+	return space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 96.0,
+		at - Vector3.UP * 11.0, Layers.WORLD))
 
 func _on_enemy_died(enemy: Enemy, killer: Node) -> void:
 	if killer is Player:

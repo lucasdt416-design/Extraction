@@ -43,6 +43,19 @@ func _ready() -> void:
 	_streams["click"] = _make(0.03, func(t: float) -> float: return sin(TAU * 1500.0 * t) * exp(-t * 120.0) * 0.2)
 	_streams["extract"] = _make(1.2, func(t: float) -> float: return (sin(TAU * 440.0 * t) + sin(TAU * 554.0 * t) + sin(TAU * 659.0 * t)) * minf(t * 8.0, 1.0) * exp(-t * 2.5) * 0.2)
 	_streams["beep"] = _make(0.08, func(t: float) -> float: return sin(TAU * 1800.0 * t) * exp(-t * 30.0) * 0.25)
+	var rotor := _make(2.0, func(t: float) -> float:
+		var pulse := pow(0.5 + 0.5 * cos(TAU * 17.0 * t), 5.0)
+		return pulse * (0.46 * sin(TAU * 51.0 * t) + 0.1 * sin(TAU * 102.0 * t)))
+	var shuttle := _make(2.0, func(t: float) -> float:
+		return (0.25 * sin(TAU * 56.0 * t) + 0.12 * sin(TAU * 93.0 * t)) * (0.82 + 0.18 * cos(TAU * 4.0 * t)))
+	for stream in [rotor, shuttle]:
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		stream.loop_end = RATE * 2
+	_streams["rotor"] = rotor
+	_streams["shuttle"] = shuttle
+
+func aircraft_loop(helicopter: bool) -> AudioStreamWAV:
+	return _streams["rotor" if helicopter else "shuttle"]
 
 func play(id: String, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 	if not _streams.has(id):

@@ -21,5 +21,6 @@ var interact: bool = false       # held
 var tactical: bool = false
 var prime: bool = false
 var heal: bool = false
+var grenade: bool = false
 var weapon_slot: int = -1        # 0 / 1 to pick a slot, -1 for no change
 var weapon_next: bool = false

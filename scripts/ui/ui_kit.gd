@@ -15,6 +15,30 @@ const CORAL := Color(0.99, 0.38, 0.26)
 
 static var _fonts: Dictionary = {}
 
+static func item_tooltip(id: String, gun: Gun = null, weapon_stats: Dictionary = {}) -> String:
+	if id.is_empty():
+		return ""
+	var item := Catalog.item(id)
+	var kind: String = item["kind"]
+	var type := {"loot": "Salvage", "med": "Consumable", "armor": "Armor"}.get(kind, kind.capitalize()) as String
+	var lines: Array[String] = [item["name"], "%s · %s" % [Catalog.RARITY_NAMES[item["rarity"]], type]]
+	var description: String = item.get("desc", "")
+	if not description.is_empty():
+		lines.append(description)
+	if kind == "weapon":
+		var stats: Dictionary = gun.def if gun != null else weapon_stats
+		if stats.is_empty():
+			stats = Catalog.WEAPONS[id]
+		lines.append("%d rounds · %d RPM · %.1fs reload" % [stats["mag"], stats["rpm"], stats["reload"]])
+		if gun != null:
+			lines.append("%d loaded · %d reserve" % [gun.mag, gun.reserve])
+		lines.append("%d damage per pellet · %d pellets" % [stats["damage"], stats["pellets"]]
+			if int(stats["pellets"]) > 1 else "%d damage per shot" % stats["damage"])
+	var value := Catalog.sell_price(id)
+	if value > 0:
+		lines.append("Sell value  %d CR" % value)
+	return "\n".join(lines)
+
 # Three bundled typefaces (all SIL Open Font License, in assets/fonts):
 #   font()     Space Grotesk       -- running text and controls
 #   display()  Big Shoulders Display -- headlines, numerals, the wordmark

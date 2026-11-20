@@ -9,6 +9,7 @@ var sensitivity: float = 0.0022
 var _look: Vector2 = Vector2.ZERO
 var _shoot_pressed: bool = false
 var _weapon_next: bool = false
+var _grenade: bool = false
 var _slot: int = -1
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -20,6 +21,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_shoot_pressed = true
 	elif event.is_action_pressed("weapon_next"):
 		_weapon_next = true
+	elif event.is_action_pressed("grenade"):
+		_grenade = true
 	elif event.is_action_pressed("weapon_1"):
 		_slot = 0
 	elif event.is_action_pressed("weapon_2"):
@@ -31,6 +34,7 @@ func poll() -> InputFrame:
 		_look = Vector2.ZERO
 		_shoot_pressed = false
 		_weapon_next = false
+		_grenade = false
 		_slot = -1
 		return frame
 	frame.move = Vector2(
@@ -48,10 +52,12 @@ func poll() -> InputFrame:
 	frame.tactical = Input.is_action_pressed("tactical")
 	frame.prime = Input.is_action_pressed("prime")
 	frame.heal = Input.is_action_pressed("heal")
+	frame.grenade = _grenade
 	frame.weapon_slot = _slot
 	frame.weapon_next = _weapon_next
 	_look = Vector2.ZERO
 	_shoot_pressed = false
 	_weapon_next = false
+	_grenade = false
 	_slot = -1
 	return frame

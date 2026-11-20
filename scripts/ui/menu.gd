@@ -531,15 +531,45 @@ func _play() -> void:
 	var last := GameManager.last_result
 	if not last.is_empty():
 		var extracted: bool = last["outcome"] == "extracted"
-		_fact("LAST RAID", ("Extracted with %s" % _money(last["value"])) if extracted else ("Lost, with %d item%s" % [last["items"].size(), "" if last["items"].size() == 1 else "s"]),
-			INK if extracted else CORAL.darkened(0.25))
+		var summary := ("Extracted with %s" % _money(last["value"])) if extracted else ("Lost, with %d item%s" % [last["items"].size(), "" if last["items"].size() == 1 else "s"])
+		var bonus: int = last.get("contract", {}).get("paid", 0)
+		if bonus > 0:
+			summary += "  /  %s contract bonus" % _money(bonus)
+		_fact("LAST RAID", summary, INK if extracted else CORAL.darkened(0.25))
 	_content.add_child(_gap(22))
 
+	var launch := HBoxContainer.new()
+	launch.add_theme_constant_override("separation", 20)
+	_content.add_child(launch)
 	var deploy := _block("DEPLOY  →", 34, Vector2(300, 74))
 	deploy.pressed.connect(_deploy)
-	_content.add_child(deploy)
+	launch.add_child(deploy)
+	var briefing := VBoxContainer.new()
+	briefing.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	launch.add_child(briefing)
+	briefing.add_child(_text("CONTRACT", 11, DIM, "mono-bold", 2))
+	var contracts := OptionButton.new()
+	contracts.add_theme_font_override("font", UiKit.font(600))
+	contracts.add_item("No contract")
+	for id: String in Catalog.CONTRACTS:
+		var contract: Dictionary = Catalog.CONTRACTS[id]
+		var index := contracts.item_count
+		contracts.add_item("%s  /  %d CR" % [contract["name"], contract["reward"]])
+		contracts.set_item_metadata(index, id)
+		contracts.get_popup().set_item_tooltip(index, contract["brief"])
+		if GameManager.selected_contract == id:
+			contracts.select(index)
+	contracts.item_selected.connect(func(index: int) -> void:
+		GameManager.select_contract("" if index == 0 else str(contracts.get_item_metadata(index))))
+	briefing.add_child(contracts)
+	var objective := "Optional objective paid on extraction."
+	if Catalog.CONTRACTS.has(GameManager.selected_contract):
+		objective = Catalog.CONTRACTS[GameManager.selected_contract]["brief"]
+	briefing.add_child(_text(objective, 14, DIM, "text", 0, true))
 	_content.add_child(_gap(18))
-	_content.add_child(_text("WASD MOVE   SHIFT SPRINT   CTRL CROUCH   SPACE JUMP   R RELOAD\nF USE   H MEDKIT   Q / E ABILITIES   1 / 2 WEAPONS", 11, DIM, "mono", 1, true))
+	_content.add_child(_text("WASD MOVE   SHIFT SPRINT   CTRL CROUCH   SPACE JUMP   R RELOAD\nF USE   H MEDKIT   G GRENADE   B TRACK EXIT   Q / E ABILITIES   1 / 2 WEAPONS", 11, DIM, "mono", 1, true))
+	if OS.is_debug_build():
+		_content.add_child(_text("` DEV CONSOLE", 11, DIM, "mono", 1))
 
 # Fade to black, then hand over to the raid.
 func _deploy() -> void:
@@ -562,7 +592,14 @@ func _loadout() -> void:
 		if id != "":
 			remove = _link("UNEQUIP")
 			remove.pressed.connect(GameManager.unequip.bind(slot))
-		_row(SLOT_NAMES[slot], shown, Catalog.rarity_color(id) if id != "" else LINE, [remove], id == "" and slot != "secondary")
+		var shown_id := "sidearm" if slot == "secondary" and id.is_empty() else id
+		_row(SLOT_NAMES[slot], shown, Catalog.rarity_color(id) if id != "" else LINE, [remove], id == "" and slot != "secondary", "", shown_id)
+	var stats := GameManager.player_stats()
+	_fact("VITALS", "%d health  /  %d shield  /  %d pack slots" % [stats["health"], stats["shield"], stats["capacity"]])
+	_fact("HANDLING", "%d%% movement  /  %d%% reload time  /  %d%% noise range" % [
+		roundi(float(stats["speed"]) * 100.0), roundi(float(stats["reload"]) * 100.0),
+		roundi(float(stats["noise"]) * 100.0),
+	])
 	_content.add_child(_gap(22))
 
 	var salvage := 0
@@ -598,7 +635,7 @@ func _loadout() -> void:
 		var sell := _link("SELL  %s" % _money(Catalog.sell_price(id)))
 		sell.pressed.connect(GameManager.sell.bind(index))
 		var count: int = counts[id][0]
-		_row((it["kind"] as String).to_upper(), it["name"] + ("  × %d" % count if count > 1 else ""), Catalog.rarity_color(id), [equip, sell])
+		_row((it["kind"] as String).to_upper(), it["name"] + ("  × %d" % count if count > 1 else ""), Catalog.rarity_color(id), [equip, sell], false, "", id)
 
 func _trader() -> void:
 	_heading("TRADER", "Bought gear goes to your stash. Selling it back returns half.")
@@ -607,7 +644,7 @@ func _trader() -> void:
 		var buy := _link("BUY  %s" % _money(it["value"]))
 		buy.disabled = GameManager.credits < int(it["value"])
 		buy.pressed.connect(func() -> void: GameManager.buy(id))
-		_row((it["kind"] as String).to_upper(), it["name"], Catalog.rarity_color(id), [buy], false, it.get("desc", ""))
+		_row((it["kind"] as String).to_upper(), it["name"], Catalog.rarity_color(id), [buy], false, it.get("desc", ""), id)
 
 # Every weapon in the game, with what it does. Pick one to read its numbers;
 # the action depends on whether you own it.
@@ -619,6 +656,7 @@ func _armoury() -> void:
 	for id: String in Catalog.WEAPONS:
 		var b := Button.new()
 		b.text = Catalog.item_name(id).to_upper()
+		b.tooltip_text = _item_tooltip(id)
 		b.flat = true
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_override("font", UiKit.display(900))
@@ -638,9 +676,11 @@ func _armoury() -> void:
 	_content.add_child(_gap(10))
 
 	var id := _armoury_pick
-	var def: Dictionary = Catalog.WEAPONS[id]
+	var parts: Dictionary = GameManager.weapon_presets.get(id, {})
+	var def := Catalog.weapon_build(id, parts)
 	var it := Catalog.item(id)
 	_content.add_child(_text(it.get("desc", ""), 18, INK, "text", 0, true))
+	_attachment_controls(id, parts)
 	_content.add_child(_gap(8))
 	# Each bar is this weapon against the best in the catalog for that number.
 	var best := {"damage": 0.0, "rpm": 0.0, "range": 0.0, "mag": 0.0}
@@ -676,6 +716,38 @@ func _armoury() -> void:
 		_content.add_child(buy)
 		if buy.disabled:
 			_content.add_child(_text("NOT ENOUGH CREDITS", 12, CORAL.darkened(0.2), "mono", 2))
+
+func _attachment_controls(id: String, parts: Dictionary) -> void:
+	_content.add_child(_text("ATTACHMENTS", 13, INK, "mono-bold", 2))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_content.add_child(row)
+	for slot: String in Catalog.attachment_slots(id):
+		var column := VBoxContainer.new()
+		column.custom_minimum_size.x = 170
+		row.add_child(column)
+		column.add_child(_text(Catalog.ATTACHMENT_SLOTS[slot], 14, INK, "mono"))
+		var picker := OptionButton.new()
+		picker.custom_minimum_size.y = 36
+		picker.add_theme_font_override("font", UiKit.mono())
+		picker.add_item("Factory")
+		picker.set_item_metadata(0, "")
+		var options: Dictionary = Catalog.ATTACHMENTS[slot]
+		var selected: String = parts.get(slot, "")
+		for part_id: String in options:
+			var part: Dictionary = options[part_id]
+			var index := picker.item_count
+			picker.add_item(part["name"])
+			picker.set_item_metadata(index, part_id)
+			picker.get_popup().set_item_tooltip(index, part["desc"])
+			if selected == part_id:
+				picker.select(index)
+		column.add_child(picker)
+		var description: String = options[selected]["desc"] if not selected.is_empty() else "Factory configuration"
+		column.add_child(_text(description, 13, DIM, "text", 0, true))
+		picker.item_selected.connect(func(index: int) -> void:
+			if GameManager.set_attachment(id, slot, picker.get_item_metadata(index)):
+				_refresh.call_deferred())
 
 # A labelled bar: how this number compares with the best there is.
 func _stat(label: String, amount: float, value: String) -> void:
@@ -787,11 +859,18 @@ func _fact(label: String, value: String, color: Color = INK) -> void:
 
 # One line of a list: a rarity tick, a small tag, the name, an optional
 # description, actions on the right, and a hairline under it.
-func _row(tag: String, title: String, tick: Color, actions: Array, faint: bool = false, desc: String = "") -> void:
+func _item_tooltip(id: String) -> String:
+	var stats := Catalog.weapon_build(id, GameManager.weapon_presets.get(id, {})) if Catalog.WEAPONS.has(id) else {}
+	return UiKit.item_tooltip(id, null, stats)
+
+func _row(tag: String, title: String, tick: Color, actions: Array, faint: bool = false, desc: String = "", item_id: String = "") -> void:
 	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.tooltip_text = _item_tooltip(item_id)
 	row.add_theme_constant_override("separation", 14)
 	row.custom_minimum_size.y = 40
 	var mark := ColorRect.new()
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mark.color = tick
 	mark.custom_minimum_size = Vector2(5, 20)
 	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER

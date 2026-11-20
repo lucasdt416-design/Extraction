@@ -36,6 +36,22 @@ func _ready() -> void:
 	check("buy rifle", GameManager.buy("rifle") and GameManager.stash.has("rifle"))
 	GameManager.equip(GameManager.stash.find("rifle"))
 	check("equip rifle", GameManager.loadout["primary"] == "rifle")
+	check("attachment slots enforce compatibility",
+		not GameManager.set_attachment("sidearm", "stock", "stabilized")
+		and not GameManager.set_attachment("rifle", "magazine", "prism"))
+	check("armoury saves attachment choices",
+		GameManager.set_attachment("rifle", "magazine", "quick")
+		and GameManager.set_attachment("rifle", "stock", "stabilized")
+		and GameManager.set_attachment("rifle", "barrel", "precision")
+		and GameManager.set_attachment("rifle", "sight", "reflex")
+		and GameManager.set_attachment("sidearm", "sight", "prism"))
+	GameManager.load_profile()
+	check("attachment preset round trip", GameManager.weapon_presets.get("rifle", {}) ==
+		{"magazine": "quick", "stock": "stabilized", "barrel": "precision", "sight": "reflex"})
+	GameManager.select_contract("survey")
+	GameManager.load_profile()
+	check("contract selection survives a profile reload", GameManager.selected_contract == "survey")
+	GameManager.active_contract = GameManager.selected_contract
 	GameManager.in_raid = true
 	GameManager.backpack.assign(["medkit"])
 
@@ -44,12 +60,34 @@ func _ready() -> void:
 	await wait(1.0)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var player := raid.player
+	var track_input := InputEventAction.new()
+	track_input.action = "track_extract"
+	track_input.pressed = true
+	raid.hud._input(track_input)
+	check("exit tracking selects a waypoint", raid.hud.get("_tracked_exit") == 0)
+	for i in raid.extract_points.size():
+		raid.hud._input(track_input)
+	check("exit tracking cycles back to automatic markers", raid.hud.get("_tracked_exit") == -1)
 	var bot := Bot.new()
 	player.add_child(bot)
 	player.input_source = bot
 	var enemies := get_tree().get_nodes_in_group("enemy")
 	check("enemies spawned", enemies.size() >= 15, str(enemies.size()))
 	check("weapons", player.guns.size() == 2 and player.guns[0].id == "rifle")
+	var tuned := player.gun()
+	var factory := Gun.new("rifle")
+	check("deployed attachments compose without modifying factory stats",
+		tuned.mag == 22 and factory.mag == 28 and tuned.def["reload"] < factory.def["reload"]
+		and tuned.def["range"] > factory.def["range"] and tuned.def["falloff"][1] > factory.def["falloff"][1]
+		and tuned.def["recoil"] < factory.def["recoil"] and tuned.def["aim_speed"] < factory.def["aim_speed"]
+		and tuned.def["spread"] < factory.def["spread"] and tuned.def["sight"] == "reflex" and not tuned.has_scope())
+	check("issued sidearm brings its selected scope",
+		player.guns[1].has_scope() and player.guns[1].def["sight"] == "prism")
+	check("raid locks the armoury", not GameManager.set_attachment("sidearm", "sight", ""))
+	tuned.mag = 1
+	var ammo_before := tuned.mag + tuned.reserve
+	check("modified reload respects magazine capacity and conserves ammo",
+		tuned.start_reload(true) and tuned.mag == 22 and tuned.mag + tuned.reserve == ammo_before)
 
 	# Patrols actually move along the navmesh.
 	var before: Array[Vector3] = []
@@ -205,13 +243,7 @@ func _ready() -> void:
 	check("backpack medkit restores health over time", player.health > 50.0)
 	player.heal_left = 0.0
 
-	# Reinforcements arrive out of sight and head for the trouble.
-	var count_before := get_tree().get_nodes_in_group("enemy").size()
-	raid.set("_wave_cooldown", 0.0)
-	var sent := raid.send_reinforcements(player.global_position)
-	await wait(0.3)
-	check("reinforcements arrive", sent and get_tree().get_nodes_in_group("enemy").size() > count_before and Squad.all[-1].mode == Squad.Mode.SEARCH,
-		"%d -> %d" % [count_before, get_tree().get_nodes_in_group("enemy").size()])
+	await _check_aircraft(raid, player, bot)
 
 	# Container opens and spills pickups.
 	var container: LootContainer = null
@@ -226,6 +258,14 @@ func _ready() -> void:
 		if node is Pickup:
 			pickups += 1
 	check("container spills loot", container.opened and pickups >= 1, str(pickups))
+	check("opening a case advances the survey once", GameManager.contract_progress() == 1)
+	container.interact(player)
+	check("reopening a case cannot double count", GameManager.contract_progress() == 1)
+	for node in raid.level.get_children():
+		if node is LootContainer and not node.opened:
+			node.interact(player)
+			if GameManager.contract_progress() == 3:
+				break
 
 	# Every ability on every frame runs without error and starts its cooldown.
 	for id: String in Catalog.FRAMES:
@@ -250,12 +290,15 @@ func _ready() -> void:
 	check("grenade damages", player.health + player.shield < player.max_health + player.max_shield, "%.0f" % (player.health + player.shield))
 
 	# Extraction banks the backpack.
+	var credits_before := GameManager.credits
 	player.health = player.max_health
 	player.global_position = raid.extract_points[1].global_position + Vector3.UP * 0.1
 	await wait(8.5)
 	check("extraction ends raid", raid.over and GameManager.last_result.get("outcome", "") == "extracted", str(GameManager.last_result.get("outcome", "none")))
 	check("result screen shown", raid.hud.get("_overlay") != null)
 	check("loot banked in stash", GameManager.stash.has("fusion_cap"))
+	check("completed contract pays on extraction", GameManager.credits == credits_before + 300
+		and GameManager.last_result.get("contract", {}).get("paid") == 300 and GameManager.active_contract.is_empty())
 	# The SMG picked up mid-raid is the primary now, and extracting keeps it.
 	check("loadout kept", GameManager.loadout["primary"] == "smg")
 
@@ -272,8 +315,70 @@ func _ready() -> void:
 
 	# Death loses the kit.
 	GameManager.in_raid = true
-	GameManager.backpack.assign(["data_shard"])
+	GameManager.active_contract = "recovery"
+	GameManager.backpack.assign(["data_shard", "copper_spool", "coolant_cell"])
+	credits_before = GameManager.credits
 	GameManager.raid_failed("died", 10.0)
 	check("death clears loadout", GameManager.loadout["primary"] == "" and not GameManager.stash.has("data_shard"))
+	check("contract progress is forfeited on death", GameManager.credits == credits_before
+		and GameManager.last_result.get("contract", {}).get("paid") == 0)
 	print("SELFTEST %s (%d failed)" % ["OK" if _fails == 0 else "FAILED", _fails])
 	get_tree().quit(1 if _fails > 0 else 0)
+
+func _check_aircraft(raid: Raid, player: Player, bot: Bot) -> void:
+	# The aircraft reaches its station before the squad dismounts.
+	var count_before := get_tree().get_nodes_in_group("enemy").size()
+	raid.set("_wave_cooldown", 0.0)
+	var sent := raid.send_reinforcements(player.global_position)
+	var helicopter := get_tree().get_first_node_in_group("reinforcement_aircraft") as Node3D
+	check("armed helicopter approaches before spawning its squad",
+		sent and helicopter != null and helicopter.helicopter and not helicopter.lands
+		and helicopter.global_position.y > helicopter.station.y + 30.0
+		and get_tree().get_nodes_in_group("enemy").size() == count_before)
+	if helicopter != null:
+		helicopter.set("_age", 8.85)
+		await wait(2.45)
+		var squad := Squad.all[-1]
+		check("helicopter fast-ropes a squad that can fight",
+			get_tree().get_nodes_in_group("enemy").size() == count_before + 2
+			and squad.living().size() == 2 and squad.living()[1].is_physics_processing())
+		var cannons := get_tree().get_nodes_in_group("aircraft_weapon")
+		check("helicopter mounts two cannons", cannons.size() == 2)
+		if cannons.size() == 2:
+			var cannon := cannons[0] as Node3D
+			var thrower_position := player.global_position
+			var origin: Vector3 = cannon.global_position + cannon.global_basis.x * cannon.side * 3.0
+			var charge := Grenade.new()
+			raid.add_child(charge)
+			charge.launch_charge(origin, origin.direction_to(cannon.global_position), player)
+			await wait(0.35)
+			check("breach grenade disables one armored cannon", not cannon.is_in_group("aircraft_weapon")
+				and cannons[1].is_in_group("aircraft_weapon") and player.global_position.distance_to(thrower_position) < 3.0)
+		if squad.living().size() == 2:
+			var target := squad.living()[0]
+			var charge := Grenade.new()
+			raid.add_child(charge)
+			charge.launch_charge(target.global_position + Vector3.UP * 3.0, Vector3.DOWN, player)
+			await wait(0.95)
+			check("breach grenade kills infantry", target.is_dead)
+		helicopter.set("_age", 60.0)
+		await wait(0.1)
+		check("helicopter flies out and is removed", not is_instance_valid(helicopter))
+	raid.set("_wave_cooldown", 0.0)
+	count_before = get_tree().get_nodes_in_group("enemy").size()
+	sent = raid.send_reinforcements(player.global_position)
+	var dropship := get_tree().get_first_node_in_group("reinforcement_aircraft") as Node3D
+	check("dropship approaches unarmed", sent and dropship != null and not dropship.helicopter
+		and get_tree().get_nodes_in_group("aircraft_weapon").is_empty())
+	if dropship != null:
+		dropship.set("_age", 8.85)
+		await wait(2.85)
+		check("dropship lands and unloads infantry", dropship.lands
+			and is_equal_approx(dropship.global_position.y, dropship.station.y + 0.08)
+			and get_tree().get_nodes_in_group("enemy").size() == count_before + 4)
+		dropship.set("_age", 60.0)
+	await wait(0.1)
+	var grenades_before := player.grenades
+	bot.frame.grenade = true
+	await wait(0.1)
+	check("grenade input spends one issued charge", player.grenades == grenades_before - 1)

@@ -73,8 +73,71 @@ const WEAPONS: Dictionary = {
 	"arc": {"damage": 31.0, "rpm": 480.0, "mag": 24, "reload": 2.0, "spread": 1.4, "ads": 0.18, "pellets": 1,
 		"recoil": 1.35, "range": 220.0, "falloff": [38.0, 80.0], "auto": true, "ads_fov": 52.0, "length": 0.6, "noise": 27.0},
 }
+const ATTACHMENT_SLOTS := {
+	"magazine": "Magazine", "stock": "Stock", "barrel": "Barrel", "sight": "Sight",
+}
+
+const ATTACHMENTS := {
+	"magazine": {
+		"extended": {"name": "Extended", "desc": "+30% capacity, +15% reload time", "stats": {"mag": 1.3, "reload": 1.15}},
+		"quick": {"name": "Quick-change", "desc": "-20% capacity, -22% reload time", "stats": {"mag": 0.8, "reload": 0.78}},
+	},
+	"stock": {
+		"stabilized": {"name": "Stabilized", "desc": "-22% recoil, slower aim", "stats": {"recoil": 0.78, "aim_speed": 0.78}},
+		"lightweight": {"name": "Lightweight", "desc": "+25% aim speed, +12% recoil", "stats": {"aim_speed": 1.25, "recoil": 1.12}},
+	},
+	"barrel": {
+		"precision": {"name": "Precision", "desc": "+20% range, -12% spread, slower aim", "stats": {"range": 1.2, "spread": 0.88, "aim_speed": 0.88}},
+		"dampened": {"name": "Dampened", "desc": "-35% firing noise, -15% range", "stats": {"noise": 0.65, "range": 0.85}},
+	},
+	"sight": {
+		"reflex": {"name": "Reflex", "desc": "Open sight with a luminous dot", "fov": 62.0, "stats": {}},
+		"prism": {"name": "Prism", "desc": "Magnified chevron with range marks", "fov": 42.0, "stats": {}},
+	},
+}
+
+static func attachment_slots(weapon_id: String) -> Array:
+	match weapon_id:
+		"sidearm": return ["magazine", "sight"]
+		"shotgun": return ["stock", "barrel", "sight"]
+	return ATTACHMENT_SLOTS.keys() if WEAPONS.has(weapon_id) else []
+
+static func weapon_attachments(weapon_id: String, saved: Variant) -> Dictionary:
+	var valid := {}
+	if saved is Dictionary:
+		for slot: String in attachment_slots(weapon_id):
+			var part: Variant = saved.get(slot)
+			if part is String and ATTACHMENTS[slot].has(part):
+				valid[slot] = part
+	return valid
+
+static func weapon_build(weapon_id: String, parts: Dictionary) -> Dictionary:
+	var build: Dictionary = WEAPONS[weapon_id].duplicate()
+	build["aim_speed"] = 1.0
+	match weapon_id:
+		"dmr": build["sight"] = "scope"
+		"rifle", "arc", "smg": build["sight"] = "reflex"
+		_: build["sight"] = "standard"
+	for slot: String in parts:
+		var part: Dictionary = ATTACHMENTS[slot][parts[slot]]
+		for stat: String in part["stats"]:
+			build[stat] *= part["stats"][stat]
+		if slot == "sight":
+			build["sight"] = parts[slot]
+			build["ads_fov"] = part["fov"]
+	var reach := float(build["range"]) / float(WEAPONS[weapon_id]["range"])
+	build["falloff"] = [float(build["falloff"][0]) * reach, float(build["falloff"][1]) * reach]
+	build["mag"] = maxi(1, roundi(float(build["mag"])))
+	return build
+
 const MIN_FALLOFF: float = 0.45
 const HEADSHOT_MULT: float = 1.75
+
+const CONTRACTS := {
+	"recovery": {"name": "Salvage Recovery", "brief": "Extract with 3 salvage items in your backpack.", "unit": "salvage carried", "target": 3, "reward": 350},
+	"survey": {"name": "Field Survey", "brief": "Open 3 loot containers and extract.", "unit": "containers opened", "target": 3, "reward": 300},
+	"security": {"name": "Security Sweep", "brief": "Eliminate 4 hostiles and extract.", "unit": "hostiles eliminated", "target": 4, "reward": 450},
+}
 
 # Raid maps. One today; the Play page lists whatever is here, so a new map is a
 # new entry plus its level. `scene` is what GameManager loads.

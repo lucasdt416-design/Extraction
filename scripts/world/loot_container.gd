@@ -81,6 +81,7 @@ func interact(player: Player) -> void:
 	if opened:
 		return
 	opened = true
+	GameManager.register_container_search()
 	for part in _lit:
 		part.material_override = Mats.surface(Color(0.05, 0.05, 0.05), "plain", 0.5)
 	_glow.queue_free()

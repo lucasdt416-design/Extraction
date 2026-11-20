@@ -143,6 +143,28 @@ func _ready() -> void:
 
 # --- Tick --------------------------------------------------------------------
 
+func arrive_from_aircraft(from: Vector3, landing: Vector3, delay: float, hover: bool) -> void:
+	collision_layer = 0
+	global_position = from
+	visible = false
+	set_physics_process(false)
+	var motion := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	motion.tween_interval(delay)
+	motion.tween_callback(show)
+	var start := from
+	if hover:
+		start = Vector3(from.x, landing.y + 0.15, from.z)
+		motion.tween_property(self, "global_position", start, 0.95)
+	var stride := (landing - start) / 0.55
+	motion.tween_callback(func() -> void:
+		rotation.y = atan2(-stride.x, -stride.z)
+		velocity = stride)
+	motion.tween_property(self, "global_position", landing, 0.55)
+	motion.tween_callback(func() -> void:
+		velocity = Vector3.ZERO
+		collision_layer = Layers.ENEMY
+		set_physics_process(true))
+
 func _physics_process(delta: float) -> void:
 	if is_dead:
 		return
@@ -210,7 +232,7 @@ func _can_see_player() -> bool:
 
 # Called on the whole "enemy" group for every noise the player makes.
 func hear(position: Vector3, radius: float, _source: Node) -> void:
-	if is_dead:
+	if is_dead or not is_physics_processing():
 		return
 	var distance := global_position.distance_to(position)
 	if distance > radius:
