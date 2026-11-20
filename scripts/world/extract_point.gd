@@ -44,7 +44,8 @@ func _ready() -> void:
 	body_exited.connect(func(body: Node3D) -> void:
 		if body == occupant:
 			occupant = null
-			progress = 0.0)
+			progress = 0.0
+			_tick_at = 0)
 
 	var teal := Level.TEAL.lightened(0.25)
 	var pad := CylinderMesh.new()
@@ -111,7 +112,7 @@ func status() -> String:
 	if drone_scene == null or eta < 0.0:
 		return ""
 	if eta > 0.0:
-		return "DRONE INBOUND   %d" % ceili(eta)
+		return "DRONE INBOUND   %dS" % ceili(eta)
 	return "DRONE DOWN"
 
 func _fly(delta: float) -> void:

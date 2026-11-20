@@ -207,17 +207,23 @@ func _process(delta: float) -> void:
 	_pack.text = ""
 
 	var prompt := ""
+	var nearby_drone := ""
+	var drone_distance := 80.0
 	for point in _raid.extract_points:
 		var called: String = point.status()
-		if called != "" and (point.occupant != null or point.global_position.distance_to(_player.global_position) < 80.0):
-			prompt = called
+		var distance := point.global_position.distance_to(_player.global_position)
+		if called != "" and distance < drone_distance:
+			nearby_drone = called
+			drone_distance = distance
 		if point.occupant != null and (point.drone_scene == null or point.eta == 0.0):
-			prompt = "EXTRACTING   %.1f" % maxf(point.hold_time - point.progress, 0.0)
-		elif point.occupant != null and point.drone_scene != null and point.eta < 0.0:
-			prompt = "CALLING DRONE"
+			prompt = "HOLD INSIDE PAD   %.1fS" % maxf(point.hold_time - point.progress, 0.0)
+			break
+		if point.occupant != null and point.drone_scene != null:
+			prompt = "CALLING DRONE" if point.eta < 0.0 else called + "   /   RETURN TO PAD TO BOARD"
+			break
 	if prompt == "" and _player.interact_label != "":
 		prompt = "[ F ]   " + _player.interact_label.to_upper()
-	_prompt.text = prompt
+	_prompt.text = nearby_drone if prompt.is_empty() else prompt
 	_canvas.queue_redraw()
 
 func _ability_line(key: String, ability_name: String, cooldown: float) -> String:
@@ -323,12 +329,14 @@ func _draw_overlay() -> void:
 
 	_draw_map(size)
 
-	# Standing in an extraction zone: a ring round the crosshair fills as the hold completes.
+	# Teal tracks the drone's approach. Acid tracks the boarding hold.
 	for point in _raid.extract_points:
 		if point.occupant != null:
-			var done: float = clampf(point.progress / point.hold_time, 0.0, 1.0)
+			var inbound: bool = point.drone_scene != null and point.eta > 0.0
+			var done: float = 1.0 - point.eta / ExtractPoint.DRONE_FLIGHT if inbound else point.progress / point.hold_time
 			_canvas.draw_arc(center, 56.0, 0.0, TAU, 64, Color(1, 1, 1, 0.16), 5.0, true)
-			_canvas.draw_arc(center, 56.0, -PI * 0.5, -PI * 0.5 + TAU * done, 64, UiKit.ACID, 5.0, true)
+			if done > 0.0:
+				_canvas.draw_arc(center, 56.0, -PI * 0.5, -PI * 0.5 + TAU * minf(done, 1.0), 64, TEAL if inbound else UiKit.ACID, 5.0, true)
 
 	if _alert_left > 0.0:
 		var show := clampf(_alert_left, 0.0, 1.0) * (0.65 + 0.35 * sin(Time.get_ticks_msec() * 0.012))
